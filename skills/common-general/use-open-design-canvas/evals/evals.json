@@ -1,0 +1,57 @@
+{
+  "skill_name": "use-open-deisng-canvas",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Plan only; do not call tools. Polish http://localhost:5176/admin/v2/profile-management using Open Design canvas and the exact plugin id design-system-shadcn. The shell/header are out of scope. Login credentials are admin@example.com / secret-password. State the MCP call sequence and arguments policy.",
+      "expected_output": "Keeps credentials outside Open Design prompts, grounds the live UI first, uses design-system-shadcn only as start_run.plugin, omits agent/model overrides, creates or resolves one project, then polls and retrieves the explicit artifact.",
+      "expectations": [
+        "Credentials remain outside Open Design prompt and plugin inputs",
+        "design-system-shadcn is used only as start_run.plugin",
+        "Agent and model overrides are omitted",
+        "Evidence is grounded before generation",
+        "Terminal success is followed by get_artifact with explicit project ID"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Plan only; do not call tools. Refine the active Open Design profile-editor artifact in place. get_run has shown running for 12 minutes and file mtimes have not changed. Explain the next actions.",
+      "expected_output": "Reuses the explicit active project, keeps the same artifact/project, polls every 30-60 seconds or reads eventsLogPath, does not cancel or write the file directly, and retrieves/verifies the artifact after terminal success.",
+      "expectations": [
+        "Existing explicit project and artifact are reused",
+        "get_run polling remains 30-60 seconds or eventsLogPath is consulted",
+        "Run is not canceled due to unchanged mtimes",
+        "Artifact is not directly written or edited",
+        "Terminal success is followed by explicit artifact retrieval and verification"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Plan only; do not call tools. Inspect the current Open Design canvas and explain its structure. Make no design changes.",
+      "expected_output": "Uses get_active_context then get_artifact with explicit project ID, optionally search_files/get_file for narrow follow-up, and does not create a project or start a run.",
+      "expectations": [
+        "Active context is resolved first",
+        "get_artifact uses explicit project ID",
+        "search_files and get_file are only optional narrow follow-ups",
+        "No project is created",
+        "No run is started"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Plan only; do not call tools. Refine an existing Open Design project named Profile Editor, but get_active_context reports no active project because its context expired. Explain how to resolve the project without creating a duplicate.",
+      "expected_output": "Calls list_projects({}) once, resolves and verifies the exact existing project ID, asks the user if multiple projects match, and calls start_run with that project ID for refinement.",
+      "expectations": [
+        "list_projects({}) is called once after inactive context",
+        "An exact existing project ID is resolved",
+        "Ambiguous matches are confirmed with the user",
+        "No duplicate project is created",
+        "Refinement uses start_run with the resolved project"
+      ],
+      "files": []
+    }
+  ]
+}
