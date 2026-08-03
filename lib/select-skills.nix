@@ -21,11 +21,17 @@
     )
   ];
   commonGroups = profileGroups groups.commonGeneral groups.commonPersonal groups.commonWork;
+  harnessGroupsByName = {
+    "claude-code" = profileGroups groups.claudeCodeGeneral groups.claudeCodePersonal groups.claudeCodeWork;
+    codex = profileGroups groups.codexGeneral groups.codexPersonal groups.codexWork;
+    factory = profileGroups groups.factoryGeneral groups.factoryPersonal groups.factoryWork;
+    omp = profileGroups groups.ompGeneral groups.ompPersonal groups.ompWork;
+    opencode = profileGroups groups.opencodeGeneral groups.opencodePersonal groups.opencodeWork;
+    pi = profileGroups groups.piGeneral groups.piPersonal groups.piWork;
+  };
   harnessGroups =
-    if harness == "claude-code"
-    then profileGroups groups.claudeCodeGeneral groups.claudeCodePersonal groups.claudeCodeWork
-    else if harness == "pi"
-    then profileGroups groups.piGeneral groups.piPersonal groups.piWork
+    if harness != null && builtins.hasAttr harness harnessGroupsByName
+    then builtins.getAttr harness harnessGroupsByName
     else [];
   duplicateNamesFor = selectedGroups: let
     selectedNames = builtins.concatLists (map builtins.attrNames selectedGroups);
@@ -48,8 +54,8 @@ in
   then throw "agent-skills.skillsFor: missing required argument: profile"
   else if profile != "personal" && profile != "work"
   then throw ''agent-skills.skillsFor: profile must be "personal" or "work"''
-  else if harness != null && harness != "claude-code" && harness != "pi"
-  then throw ''agent-skills.skillsFor: harness must be null, "claude-code", or "pi"''
+  else if harness != null && !(builtins.hasAttr harness harnessGroupsByName)
+  then throw ''agent-skills.skillsFor: harness must be null or one of: "${builtins.concatStringsSep "\", \"" (builtins.attrNames harnessGroupsByName)}"''
   else if commonDuplicateNames != []
   then throw "agent-skills.skillsFor: duplicate common skill names: ${builtins.concatStringsSep ", " commonDuplicateNames}"
   else if harnessDuplicateNames != []

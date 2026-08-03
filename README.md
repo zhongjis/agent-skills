@@ -18,6 +18,18 @@ skills/<category>/<skill>/SKILL.md
 | `claude-code-general` | 1 |
 | `claude-code-personal` | 0 |
 | `claude-code-work` | 0 |
+| `codex-general` | 0 |
+| `codex-personal` | 0 |
+| `codex-work` | 0 |
+| `factory-general` | 0 |
+| `factory-personal` | 0 |
+| `factory-work` | 0 |
+| `omp-general` | 0 |
+| `omp-personal` | 0 |
+| `omp-work` | 0 |
+| `opencode-general` | 0 |
+| `opencode-personal` | 0 |
+| `opencode-work` | 0 |
 | `pi-general` | 1 |
 | `pi-personal` | 0 |
 | `pi-work` | 0 |
@@ -98,7 +110,7 @@ programs.pi.skills = inputs.agent-skills.lib.skillsFor {
 };
 ```
 
-`profile` must be `"personal"` or `"work"`. Omit `harness` for common skills. Supported harness values are `"claude-code"` and `"pi"`. Harness leaves override common leaves with the same name.
+`profile` must be `"personal"` or `"work"`. Omit `harness` for common skills. Supported harness values are `"claude-code"`, `"codex"`, `"factory"`, `"omp"`, `"opencode"`, and `"pi"`. Harness leaves override common leaves with the same name.
 
 ## Maintenance
 
