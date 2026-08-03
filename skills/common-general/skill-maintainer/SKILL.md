@@ -10,15 +10,15 @@ description: "Maintain AI agent skills sourced from upstream repositories — ad
 Before performing any operation, detect the environment:
 
 ```bash
-# Check if this is a Nix config repo with Home Manager skill infrastructure
-if [ -f "flake.nix" ] && [ -d "modules/home-manager/features/ai-tools" ]; then
-  echo "nix-config-repo"
+# Check if this is the canonical agent-skills repo
+if [ -f "flake.nix" ] && [ -d "skills" ] && [ -f "lib/select-skills.nix" ]; then
+  echo "agent-skills-repo"
 else
   echo "generic-project"
 fi
 ```
 
-- **Nix config repo detected** → Offer Nix-managed skill paths as an install target
+- **Agent skills repo detected** → Offer canonical profile and harness paths as an install target
 - **Generic project** → Offer project-level and tool-specific paths
 
 ## Two Management Models
@@ -26,20 +26,23 @@ fi
 Every skill this workflow touches falls into one of two models. Name the model in later sections rather than restating its rules.
 
 - **CLI-managed** — project-level `.agents/skills/`. `npx skills` owns the full lifecycle (add, update, remove, list) through its project metadata and lockfile. Pass the original source to the CLI; never clone, copy, rewrite, genericize, adapt, or add `upstream` frontmatter yourself.
-- **manual-managed** — Nix-managed Home Manager paths and tool-specific directories. You own the lifecycle: parse the URL, clone to a reusable `/tmp` cache, copy the skill directory, set the `upstream` frontmatter, and genericize vendor-specific content.
+- **manual-managed** — Canonical repository paths and tool-specific directories. You own the lifecycle: parse the URL, clone to a reusable `/tmp` cache, copy the skill directory, set the `upstream` frontmatter, and genericize vendor-specific content.
 
 ## Install Target Selection
 
 **Always ask the user where to install.** Present applicable options based on context:
 
-### If Nix Config Repo Detected
+### If Agent Skills Repo Detected
 
 Where would you like to install this skill?
 
-1. **This Nix config** — System-wide via Home Manager (persists across rebuilds)
-   - `modules/home-manager/features/ai-tools/common/skills/general/` (all systems)
-   - `modules/home-manager/features/ai-tools/common/skills/work/` (work profile)
-   - `modules/home-manager/features/ai-tools/common/skills/personal/` (personal profile)
+1. **Canonical catalog** — Distributed through Skills CLI and Nix
+   - `skills/common-general/` (all harnesses and profiles)
+   - `skills/common-work/` (work profile)
+   - `skills/common-personal/` (personal profile)
+   - `skills/<harness>-general/` (one harness, all profiles)
+   - `skills/<harness>-work/` (one harness, work profile)
+   - `skills/<harness>-personal/` (one harness, personal profile)
 2. **Project-level** — `.agents/skills/` (this repo only, managed by `npx skills`)
 3. **Specific coding tool** — directly into a tool's config directory
 
@@ -107,8 +110,8 @@ upstream: "https://github.com/org/repo/tree/main/skills/skill-name"
 Adapt the search path to the manual-managed location. CLI-managed skills are not found this way — use `npx skills list`.
 
 ```bash
-# In a Nix config repo — search Nix-managed skills
-grep -rl '^upstream:' modules/home-manager/features/ai-tools/common/skills/ --include="SKILL.md"
+# In the canonical agent-skills repo
+grep -rl '^upstream:' skills/ --include="SKILL.md"
 
 # In a tool-specific directory
 grep -rl '^upstream:' ~/.config/opencode/skills/ --include="SKILL.md"
