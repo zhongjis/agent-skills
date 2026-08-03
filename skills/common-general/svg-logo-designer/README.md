@@ -126,10 +126,10 @@ For each concept:
 In this repo, vendor skill at:
 
 ```
-modules/home-manager/features/ai-tools/common/skills/general/svg-logo-designer/
+skills/common-general/svg-logo-designer/
 ```
 
-Skill auto-discovers from that directory on Home Manager rebuilds.
+Skills CLI and the Nix selector discover the skill from that directory.
 
 ## Example Usage
 

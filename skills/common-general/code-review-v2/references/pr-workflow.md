@@ -85,7 +85,7 @@ The review posts under the human's own GitHub identity and carries a verdict in 
 
 1. **Visible credit line** (non-suppressible) — names the skill and its multi-axis method, so the review reads as a rigorous pass rather than ad-hoc AI. One line, e.g.:
 
-   > 🔍 Reviewed with **[code-review-v2](https://github.com/zhongjis/nix-config/tree/main/modules/home-manager/features/ai-tools/common/skills/general/code-review-v2)** — multi-axis AI review (correctness · standards · regression · security), each axis run in isolation so none masks another. Sharp eyes, no ego; a human still owns the merge.
+   > 🔍 Reviewed with **[code-review-v2](https://github.com/zhongjis/agent-skills/tree/main/skills/common-general/code-review-v2)** — multi-axis AI review (correctness · standards · regression · security), each axis run in isolation so none masks another. Sharp eyes, no ego; a human still owns the merge.
 
 2. **Invisible self-ID marker** — an HTML comment on its own line, so a later run can recognize this review as its own (see §2b):
 
