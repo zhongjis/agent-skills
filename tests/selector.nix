@@ -102,6 +102,7 @@ let
   piPersonalNames = builtins.sort builtins.lessThan (personalNames ++ ["pi-jsonl-logs"]);
   piWorkNames = builtins.sort builtins.lessThan (workNames ++ ["pi-jsonl-logs"]);
   claudePersonalNames = builtins.sort builtins.lessThan (personalNames ++ ["skill-creator"]);
+  emptyHarnesses = ["codex" "factory" "omp" "opencode"];
 
   namesFor = args: builtins.attrNames (lib.skillsFor args);
   pathsAreValid = skills:
@@ -128,37 +129,84 @@ let
     profile = "work";
     harness = "pi";
   };
+  emptyHarnessSelections = builtins.concatLists (map (harness: [
+      {
+        expected = personalNames;
+        skills = lib.skillsFor {
+          profile = "personal";
+          inherit harness;
+        };
+      }
+      {
+        expected = workNames;
+        skills = lib.skillsFor {
+          profile = "work";
+          inherit harness;
+        };
+      }
+    ])
+    emptyHarnesses);
+  emptyHarnessGroups = {
+    codexGeneral = {};
+    codexPersonal = {};
+    codexWork = {};
+    factoryGeneral = {};
+    factoryPersonal = {};
+    factoryWork = {};
+    ompGeneral = {};
+    ompPersonal = {};
+    ompWork = {};
+    opencodeGeneral = {};
+    opencodePersonal = {};
+    opencodeWork = {};
+  };
 
   duplicateWithinCommonSelector = selectSkills {
-    groups = {
-      commonGeneral = {duplicate = ../skills/common-general/caveman;};
-      commonPersonal = {duplicate = ../skills/common-personal/svelte;};
-      commonWork = {};
-      claudeCodeGeneral = {};
-      claudeCodePersonal = {};
-      claudeCodeWork = {};
-      piGeneral = {};
-      piPersonal = {};
-      piWork = {};
-    };
+    groups =
+      {
+        commonGeneral = {duplicate = ../skills/common-general/caveman;};
+        commonPersonal = {duplicate = ../skills/common-personal/svelte;};
+        commonWork = {};
+        claudeCodeGeneral = {};
+        claudeCodePersonal = {};
+        claudeCodeWork = {};
+        piGeneral = {};
+        piPersonal = {};
+        piWork = {};
+      }
+      // emptyHarnessGroups;
   };
   harnessOverrideSelector = selectSkills {
-    groups = {
-      commonGeneral = {collision = ../skills/common-general/caveman;};
-      commonPersonal = {};
-      commonWork = {};
-      claudeCodeGeneral = {collision = ../skills/claude-code-general/skill-creator;};
-      claudeCodePersonal = {};
-      claudeCodeWork = {};
-      piGeneral = {};
-      piPersonal = {};
-      piWork = {};
-    };
+    groups =
+      {
+        commonGeneral = {collision = ../skills/common-general/caveman;};
+        commonPersonal = {};
+        commonWork = {};
+        claudeCodeGeneral = {collision = ../skills/claude-code-general/skill-creator;};
+        claudeCodePersonal = {};
+        claudeCodeWork = {};
+        piGeneral = {};
+        piPersonal = {};
+        piWork = {};
+      }
+      // emptyHarnessGroups
+      // {
+        codexGeneral = {codex-only = ../skills/common-general/caveman;};
+        factoryGeneral = {factory-only = ../skills/common-general/caveman;};
+        ompGeneral = {omp-only = ../skills/common-general/caveman;};
+        opencodeGeneral = {opencode-only = ../skills/common-general/caveman;};
+      };
   };
   harnessOverride = harnessOverrideSelector {
     profile = "personal";
     harness = "claude-code";
   };
+  harnessRoutesAreValid = builtins.all (harness:
+    builtins.hasAttr "${harness}-only" (harnessOverrideSelector {
+      profile = "personal";
+      inherit harness;
+    }))
+  emptyHarnesses;
 in
   assert namesFor {profile = "personal";} == personalNames;
   assert namesFor {profile = "work";} == workNames;
@@ -190,10 +238,13 @@ in
   assert pathsAreValid claudePersonal;
   assert pathsAreValid piPersonal;
   assert pathsAreValid piWork;
+  assert builtins.all (selection: builtins.attrNames selection.skills == selection.expected) emptyHarnessSelections;
+  assert builtins.all (selection: pathsAreValid selection.skills) emptyHarnessSelections;
+  assert harnessRoutesAreValid;
   assert fails (lib.skillsFor {profile = "general";});
   assert fails (lib.skillsFor {
     profile = "personal";
-    harness = "opencode";
+    harness = "unknown";
   });
   assert fails (lib.skillsFor {});
   assert fails (lib.skillsFor {
