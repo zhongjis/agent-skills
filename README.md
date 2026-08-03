@@ -1,132 +1,116 @@
 # agent-skills
 
-Small, public-safe Skills CLI proof repo. Six native skills cover shared/common use and Pi-specific use across `general`, `personal`, and `work` categories.
+Canonical, public-safe agent skills for Nix and non-Nix consumers.
 
-## Skill matrix
+## Layout
 
-| Category | Skill | Purpose |
-| --- | --- | --- |
-| common-general | `poc-common-general` | Turn a request into three concise next actions. |
-| common-personal | `poc-common-personal` | Turn a side-project idea into a privacy-safe checklist. |
-| common-work | `poc-common-work` | Draft a vendor-neutral handoff with status, risks, and next step. |
-| pi-general | `poc-pi-general` | Summarize a Pi session as goal, progress, and next action. |
-| pi-personal | `poc-pi-personal` | Sort personal Pi notes into keep, drop, and follow-up. |
-| pi-work | `poc-pi-work` | Prepare a generic Pi work-session handoff. |
+Each selectable leaf follows the Skills CLI layout:
 
-Skills live in native `skills/<category>/<skill>/SKILL.md` leaves. Category directories are ordinary containers, so discovery needs no `--full-depth` compatibility flag.
-
-## Selection contract
-
-`profile` is required and must be `personal` or `work`. Common selection always includes `poc-common-general` plus the matching common profile skill. Omit `harness` (or pass `null`) for common-only results. Set `harness = "pi"` to add `poc-pi-general` plus the matching Pi profile skill. The API returns skill directory paths, not `SKILL.md` paths.
-
-This repository contains generic, public-safe instructions only. Keep private, work-internal, secret, host, and credential material outside this public repo.
-
-## Maintainer workflow
-
-Use the installed `skills` binary first; use literal `npx skills` when it is unavailable.
-
-Initialize a skill:
-
-```sh
-skills init skill-name
-npx skills init skill-name
+```text
+skills/<category>/<skill>/SKILL.md
 ```
 
-Discover this source tree locally (no install):
+| Category | Selectable skills |
+| --- | ---: |
+| `common-general` | 77 |
+| `common-personal` | 4 |
+| `common-work` | 4 |
+| `claude-code-general` | 1 |
+| `claude-code-personal` | 0 |
+| `claude-code-work` | 0 |
+| `pi-general` | 1 |
+| `pi-personal` | 0 |
+| `pi-work` | 0 |
+
+The source contains 87 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
+
+Keep private, work-internal, secret, host, and credential material outside this public repository.
+
+## Skills CLI
+
+Use the installed `skills` binary first. Use literal `npx skills` when the binary is unavailable.
+
+List every discoverable skill:
 
 ```sh
 skills add . --list
 npx skills add . --list
 ```
 
-Validate CLI availability:
+Initialize a new leaf, then move it into the correct category:
 
 ```sh
-skills --version
-npx skills --version
+skills init skill-name
+npx skills init skill-name
 ```
 
-Keep each fixture to one meaningful `SKILL.md`; do not add profile wrappers or generated profile views.
+Non-Nix users choose skills explicitly. `--agent` selects the destination harness; it does not select a profile.
 
-## Non-Nix consumption
-
-Examples below target the published repository `zhongjis/agent-skills`. Run the bare command when `skills` is installed, or the paired literal `npx skills` command.
-
-Claude Code common-only personal set (two skills):
+Personal example:
 
 ```sh
-skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-personal --agent claude-code --copy -y
-npx skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-personal --agent claude-code --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill svelte --agent claude-code --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill svelte --agent claude-code --copy -y
 ```
 
-Claude Code common-only work set (two skills):
+Work Pi example:
 
 ```sh
-skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-work --agent claude-code --copy -y
-npx skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-work --agent claude-code --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skill pi-jsonl-logs --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skill pi-jsonl-logs --agent pi --copy -y
 ```
 
-Pi personal set (exactly four skills):
+Use explicit `--skill` names for profile selection. `--all` installs personal and work leaves together.
 
-```sh
-skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-personal --skill poc-pi-general --skill poc-pi-personal --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-personal --skill poc-pi-general --skill poc-pi-personal --agent pi --copy -y
-```
+With `--copy`, a harness projection is a snapshot. `skills update -p -y` refreshes canonical `.agents` content but does not refresh copied harness leaves. Re-run the explicit `skills add ... --copy` command to update that projection.
 
-Pi work set (exactly four skills):
+## Nix selection
 
-```sh
-skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-work --skill poc-pi-general --skill poc-pi-work --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill poc-common-general --skill poc-common-work --skill poc-pi-general --skill poc-pi-work --agent pi --copy -y
-```
-
-Project lifecycle commands (replace names with the explicit set being managed):
-
-```sh
-skills list --agent pi
-npx skills list --agent pi
-skills update -p -y
-npx skills update -p -y
-skills remove poc-common-general poc-common-personal poc-pi-general poc-pi-personal --agent pi -y
-npx skills remove poc-common-general poc-common-personal poc-pi-general poc-pi-personal --agent pi -y
-```
-
-`--agent` chooses the destination harness; it does not select a profile. Profile users must choose explicit `--skill` names. Never use `--all` for profile selection: it installs every discovered skill.
-
-With `--copy`, the Pi projection is a copy-snapshot. `skills update -p -y` updates shared canonical `.agents` content but does not refresh copied `.pi` leaves; re-run the explicit `skills add ... --agent pi --copy` command to refresh that projection. Likewise, `skills remove ... --agent pi` removes the Pi projection while retaining shared canonical content.
-
-## Direct Nix consumption
-
-The flake has no Home Manager module. Its pure `lib.skillsFor` function accepts a profile and optional harness, returning `{ skill-name = skill-directory-path; }`.
-
-Add the public flake input:
+The flake exports a pure `lib.skillsFor` function. It returns `{ skill-name = skill-directory-path; }`; it does not install Home Manager configuration.
 
 ```nix
 inputs.agent-skills.url = "github:zhongjis/agent-skills";
 ```
 
-Common-only Claude Code work selection (expected names: `poc-common-general`, `poc-common-work`):
+Common personal skills:
 
 ```nix
-programs.claude-code.skills = inputs.agent-skills.lib.skillsFor { profile = "work"; };
+programs.codex.skills = inputs.agent-skills.lib.skillsFor {
+  profile = "personal";
+};
 ```
 
-Pi work selection (expected names: `poc-common-general`, `poc-common-work`, `poc-pi-general`, `poc-pi-work`):
+Claude Code work skills, including Claude-specific overrides:
 
 ```nix
-programs.pi.skills = inputs.agent-skills.lib.skillsFor { profile = "work"; harness = "pi"; };
+programs.claude-code.skills = inputs.agent-skills.lib.skillsFor {
+  profile = "work";
+  harness = "claude-code";
+};
 ```
 
-These calls select directory paths through a pure function; they are not a Home Manager module and do not install anything by themselves.
+Pi work skills:
 
-## Contributor verification
+```nix
+programs.pi.skills = inputs.agent-skills.lib.skillsFor {
+  profile = "work";
+  harness = "pi";
+};
+```
 
-Run from a checkout:
+`profile` must be `"personal"` or `"work"`. Omit `harness` for common skills. Supported harness values are `"claude-code"` and `"pi"`. Harness leaves override common leaves with the same name.
+
+## Maintenance
+
+Preserve each skill directory as one unit, including scripts, references, licenses, and assets. Keep existing `upstream` and `adaptedFrom` frontmatter when moving or updating a leaf.
+
+Run:
 
 ```sh
-nix flake check
+nix flake check path:.
 nix eval --file tests/selector.nix
 bash tests/skills-cli.sh
+SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
 ```
 
-Lifecycle QA uses the local source tree before a push. The `zhongjis/agent-skills` commands above are remote-release examples; do not describe them as locally verified until this repository is published and fetched remotely.
+The CLI test uses the installed `skills` command when available and falls back to `npx skills`. Set `SKILLS_CLI_FORCE_NPX=true` to exercise the fallback lifecycle even when `skills` is installed. The test verifies exact discovery, explicit installs, support-file copies, updates, removals, cleanup, and source-tree immutability.

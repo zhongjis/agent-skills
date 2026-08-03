@@ -47,7 +47,7 @@ installed_files() {
     return
   fi
 
-  find "$skillsDir" -type f -print \
+  find "$skillsDir" -type f -name SKILL.md -print \
     | sed "s#^$tempDir/##" \
     | LC_ALL=C sort
 }
@@ -91,7 +91,7 @@ expected_canonical_files() {
 }
 
 json_skill_names() {
-  sed -nE 's/.*"name"[[:space:]]*:[[:space:]]*"(poc-(common|pi)-(general|personal|work))".*/\1/p' \
+  sed -nE 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
     | LC_ALL=C sort
 }
 
@@ -128,6 +128,8 @@ run_profile() {
   expected="$(expected_files "${profileSkills[@]}")"
   actual="$(installed_files)"
   assert_lines_equal "$profile installed file set" "$actual" "$expected"
+  [[ -f "$tempDir/.pi/skills/pi-jsonl-logs/scripts/pi-session-overview.sh" ]] \
+    || fail "$profile install omitted Pi skill support files"
   [[ ! -e "$tempDir/.pi/skills/$oppositeCommon" ]] \
     || fail "$profile installed opposite common profile skill"
   [[ ! -e "$tempDir/.pi/skills/$oppositePi" ]] \
@@ -201,6 +203,10 @@ run_profile() {
   "${cli[@]}" remove "${profileSkills[@]}" --agent pi -y
   actual="$(installed_files)"
   assert_lines_equal "$profile Pi leaves after CLI removal" "$actual" ""
+  for skill in "${profileSkills[@]}"; do
+    [[ ! -d "$tempDir/.pi/skills/$skill" ]] \
+      || fail "$profile Pi skill directory remained after removal: $skill"
+  done
   actual="$(canonical_installed_files)"
   expected="$(expected_canonical_files "${profileSkills[@]}")"
   assert_lines_equal "$profile canonical leaves retained after CLI removal" "$actual" "$expected"
@@ -224,7 +230,8 @@ trap cleanup EXIT
 trap handle_signal HUP INT TERM
 printf 'temp project: %s\n' "$tempDir"
 
-if command -v skills >/dev/null 2>&1; then
+if [[ "${SKILLS_CLI_FORCE_NPX:-false}" != true ]] \
+  && command -v skills >/dev/null 2>&1; then
   cli=(skills)
 else
   cli=(npx skills)
@@ -244,42 +251,124 @@ printf 'resolved version: '
 "${cli[@]}" --version
 
 allSkills=(
-  poc-common-general
-  poc-common-personal
-  poc-common-work
-  poc-pi-general
-  poc-pi-personal
-  poc-pi-work
+  address-comments
+  agent-browser
+  agent-readiness
+  agentation
+  agents-md
+  ast-grep
+  before-and-after
+  biome-js
+  bun
+  canvas-design
+  caveman
+  code-review
+  code-review-v2
+  codebase-design
+  codebase-search
+  complexity
+  database-migration
+  database-schema-design
+  diagnosing-bugs
+  docker
+  docx
+  domain-modeling
+  enterprise-scala
+  fd
+  find-skills
+  gh
+  git-master
+  github-actions
+  github-pr-management
+  grill-with-docs
+  grilling
+  handoff
+  html-diagram
+  huashu-design
+  huashu-nuwa
+  improve-codebase-architecture
+  jq
+  jujutsu
+  kubectl
+  last30days
+  mcp-builder
+  mysql-best-practices
+  neat-freak
+  nix
+  obsidian-cli
+  pdf
+  pi-jsonl-logs
+  pnpm
+  podman
+  postgresql-table-design
+  pptx
+  prompt-engineering
+  prototype
+  python
+  react-best-practices
+  recharts-patterns
+  rg
+  setup-matt-pocock-skills
+  setup-repo-docs
+  shell-expert
+  skill-creator
+  skill-maintainer
+  splunk
+  sql-code-review
+  sql-optimization-patterns
+  supabase-postgres-best-practices
+  svg-logo-designer
+  svelte
+  sveltekit
+  tdd
+  teach
+  to-spec
+  to-tickets
+  triage
+  typescript-best-practices
+  use-open-design-canvas
+  uv
+  vite
+  vitepress
+  vitest
+  webapp-testing
+  writing-clearly-and-concisely
+  writing-great-skills
+  xlsx
+  yq
+  yt-dlp
+  zoom-out
 )
 personalSkills=(
-  poc-common-general
-  poc-common-personal
-  poc-pi-general
-  poc-pi-personal
+  caveman
+  pi-jsonl-logs
+  svelte
 )
 workSkills=(
-  poc-common-general
-  poc-common-work
-  poc-pi-general
-  poc-pi-work
+  caveman
+  enterprise-scala
+  pi-jsonl-logs
 )
 
 sourceList="$("${cli[@]}" add "$repoRoot" --list)"
 printf 'source discovery:\n%s\n' "$sourceList"
 sourceNames="$(printf '%s\n' "$sourceList" \
-  | sed -nE 's/^[^[:alnum:]]*(poc-(common|pi)-(general|personal|work))[[:space:]]*$/\1/p' \
+  | sed -nE 's/^│    ([[:alnum:]][[:alnum:]-]*)[[:space:]]*$/\1/p' \
   | LC_ALL=C sort)"
 expectedSourceNames="$(printf '%s\n' "${allSkills[@]}" | LC_ALL=C sort)"
-assert_lines_equal "source discovery exact six unique skills" \
+assert_lines_equal "source discovery exact 87 unique skills" \
   "$sourceNames" "$expectedSourceNames"
-printf 'source exact-six: yes\n'
+printf 'source exact-87: yes\n'
 
 git -C "$tempDir" init --quiet
 cd -- "$tempDir"
 
 updateSource="$tempDir/source.git"
 mkdir -p "$updateSource/skills"
-cp -R "$repoRoot/skills/." "$updateSource/skills/"
+cp -R "$repoRoot/skills/common-general/caveman" "$updateSource/skills/"
+cp -R "$repoRoot/skills/common-personal/svelte" "$updateSource/skills/"
+cp -R "$repoRoot/skills/common-work/enterprise-scala" "$updateSource/skills/"
+cp -R "$repoRoot/skills/pi-general/pi-jsonl-logs" "$updateSource/skills/"
 git -C "$updateSource" init --quiet
 git -C "$updateSource" config user.email poc@example.invalid
 git -C "$updateSource" config user.name "Skills CLI PoC"
@@ -289,16 +378,16 @@ updateSourceUrl="file://$updateSource"
 printf 'local update source: %s\n' "$updateSourceUrl"
 
 run_profile personal \
-  poc-common-work \
-  poc-pi-work \
-  poc-common-personal \
-  POC_COMMON_PERSONAL \
+  enterprise-scala \
+  mysql-best-practices \
+  svelte \
+  "Expert in Svelte" \
   "${personalSkills[@]}"
 run_profile work \
-  poc-common-personal \
-  poc-pi-personal \
-  poc-common-work \
-  POC_COMMON_WORK \
+  recharts-patterns \
+  svelte \
+  enterprise-scala \
+  "Enterprise Scala guardrails" \
   "${workSkills[@]}"
 
 sourceStatusAfter="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"

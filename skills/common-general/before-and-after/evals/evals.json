@@ -1,0 +1,23 @@
+{
+  "skill_name": "before-and-after",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add before/after screenshots to PR #42 in a public GitHub repo. External upload is forbidden. The screenshots are already committed under docs/pr/42/before.png and docs/pr/42/after.png on branch visual-polish.",
+      "expected_output": "Agent checks repo visibility, uses raw.githubusercontent.com URLs for the public repo, updates the PR body with a Before/After table, and verifies the raw URL returns image bytes.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "The PR image in private repo zhongjis/better-521 is 404ing. Fix the PR body. Screenshot file exists at docs/pr-artifacts/pr-13/recommendation-spotlight.png on branch try-luck.",
+      "expected_output": "Agent checks repo visibility, recognizes the repo is private, avoids bare raw.githubusercontent.com, uses a GitHub web/raw or blob?raw=true URL, verifies the file with gh api, and reports the private-repo caveat.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Take PR screenshots for a private repo, but do not upload externally and do not commit new files. I just need the PR image to show for reviewers.",
+      "expected_output": "Agent does not use 0x0.st/Gist/raw.githubusercontent.com; explains that uncommitted files cannot render in a PR body, recommends GitHub PR attachment flow or asks approval to commit images/private-safe upload, and avoids claiming completion without render verification.",
+      "files": []
+    }
+  ]
+}

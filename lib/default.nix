@@ -15,6 +15,9 @@ let
     builtins.listToAttrs (map skillEntry directories);
 
   groups = {
+    claudeCodeGeneral = discoverSkills ../skills/claude-code-general;
+    claudeCodePersonal = discoverSkills ../skills/claude-code-personal;
+    claudeCodeWork = discoverSkills ../skills/claude-code-work;
     commonGeneral = discoverSkills ../skills/common-general;
     commonPersonal = discoverSkills ../skills/common-personal;
     commonWork = discoverSkills ../skills/common-work;

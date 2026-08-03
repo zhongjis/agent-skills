@@ -1,0 +1,104 @@
+{
+  "skill_name": "setup-repo-docs",
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-repository-setup",
+      "prompt": "Set up repository documentation for a small service with a root AGENTS.md, a shipped API contract, deployment instructions, one unapproved caching proposal, and no existing docs index. Report first; do not change any files without my approval.",
+      "expected_output": "An examine-and-report plan using docs/README.md, ideas, specs, adr, guides, references, and rules; CONTEXT.md is lazy; companion conventions are preserved; no files are changed before approval.",
+      "files": [],
+      "expectations": [
+        "Reports findings with a verdict header and performs no mutations before the approval gate.",
+        "Proposes docs/README.md plus the ideas, specs, adr, guides, references, and rules taxonomy without creating empty directories.",
+        "Places the unapproved proposal in ideas with exact Status: idea and treats it as non-binding.",
+        "Places the internal API contract in specs and deployment instructions in guides rather than references.",
+        "Treats CONTEXT.md as a lazy domain-modeling artifact and does not invent domain terms or ADRs."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "adopt-existing-companion-artifacts",
+      "prompt": "Examine and propose migration for a repository that already has CONTEXT.md, CONTEXT-MAP.md, docs/adr/0001-use-postgres.md, docs/rules/contributor-workflow.md, and root AGENTS.md importing that rule. It also has flat docs/api.md and docs/run-production.md. Preserve all established companion artifacts and locked paths.",
+      "expected_output": "A migration plan that adopts existing domain-modeling and agents-md artifacts, keeps docs/adr and locked rule paths, classifies flat docs safely, and creates no duplicate glossary or decisions directory.",
+      "files": [],
+      "expectations": [
+        "Emits a MIGRATION verdict and adopts CONTEXT.md and CONTEXT-MAP.md without creating docs/specs/domain-language.md.",
+        "Keeps docs/adr/ as the sole ADR location and does not create docs/decisions/.",
+        "Preserves docs/rules/contributor-workflow.md and its exact AGENTS.md import path.",
+        "Treats ADR history as append-only and preserves the existing ADR.",
+        "Proposes docs/README.md links to existing companion artifacts and classifies ambiguous flat docs conditionally."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "idempotent-second-run",
+      "prompt": "Run setup-repo-docs on a repository already matching its declared structure: docs/README.md declares all canonical paths, CONTEXT.md is linked, docs/adr and populated buckets are indexed, rules imports resolve, links pass, and there are no ambiguous documents.",
+      "expected_output": "A CLEAN NO-OP report stating that setup is already complete and a second run requires no structural changes.",
+      "files": [],
+      "expectations": [
+        "Performs no mutations and reports a CLEAN NO-OP verdict.",
+        "Reports no required structural changes rather than proposing churn.",
+        "Verifies links, indexes, scripts, rule imports, canonical paths, metadata, and companion artifacts.",
+        "Does not create empty directories, duplicate canonical docs, docs/decisions, or docs/specs/domain-language.md.",
+        "Reports idempotency success with no unresolved structural decisions and makes no unsolicited content-reorganization offer."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "approved-apply-migration",
+      "prompt": "Apply the approved setup-repo-docs migration to the provided fixture. Preserve existing CONTEXT.md, docs/adr history, and locked docs/rules paths; classify flat docs by purpose; create docs/README.md; repair all links and AGENTS.md imports atomically; then re-examine to prove idempotency.",
+      "expected_output": "An applied migration with preserved companion artifacts and locked paths, repaired references, canonical taxonomy, verification evidence, and a CLEAN NO-OP re-examination.",
+      "files": [
+        "evals/files/apply-repository"
+      ],
+      "expectations": [
+        "Applies only after explicit user approval and changes only the approved documentation structure.",
+        "Preserves CONTEXT.md, existing docs/adr history, and exact docs/rules policy paths without creating docs/decisions or docs/specs/domain-language.md.",
+        "Moves unambiguous flat docs into ideas, specs, and guides; creates docs/README.md; and gives every idea exact Status: idea.",
+        "Repairs Markdown links, indexes, scripts, and AGENTS.md imports atomically so no active reference uses an obsolete path.",
+        "Runs focused verification and reports a CLEAN NO-OP re-examination with no required structural changes."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "cleanup-only-correct-structure",
+      "prompt": "Examine a repository whose documentation already uses the canonical taxonomy (docs/README.md, docs/adr, docs/specs, docs/guides, docs/rules) but has drifted: docs/README.md does not declare an existing populated docs/references/ bucket, one guide links to a moved file, docs/ideas/ is declared but empty, and one spec uses Status: proposed instead of a canonical status. Report first; do not change files without my approval.",
+      "expected_output": "A CLEANUP-ONLY report that keeps the existing structure, lists the drift as lossless T1 fixes, preserves invariants, and mutates nothing before approval.",
+      "files": [],
+      "expectations": [
+        "Emits a CLEANUP-ONLY verdict and proposes no restructuring moves of correctly-placed documents.",
+        "Lists the fixes as lossless T1 items: declare docs/references/ in docs/README.md, repair the stale guide link, drop the empty docs/ideas/ directory, and normalize the non-canonical status.",
+        "Performs no mutations before the approval gate and preserves locked docs/rules/ paths and append-only docs/adr history.",
+        "Surfaces any deferred structural doubt rather than silently treating the tree as fully resolved.",
+        "Routes cleanup fixes through the same invariant checks as a migration, with no fast-path."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "content-pass-lossless-optin",
+      "prompt": "The repository structure is already correct, but docs/guides/operations.md mixes two distinct topics (deployment steps and incident response) and its deployment section duplicates content also present in docs/specs/release.md. I accept the deeper content reorganization offer: reorganize the file contents.",
+      "expected_output": "A content pass that proposes only lossless verbatim relocation and splits, flags the duplication instead of merging, repairs intra-document anchors, and never touches docs/rules or docs/adr.",
+      "files": [],
+      "expectations": [
+        "Runs the content pass only because the user opted in, and reports before any mutation.",
+        "Splits docs/guides/operations.md into verbatim slices by topic, preserving content byte-for-byte with only location changing.",
+        "Flags the deployment duplication against docs/specs/release.md and recommends a writing skill rather than merging or deduplicating prose.",
+        "Repairs intra-document anchors and heading links affected by the split atomically with the move.",
+        "Does not restructure or rewrite anything under docs/rules or docs/adr."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "migration-missing-buckets",
+      "prompt": "Examine a repository that needs documentation migration and currently has docs/specs/ and docs/guides/, but lacks docs/ideas/, docs/adr/, docs/references/, and docs/rules/. Report the migration choices before changing files.",
+      "expected_output": "A MIGRATION report that asks whether each missing canonical bucket should be initialized as an empty directory with .gitkeep, while preserving the approval gate and leaving declined buckets uncreated.",
+      "files": [],
+      "expectations": [
+        "Emits a MIGRATION verdict and identifies every missing canonical bucket.",
+        "Asks whether the user wants each missing bucket initialized as an empty directory containing .gitkeep.",
+        "Creates no bucket before approval and leaves each declined bucket uncreated.",
+        "Treats an approved .gitkeep-initialized bucket as intentional on re-examination so the migration remains idempotent."
+      ]
+    }
+  ]
+}
