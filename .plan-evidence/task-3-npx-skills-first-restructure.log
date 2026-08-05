@@ -1,0 +1,2 @@
+nix eval --file profiles.nix --apply 'p: (builtins.length p.personal)==4 && (builtins.length p.work)==4'
+true
