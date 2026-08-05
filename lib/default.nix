@@ -14,28 +14,81 @@ let
   in
     builtins.listToAttrs (map skillEntry directories);
 
+  discoverSkillsIf = folder:
+    if builtins.pathExists folder
+    then discoverSkills folder
+    else {};
+
+  profiles = import ../profiles.nix;
+  personalNames = profiles.personal;
+  workNames = profiles.work;
+
+  splitByProfile = skillAttrs: let
+    isPersonal = name: builtins.elem name personalNames;
+    isWork = name: builtins.elem name workNames;
+  in {
+    general = builtins.listToAttrs (
+      builtins.filter (e: !(isPersonal e.name) && !(isWork e.name))
+        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+    );
+    personal = builtins.listToAttrs (
+      builtins.filter (e: isPersonal e.name)
+        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+    );
+    work = builtins.listToAttrs (
+      builtins.filter (e: isWork e.name)
+        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+    );
+  };
+
+  agentFolders = {
+    common = ../.agents/skills;
+    claude-code = ../.claude/skills;
+    codex = ../.codex/skills;
+    opencode = ../.opencode/skills;
+    factory = ../.factory/skills;
+    omp = ../.omp/skills;
+    pi = ../.pi/skills;
+  };
+
+  commonSkills = discoverSkillsIf agentFolders.common;
+  claudeCodeSkills = discoverSkillsIf agentFolders.claude-code;
+  codexSkills = discoverSkillsIf agentFolders.codex;
+  opencodeSkills = discoverSkillsIf agentFolders.opencode;
+  factorySkills = discoverSkillsIf agentFolders.factory;
+  ompSkills = discoverSkillsIf agentFolders.omp;
+  piSkills = discoverSkillsIf agentFolders.pi;
+
+  commonSplit = splitByProfile commonSkills;
+  claudeCodeSplit = splitByProfile claudeCodeSkills;
+  codexSplit = splitByProfile codexSkills;
+  opencodeSplit = splitByProfile opencodeSkills;
+  factorySplit = splitByProfile factorySkills;
+  ompSplit = splitByProfile ompSkills;
+  piSplit = splitByProfile piSkills;
+
   groups = {
-    claudeCodeGeneral = discoverSkills ../skills/claude-code-general;
-    claudeCodePersonal = discoverSkills ../skills/claude-code-personal;
-    claudeCodeWork = discoverSkills ../skills/claude-code-work;
-    codexGeneral = discoverSkills ../skills/codex-general;
-    codexPersonal = discoverSkills ../skills/codex-personal;
-    codexWork = discoverSkills ../skills/codex-work;
-    commonGeneral = discoverSkills ../skills/common-general;
-    commonPersonal = discoverSkills ../skills/common-personal;
-    commonWork = discoverSkills ../skills/common-work;
-    factoryGeneral = discoverSkills ../skills/factory-general;
-    factoryPersonal = discoverSkills ../skills/factory-personal;
-    factoryWork = discoverSkills ../skills/factory-work;
-    ompGeneral = discoverSkills ../skills/omp-general;
-    ompPersonal = discoverSkills ../skills/omp-personal;
-    ompWork = discoverSkills ../skills/omp-work;
-    opencodeGeneral = discoverSkills ../skills/opencode-general;
-    opencodePersonal = discoverSkills ../skills/opencode-personal;
-    opencodeWork = discoverSkills ../skills/opencode-work;
-    piGeneral = discoverSkills ../skills/pi-general;
-    piPersonal = discoverSkills ../skills/pi-personal;
-    piWork = discoverSkills ../skills/pi-work;
+    commonGeneral = commonSplit.general;
+    commonPersonal = commonSplit.personal;
+    commonWork = commonSplit.work;
+    claudeCodeGeneral = claudeCodeSplit.general;
+    claudeCodePersonal = claudeCodeSplit.personal;
+    claudeCodeWork = claudeCodeSplit.work;
+    codexGeneral = codexSplit.general;
+    codexPersonal = codexSplit.personal;
+    codexWork = codexSplit.work;
+    opencodeGeneral = opencodeSplit.general;
+    opencodePersonal = opencodeSplit.personal;
+    opencodeWork = opencodeSplit.work;
+    factoryGeneral = factorySplit.general;
+    factoryPersonal = factorySplit.personal;
+    factoryWork = factorySplit.work;
+    ompGeneral = ompSplit.general;
+    ompPersonal = ompSplit.personal;
+    ompWork = ompSplit.work;
+    piGeneral = piSplit.general;
+    piPersonal = piSplit.personal;
+    piWork = piSplit.work;
   };
 in {
   skillsFor = import ./select-skills.nix {inherit groups;};
