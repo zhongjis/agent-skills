@@ -1,5 +1,6 @@
 let
   lib = import ../lib;
+  profiles = import ../profiles.nix;
   selectSkills = import ../lib/select-skills.nix;
 
   commonGeneralNames = [
@@ -164,8 +165,8 @@ let
   duplicateWithinCommonSelector = selectSkills {
     groups =
       {
-        commonGeneral = {duplicate = ../skills/common-general/caveman;};
-        commonPersonal = {duplicate = ../skills/common-personal/svelte;};
+        commonGeneral = {duplicate = ../.agents/skills/caveman;};
+        commonPersonal = {duplicate = ../.agents/skills/svelte;};
         commonWork = {};
         claudeCodeGeneral = {};
         claudeCodePersonal = {};
@@ -179,10 +180,10 @@ let
   harnessOverrideSelector = selectSkills {
     groups =
       {
-        commonGeneral = {collision = ../skills/common-general/caveman;};
+        commonGeneral = {collision = ../.agents/skills/caveman;};
         commonPersonal = {};
         commonWork = {};
-        claudeCodeGeneral = {collision = ../skills/claude-code-general/skill-creator;};
+        claudeCodeGeneral = {collision = ../.claude/skills/skill-creator;};
         claudeCodePersonal = {};
         claudeCodeWork = {};
         piGeneral = {};
@@ -191,10 +192,10 @@ let
       }
       // emptyHarnessGroups
       // {
-        codexGeneral = {codex-only = ../skills/common-general/caveman;};
-        factoryGeneral = {factory-only = ../skills/common-general/caveman;};
-        ompGeneral = {omp-only = ../skills/common-general/caveman;};
-        opencodeGeneral = {opencode-only = ../skills/common-general/caveman;};
+        codexGeneral = {codex-only = ../.agents/skills/caveman;};
+        factoryGeneral = {factory-only = ../.agents/skills/caveman;};
+        ompGeneral = {omp-only = ../.agents/skills/caveman;};
+        opencodeGeneral = {opencode-only = ../.agents/skills/caveman;};
       };
   };
   harnessOverride = harnessOverrideSelector {
@@ -230,9 +231,9 @@ in
     harness = "pi";
   }
   == piWorkNames;
-  assert builtins.match ".*/skills/common-general/mcp-builder" (toString claudePersonal.mcp-builder) != null;
-  assert builtins.match ".*/skills/claude-code-general/skill-creator" (toString claudePersonal.skill-creator) != null;
-  assert builtins.match ".*/skills/claude-code-general/skill-creator" (toString harnessOverride.collision) != null;
+  assert builtins.match ".*/.agents/skills/mcp-builder" (toString claudePersonal.mcp-builder) != null;
+  assert builtins.match ".*/.claude/skills/skill-creator" (toString claudePersonal.skill-creator) != null;
+  assert builtins.match ".*/.claude/skills/skill-creator" (toString harnessOverride.collision) != null;
   assert pathsAreValid commonPersonal;
   assert pathsAreValid commonWork;
   assert pathsAreValid claudePersonal;
@@ -241,6 +242,21 @@ in
   assert builtins.all (selection: builtins.attrNames selection.skills == selection.expected) emptyHarnessSelections;
   assert builtins.all (selection: pathsAreValid selection.skills) emptyHarnessSelections;
   assert harnessRoutesAreValid;
+  # Guardrail (i): profiles.personal ∩ profiles.work == []
+  assert builtins.filter (n: builtins.elem n profiles.work) profiles.personal == [];
+
+  # Guardrail (ii): every name in profiles.personal ++ profiles.work has SKILL.md
+  assert builtins.all (name:
+    let skills = commonPersonal // commonWork;
+    in builtins.hasAttr name skills && builtins.pathExists (skills.${name} + "/SKILL.md")
+  ) (profiles.personal ++ profiles.work);
+
+  # Guardrail (iii): personal names in commonPersonal not commonWork, vice versa; 77 general
+  assert builtins.all (n: builtins.hasAttr n commonPersonal) profiles.personal;
+  assert !builtins.any (n: builtins.hasAttr n commonWork) profiles.personal;
+  assert builtins.all (n: builtins.hasAttr n commonWork) profiles.work;
+  assert !builtins.any (n: builtins.hasAttr n commonPersonal) profiles.work;
+  assert builtins.length commonGeneralNames == 77;
   assert fails (lib.skillsFor {profile = "general";});
   assert fails (lib.skillsFor {
     profile = "personal";
