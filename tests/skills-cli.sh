@@ -365,10 +365,10 @@ cd -- "$tempDir"
 
 updateSource="$tempDir/source.git"
 mkdir -p "$updateSource/skills"
-cp -R "$repoRoot/skills/common-general/caveman" "$updateSource/skills/"
-cp -R "$repoRoot/skills/common-personal/svelte" "$updateSource/skills/"
-cp -R "$repoRoot/skills/common-work/enterprise-scala" "$updateSource/skills/"
-cp -R "$repoRoot/skills/pi-general/pi-jsonl-logs" "$updateSource/skills/"
+cp -R "$repoRoot/.agents/skills/caveman" "$updateSource/skills/"
+cp -R "$repoRoot/.agents/skills/svelte" "$updateSource/skills/"
+cp -R "$repoRoot/.agents/skills/enterprise-scala" "$updateSource/skills/"
+cp -R "$repoRoot/.pi/skills/pi-jsonl-logs" "$updateSource/skills/"
 git -C "$updateSource" init --quiet
 git -C "$updateSource" config user.email poc@example.invalid
 git -C "$updateSource" config user.name "Skills CLI PoC"
