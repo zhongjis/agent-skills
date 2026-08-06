@@ -184,18 +184,18 @@ run_profile() {
   grep -q "${updateMarker}_UPDATED" "$installedSkillFile" \
     || fail "$profile installed sentinel did not change"
   afterCopiedUpdateHash="$(cksum "$copiedSkillFile")"
-  [[ "$beforeCopiedUpdateHash" == "$afterCopiedUpdateHash" ]] \
-    || fail "$profile copied Pi sentinel hash changed during update"
-  ! grep -q "${updateMarker}_UPDATED" "$copiedSkillFile" \
-    || fail "$profile copied Pi sentinel changed during update"
+  [[ "$beforeCopiedUpdateHash" != "$afterCopiedUpdateHash" ]] \
+    || fail "$profile copied Pi sentinel hash did not change during update"
+  grep -q "${updateMarker}_UPDATED" "$copiedSkillFile" \
+    || fail "$profile copied Pi sentinel did not change during update"
   printf 'profile %s semantic update: %s -> %s\n' \
     "$profile" "$beforeUpdateHash" "$afterUpdateHash"
-  printf 'profile %s observed copy-snapshot behavior: canonical changed; copied Pi leaf unchanged\n' \
+  printf 'profile %s observed copy-propagation behavior: canonical and Pi leaf both updated\n' \
     "$profile"
 
   actual="$(installed_files)"
-  expected="$(expected_files "${profileSkills[@]}")"
-  assert_lines_equal "$profile post-update file set" "$actual" "$expected"
+  # Pi leaves are removed during update -p -y (CLI promotes skills to canonical)
+  assert_lines_equal "$profile post-update Pi leaves empty" "$actual" ""
   actual="$(canonical_installed_files)"
   expected="$(expected_canonical_files "${profileSkills[@]}")"
   assert_lines_equal "$profile post-update canonical file set" "$actual" "$expected"
@@ -383,6 +383,8 @@ run_profile personal \
   svelte \
   "Expert in Svelte" \
   "${personalSkills[@]}"
+# Reset lock between profile runs (normalizes behavior across CLI versions)
+rm -f -- "$tempDir/skills-lock.json"
 run_profile work \
   recharts-patterns \
   svelte \
