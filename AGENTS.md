@@ -78,9 +78,18 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+## Skill catalog
+
+- **Layout**: agent-folder per harness — common skills in `.agents/skills/`, Claude Code in `.claude/skills/`, Pi in `.pi/skills/`; absent harness folders are guarded by `builtins.pathExists` and yield empty groups
+- **Profile axis**: `profiles.nix` at repo root lists skills by profile (`personal`, `work`); unlisted skills are `general`
+- **Authored vs vendored**: vendored skills (from upstream) retain `upstream:` / `adaptedFrom:` frontmatter; authored skills do not have an upstream entry. `skills-lock.json` tracks vendored provenance going forward
+- **Harness=folder rule**: each harness maps to exactly one folder; the folder name determines the harness key in `lib/default.nix`
+- **Whole-dir preservation**: move skills as complete directories; preserve scripts, references, licenses, and assets
+- **`--agent '*'` ban**: never use `skills add --agent '*'` (symlink fan-out pollutes harness folders)
+
 ## Child DOX Index
 
-- `skills/AGENTS.md` — canonical skill catalog under `skills/<category>/<skill>/`; per-skill preservation, frontmatter, and harness-override rules
+- `docs/specs/` — product specs (PRDs) for planned work; not a code contract. Current: `npx-skills-first-restructure.md`.
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `select-skills.nix`, `default.nix`)
 - `tests/AGENTS.md` — repository verification (`selector.nix`, `skills-cli.sh`)
 - Root-owned files: `README.md`, `flake.nix`, `.gitignore`, and any other root-level project documentation.

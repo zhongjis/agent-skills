@@ -4,35 +4,20 @@ Canonical, public-safe agent skills for Nix and non-Nix consumers.
 
 ## Layout
 
-Each selectable leaf follows the Skills CLI layout:
+Skills live in per-harness agent folders:
 
-```text
-skills/<category>/<skill>/SKILL.md
-```
+| Folder | Harness | Skills |
+| --- | --- | ---: |
+| `.agents/skills/` | Universal (all harnesses) | 85 |
+| `.claude/skills/` | Claude Code | 1 |
+| `.pi/skills/` | Pi | 1 |
 
-| Category | Selectable skills |
-| --- | ---: |
-| `common-general` | 77 |
-| `common-personal` | 4 |
-| `common-work` | 4 |
-| `claude-code-general` | 1 |
-| `claude-code-personal` | 0 |
-| `claude-code-work` | 0 |
-| `codex-general` | 0 |
-| `codex-personal` | 0 |
-| `codex-work` | 0 |
-| `factory-general` | 0 |
-| `factory-personal` | 0 |
-| `factory-work` | 0 |
-| `omp-general` | 0 |
-| `omp-personal` | 0 |
-| `omp-work` | 0 |
-| `opencode-general` | 0 |
-| `opencode-personal` | 0 |
-| `opencode-work` | 0 |
-| `pi-general` | 1 |
-| `pi-personal` | 0 |
-| `pi-work` | 0 |
+Profile membership lives in `profiles.nix` at the repo root. Skills not listed there are `general`.
+
+| Profile | Skills |
+| --- | --- |
+| `personal` | recharts-patterns, supabase-postgres-best-practices, svelte, sveltekit |
+| `work` | enterprise-scala, github-pr-management, mysql-best-practices, splunk |
 
 The source contains 87 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
 
@@ -49,7 +34,7 @@ skills add . --list
 npx skills add . --list
 ```
 
-Initialize a new leaf, then move it into the correct category:
+Initialize a new leaf, then move it into the correct agent folder:
 
 ```sh
 skills init skill-name
@@ -58,11 +43,18 @@ npx skills init skill-name
 
 Non-Nix users choose skills explicitly. `--agent` selects the destination harness; it does not select a profile.
 
-Personal example:
+Personal example (Pi):
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill svelte --agent claude-code --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill svelte --agent claude-code --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill svelte --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill svelte --agent pi --copy -y
+```
+
+Work Claude Code example:
+
+```sh
+skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --agent claude-code --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --agent claude-code --copy -y
 ```
 
 Work Pi example:
@@ -72,9 +64,12 @@ skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skil
 npx skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skill pi-jsonl-logs --agent pi --copy -y
 ```
 
-Use explicit `--skill` names for profile selection. `--all` installs personal and work leaves together.
+Notes:
+- `codex` and `opencode`: `skills add` should write to `.codex/skills/` and `.opencode/skills/`; if the CLI does not auto-create those folders, move the installed dir manually after `add`.
+- `omp`: hand-managed; copy skill dirs directly into `.omp/skills/`.
+- **Never** use `--agent '*'` — symlink fan-out pollutes harness folders.
 
-With `--copy`, a harness projection is a snapshot. `skills update -p -y` refreshes canonical `.agents` content but does not refresh copied harness leaves. Re-run the explicit `skills add ... --copy` command to update that projection.
+Use explicit `--skill` names for profile selection. `--all` installs personal and work leaves together.
 
 ## Nix selection
 
@@ -123,6 +118,12 @@ nix flake check path:.
 nix eval --file tests/selector.nix
 bash tests/skills-cli.sh
 SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
+```
+
+Flake-consumer realization check (verifies dot-dirs survive the Nix store copy):
+
+```sh
+nix eval --impure --expr '(builtins.getFlake (toString ./.)).lib.skillsFor { profile = "personal"; harness = "pi"; }'
 ```
 
 The CLI test uses the installed `skills` command when available and falls back to `npx skills`. Set `SKILLS_CLI_FORCE_NPX=true` to exercise the fallback lifecycle even when `skills` is installed. The test verifies exact discovery, explicit installs, support-file copies, updates, removals, cleanup, and source-tree immutability.
