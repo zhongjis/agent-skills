@@ -1,194 +1,421 @@
 ---
 name: kubectl
-description: Use when working with Kubernetes clusters via kubectl CLI. Covers context and namespace selection, pod and deployment inspection, rollout debugging, logs, services, ConfigMaps, Secrets, resource monitoring, JSONPath output, and common troubleshooting workflows.
-upstream: "https://github.com/oldwinter/skills/tree/main/devops-skills/kubectl-cli"
+description: This skill should be used when users need to interact with Kubernetes clusters via kubectl CLI. It covers pod management, deployment operations, log viewing, debugging, resource monitoring, scaling, ConfigMaps, Secrets, Services, and all standard kubectl operations. Supports multiple clusters (production, staging, local k3s) with predefined aliases. Triggers on requests mentioning Kubernetes, k8s, pods, deployments, containers, or cluster operations.
 ---
 
-# Kubectl
+# Kubectl Skill
 
-Use this skill when interacting with Kubernetes through `kubectl`, `kubectx`, or `kubens`.
+This skill enables comprehensive Kubernetes cluster management using kubectl and related tools.
 
-This repository's Home Manager Kubernetes feature defines these shell aliases when enabled:
-- `k` → `kubectl`
-- `kc` → `kubectx`
-- `kn` → `kubens`
+## Environment
 
-Do not assume those aliases exist in every shell. In automation and agent output, prefer full commands unless you have confirmed the aliases are available.
+### Cluster Aliases
+
+Three cluster/namespace combinations are pre-configured:
+
+| Alias | Cluster | Namespace | Purpose |
+|-------|---------|-----------|---------|
+| `k1` | AWS EKS Production | `production` | 生产环境 |
+| `k2` | AWS EKS Production | `staging` | 预发布环境 |
+| `k` | K3s (192.168.10.117) | `simplex` | 本地开发环境 |
+
+**Usage:**
+```bash
+k1 get pods          # 查看生产环境 pods
+k2 get pods          # 查看预发布环境 pods
+k get pods           # 查看本地环境 pods
+```
+
+### Additional Tools
+
+- `kubectx` - Switch between clusters
+- `kubens` - Switch between namespaces
+- `argocd` - GitOps deployments (see separate skill)
+- `kargo` - Progressive delivery (see separate skill)
 
 ## Safety Protocol
 
-Before changing cluster state:
-- Identify the target `context` and `namespace` explicitly.
-- Prefer read-only inspection first: `get`, `describe`, `logs`, `top`, `events`.
-- Treat these operations as destructive and require explicit user confirmation before running them:
-  - `delete`
-  - `apply`
-  - `replace`
-  - `patch`
-  - `edit`
-  - `scale --replicas=0`
-  - `rollout undo`
-  - `drain`, `cordon`, `uncordon`
-  - any production mutation
-- When confirming a risky operation, state:
-  - context
-  - namespace
-  - resource(s)
-  - exact command
-  - expected impact
+### Dangerous Operations Requiring Confirmation
 
-For mutations, prefer commands that make scope obvious:
+Before executing any of the following operations, explicitly confirm with the user:
 
-```bash
-kubectl --context <context> -n <namespace> get deploy
-kubectl --context <context> -n <namespace> patch deployment/<name> ...
+- **Delete operations**: `delete pod`, `delete deployment`, `delete service`, `delete pvc`
+- **Scale to zero**: `scale --replicas=0`
+- **Production modifications**: Any `k1` command that modifies resources
+- **Drain/cordon nodes**: `drain`, `cordon`, `uncordon`
+- **Apply/patch**: Changes to production resources
+
+### Confirmation Format
+
+```
+⚠️ 危险操作确认
+
+环境: [Production/Staging/Local]
+操作: [具体操作描述]
+资源: [受影响的资源]
+影响: [潜在影响说明]
+
+是否继续执行？
 ```
 
-## Fast Triage Workflow
+## Common Operations Reference
 
-When a workload is unhealthy, gather evidence in this order:
+### Resource Viewing
 
-1. Confirm scope
+#### Pods
+
 ```bash
-kubectl config current-context
-kubectl get namespaces
+# List pods with status
+k1 get pods
+k1 get pods -o wide                    # Include node and IP info
+k1 get pods --show-labels              # Show labels
+k1 get pods -l app=simplex-api         # Filter by label
+
+# Pod details
+k1 describe pod <pod-name>
+
+# Watch pods in real-time
+k1 get pods -w
 ```
 
-2. Check resource state
+#### Deployments
+
 ```bash
-kubectl -n <namespace> get pods
-kubectl -n <namespace> get deploy
-kubectl -n <namespace> get svc
-kubectl -n <namespace> get endpoints
+# List deployments
+k1 get deployments
+k1 get deploy -o wide
+
+# Deployment details
+k1 describe deployment <name>
+
+# Rollout status
+k1 rollout status deployment/<name>
+
+# Rollout history
+k1 rollout history deployment/<name>
 ```
 
-3. Inspect details and recent events
+#### Services & Endpoints
+
 ```bash
-kubectl -n <namespace> describe pod <pod-name>
-kubectl -n <namespace> describe deployment <name>
+# List services
+k1 get services
+k1 get svc
+
+# Service details with endpoints
+k1 describe svc <name>
+k1 get endpoints <name>
 ```
 
-4. Review logs
+#### All Resources
+
 ```bash
-kubectl -n <namespace> logs <pod-name>
-kubectl -n <namespace> logs --previous <pod-name>
-kubectl -n <namespace> logs -f <pod-name>
+# Get all common resources
+k1 get all
+
+# Get specific resource types
+k1 get pods,svc,deploy
+
+# Get all resources with labels
+k1 get all -l app=simplex-api
 ```
 
-5. Check utilization
+### Logs & Debugging
+
+#### Viewing Logs
+
 ```bash
-kubectl -n <namespace> top pods
-kubectl top nodes
+# Basic logs
+k1 logs <pod-name>
+
+# Follow logs (streaming)
+k1 logs -f <pod-name>
+
+# Last N lines
+k1 logs --tail=100 <pod-name>
+
+# Logs since time
+k1 logs --since=1h <pod-name>
+k1 logs --since=10m <pod-name>
+
+# Previous container logs (after restart)
+k1 logs --previous <pod-name>
+
+# Multi-container pod
+k1 logs <pod-name> -c <container-name>
+
+# All containers in pod
+k1 logs <pod-name> --all-containers=true
 ```
 
-## Common Operations
-
-### Context and Namespace Management
+#### Executing Commands
 
 ```bash
-kubectl config current-context
-kubectx
-kubectx <context-name>
-kubens
+# Execute command in container
+k1 exec <pod-name> -- <command>
+
+# Interactive shell
+k1 exec -it <pod-name> -- /bin/sh
+k1 exec -it <pod-name> -- /bin/bash
+
+# Specific container in multi-container pod
+k1 exec -it <pod-name> -c <container> -- /bin/sh
+```
+
+#### Debugging
+
+```bash
+# Pod events and status
+k1 describe pod <pod-name>
+
+# Get pod YAML
+k1 get pod <pod-name> -o yaml
+
+# Debug with ephemeral container
+k1 debug <pod-name> -it --image=busybox
+
+# Check resource usage
+k1 top pods
+k1 top nodes
+```
+
+### Deployment Management
+
+#### Scaling
+
+```bash
+# Scale deployment
+k1 scale deployment/<name> --replicas=3
+
+# Autoscale
+k1 autoscale deployment/<name> --min=2 --max=5 --cpu-percent=80
+```
+
+#### Rolling Updates
+
+```bash
+# Update image
+k1 set image deployment/<name> <container>=<image>:<tag>
+
+# Rollout status
+k1 rollout status deployment/<name>
+
+# Pause/resume rollout
+k1 rollout pause deployment/<name>
+k1 rollout resume deployment/<name>
+
+# Rollback
+k1 rollout undo deployment/<name>
+k1 rollout undo deployment/<name> --to-revision=2
+```
+
+#### Restart
+
+```bash
+# Restart deployment (rolling restart)
+k1 rollout restart deployment/<name>
+```
+
+### Configuration Resources
+
+#### ConfigMaps
+
+```bash
+# List ConfigMaps
+k1 get configmaps
+k1 get cm
+
+# View ConfigMap content
+k1 describe cm <name>
+k1 get cm <name> -o yaml
+
+# Create from file
+k1 create configmap <name> --from-file=<path>
+
+# Create from literal
+k1 create configmap <name> --from-literal=key=value
+```
+
+#### Secrets
+
+```bash
+# List Secrets
+k1 get secrets
+
+# View Secret (base64 encoded)
+k1 get secret <name> -o yaml
+
+# Decode Secret value
+k1 get secret <name> -o jsonpath='{.data.password}' | base64 -d
+
+# Create Secret
+k1 create secret generic <name> --from-literal=password=xxx
+```
+
+#### PersistentVolumeClaims
+
+```bash
+# List PVCs
+k1 get pvc
+
+# PVC details
+k1 describe pvc <name>
+```
+
+### Network Operations
+
+#### Port Forwarding
+
+```bash
+# Forward local port to pod
+k1 port-forward pod/<name> 8080:80
+
+# Forward to service
+k1 port-forward svc/<name> 8080:80
+
+# Background port-forward
+k1 port-forward pod/<name> 8080:80 &
+```
+
+#### Service Exposure
+
+```bash
+# Expose deployment as service
+k1 expose deployment/<name> --port=80 --target-port=8080
+
+# Get service external IP
+k1 get svc <name> -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+```
+
+### Cluster Management
+
+#### Nodes
+
+```bash
+# List nodes
+k1 get nodes
+k1 get nodes -o wide
+
+# Node details
+k1 describe node <name>
+
+# Node resource usage
+k1 top nodes
+```
+
+#### Namespaces
+
+```bash
+# List namespaces
+k1 get namespaces
+
+# Switch namespace (using kubens)
 kubens <namespace>
+
+# Create namespace
+k1 create namespace <name>
 ```
 
-### Pods
+#### Context Management
 
 ```bash
-kubectl -n <namespace> get pods
-kubectl -n <namespace> get pods -o wide
-kubectl -n <namespace> get pods --show-labels
-kubectl -n <namespace> get pods -l app=<app>
-kubectl -n <namespace> describe pod <pod-name>
-kubectl -n <namespace> get pod <pod-name> -o yaml
-kubectl -n <namespace> logs <pod-name>
-kubectl -n <namespace> logs -f <pod-name>
-kubectl -n <namespace> logs --tail=100 <pod-name>
-kubectl -n <namespace> logs --previous <pod-name>
-kubectl -n <namespace> exec -it <pod-name> -- /bin/sh
-kubectl -n <namespace> debug <pod-name> -it --image=busybox
+# List contexts
+kubectx
+
+# Switch context
+kubectx <context-name>
+
+# Show current context
+kubectl config current-context
 ```
 
-### Deployments
+### Resource Monitoring
 
 ```bash
-kubectl -n <namespace> get deployments
-kubectl -n <namespace> describe deployment <name>
-kubectl -n <namespace> rollout status deployment/<name>
-kubectl -n <namespace> rollout history deployment/<name>
-kubectl -n <namespace> rollout restart deployment/<name>
-kubectl -n <namespace> set image deployment/<name> <container>=<image>:<tag>
-kubectl -n <namespace> scale deployment/<name> --replicas=<count>
-```
+# Pod resource usage
+k1 top pods
+k1 top pods --sort-by=cpu
+k1 top pods --sort-by=memory
 
-### Services and Networking
+# Node resource usage
+k1 top nodes
 
-```bash
-kubectl -n <namespace> get svc
-kubectl -n <namespace> describe svc <name>
-kubectl -n <namespace> get endpoints <name>
-kubectl -n <namespace> port-forward pod/<name> 8080:80
-kubectl -n <namespace> port-forward svc/<name> 8080:80
-kubectl -n <namespace> expose deployment/<name> --port=80 --target-port=8080
-```
-
-### ConfigMaps and Secrets
-
-Never dump full secret payloads unless the user explicitly needs them.
-
-```bash
-kubectl -n <namespace> get configmaps
-kubectl -n <namespace> describe configmap <name>
-kubectl -n <namespace> get configmap <name> -o yaml
-kubectl -n <namespace> create configmap <name> --from-file=<path>
-kubectl -n <namespace> create configmap <name> --from-literal=key=value
-
-kubectl -n <namespace> get secrets
-kubectl -n <namespace> get secret <name> -o yaml
-kubectl -n <namespace> get secret <name> -o jsonpath='{.data.<key>}' | base64 -d
-kubectl -n <namespace> create secret generic <name> --from-literal=<key>=<value>
-```
-
-### Cluster and Resource Monitoring
-
-```bash
-kubectl get nodes
-kubectl get nodes -o wide
-kubectl describe node <name>
-kubectl top nodes
-kubectl -n <namespace> top pods
-kubectl -n <namespace> top pods --sort-by=cpu
-kubectl -n <namespace> top pods --sort-by=memory
-kubectl -n <namespace> get hpa
-kubectl -n <namespace> describe hpa <name>
+# HPA status
+k1 get hpa
+k1 describe hpa <name>
 ```
 
 ## Output Formatting
 
-Use structured output before scraping plain text:
-- `-o json`
-- `-o yaml`
-- `-o jsonpath='...'`
-- `-o custom-columns=...`
-- `-o go-template='...'`
+### For Status Checks
 
-See `references/jsonpath-formatting.md` for patterns.
+Provide concise summaries:
 
-## Troubleshooting
+```
+✅ Pod 状态 (production)
+┌──────────────────────────┬─────────┬──────────┬─────────┐
+│ Pod                      │ Status  │ Restarts │ Age     │
+├──────────────────────────┼─────────┼──────────┼─────────┤
+│ simplex-api-xxx-abc      │ Running │ 0        │ 2d      │
+│ simplex-api-xxx-def      │ Running │ 0        │ 2d      │
+└──────────────────────────┴─────────┴──────────┴─────────┘
+```
 
-Start with:
-- `describe` for events and scheduling failures
-- `logs` and `logs --previous` for container failures
-- `get endpoints` for service routing issues
-- `top` for resource pressure
-- `rollout status` and `rollout history` for deployment health
+### For Troubleshooting
 
-See `references/troubleshooting.md` for common failure modes.
+When investigating issues, gather:
 
-## Working Rules
+1. Pod status: `k1 get pod <name>`
+2. Pod events: `k1 describe pod <name>`
+3. Recent logs: `k1 logs --tail=50 <name>`
+4. Resource usage: `k1 top pod <name>`
 
-- Prefer selectors over copy-pasting full generated pod names when possible.
-- Prefer `--context` and `-n` on write operations, even if the current shell already has the right defaults.
-- When summarizing cluster state, report facts observed from commands, not assumptions.
-- When a command fails, surface the real error and next diagnostic step instead of guessing.
+### Custom Output Formats
+
+```bash
+# JSON output
+k1 get pods -o json
+
+# YAML output
+k1 get pod <name> -o yaml
+
+# Custom columns
+k1 get pods -o custom-columns=NAME:.metadata.name,STATUS:.status.phase
+
+# JSONPath
+k1 get pods -o jsonpath='{.items[*].metadata.name}'
+```
+
+## Troubleshooting Workflows
+
+### Pod Not Starting
+
+1. Check pod status: `k1 get pod <name>`
+2. Check events: `k1 describe pod <name>` (look at Events section)
+3. Check logs: `k1 logs <name>` or `k1 logs --previous <name>`
+4. Common issues:
+   - `ImagePullBackOff`: Check image name and registry credentials
+   - `CrashLoopBackOff`: Check application logs
+   - `Pending`: Check resource requests and node capacity
+
+### High Resource Usage
+
+1. Check pod usage: `k1 top pods --sort-by=memory`
+2. Check node usage: `k1 top nodes`
+3. Check HPA status: `k1 get hpa`
+4. Consider scaling: `k1 scale deployment/<name> --replicas=N`
+
+### Service Not Accessible
+
+1. Check service: `k1 get svc <name>`
+2. Check endpoints: `k1 get endpoints <name>`
+3. Check pod labels match service selector
+4. Test from within cluster: `k1 exec -it <pod> -- curl <service>:<port>`
+
+## Integration Notes
+
+For GitOps operations (deployments via git), use the ArgoCD and Kargo skills:
+- ArgoCD: Application sync, rollback, status
+- Kargo: Progressive delivery, freight promotion
+
+For AWS infrastructure operations, use the AWS CLI skill.

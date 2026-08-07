@@ -1,7 +1,6 @@
 ---
 name: mysql-best-practices
 description: MySQL development best practices for schema design, query optimization, and database administration
-upstream: "https://github.com/mindrally/skills/tree/main/mysql-best-practices"
 ---
 
 # MySQL Best Practices

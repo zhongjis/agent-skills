@@ -1,14 +1,14 @@
 ---
 name: pdf
 description: Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to produce one, use this skill.
-upstream: "https://github.com/anthropics/skills/tree/main/skills/pdf"
+license: Proprietary. LICENSE.txt has complete terms
 ---
 
 # PDF Processing Guide
 
 ## Overview
 
-This guide covers essential PDF processing operations using Python libraries and command-line tools. For advanced features, JavaScript libraries, and detailed examples, see `reference/advanced.md`. If you need to fill out a PDF form, read FORMS.md and follow its instructions.
+This guide covers essential PDF processing operations using Python libraries and command-line tools. For advanced features, JavaScript libraries, and detailed examples, see REFERENCE.md. If you need to fill out a PDF form, read FORMS.md and follow its instructions.
 
 ## Quick Start
 
@@ -166,20 +166,17 @@ story.append(Paragraph("Content for page 2", styles['Normal']))
 doc.build(story)
 ```
 
-#### Unicode & Font Rendering (CRITICAL)
+#### Subscripts and Superscripts
 
-ReportLab's built-in fonts (Helvetica, Courier) **cannot render** most Unicode characters — box-drawing (`┌─┐│`), arrows (`→←`), dashes (`—–`), smart quotes (`''""`), block elements (`█▓`), and subscript/superscript digits (`₀¹²³`) all render as **solid black boxes**.
+**IMPORTANT**: Never use Unicode subscript/superscript characters (₀₁₂₃₄₅₆₇₈₉, ⁰¹²³⁴⁵⁶⁷⁸⁹) in ReportLab PDFs. The built-in fonts do not include these glyphs, causing them to render as solid black boxes.
 
-**Two-track solution:**
-- **Body text** (Helvetica): Replace all Unicode with ASCII equivalents before rendering
-- **Code blocks**: Register a TrueType font (Menlo on macOS, DejaVu Sans Mono on Linux) that supports Unicode glyphs
-
-**You MUST maintain two separate normalizer functions** — one for body text (replaces Unicode) and one for code blocks (preserves Unicode). Using the wrong one causes either black boxes or degraded ASCII art.
-
-For the full Unicode replacement map, font registration code, and normalizer implementations, see `reference/unicode-and-fonts.md`.
-
-**Subscripts/Superscripts**: Never use Unicode sub/superscript characters. Use ReportLab's XML tags instead:
+Instead, use ReportLab's XML markup tags in Paragraph objects:
 ```python
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+
+styles = getSampleStyleSheet()
+
 # Subscripts: use <sub> tag
 chemical = Paragraph("H<sub>2</sub>O", styles['Normal'])
 
@@ -187,61 +184,7 @@ chemical = Paragraph("H<sub>2</sub>O", styles['Normal'])
 squared = Paragraph("x<super>2</super> + y<super>2</super>", styles['Normal'])
 ```
 
-### Professional Styling Defaults
-
-Apply these defaults to ALL generated PDFs for consistent, professional output:
-
-| Setting | Value | Notes |
-|---------|-------|-------|
-| **Page size** | US Letter (8.5" × 11") | `letter` from `reportlab.lib.pagesizes` |
-| **Margins** | 1" (72pt) all sides | Or 0.75" (54pt) for dense content |
-| **Body font** | Helvetica, 10–11pt | `leading` = font size × 1.2 |
-| **H1** | Helvetica-Bold, 18pt | `spaceBefore=20, spaceAfter=10` |
-| **H2** | Helvetica-Bold, 14pt | `spaceBefore=16, spaceAfter=8` |
-| **H3** | Helvetica-Bold, 12pt | `spaceBefore=12, spaceAfter=6` |
-| **Code font** | Menlo/Courier, 8–9pt | See `reference/unicode-and-fonts.md` |
-| **Body text color** | `#333333` (dark gray) | Avoid pure black — easier on eyes |
-| **Heading color** | `#111827` (near-black) | Slightly darker than body |
-| **Separator lines** | 0.5pt, `#D1D5DB` | Subtle, not distracting |
-| **Link color** | `#1565C0` (blue) | Consistent with cross-references |
-
-```python
-from reportlab.lib.colors import HexColor
-
-# Professional color palette
-COLORS = {
-    "body_text":   HexColor("#333333"),
-    "heading":     HexColor("#111827"),
-    "separator":   HexColor("#D1D5DB"),
-    "link":        HexColor("#1565C0"),
-    "code_bg":     HexColor("#F3F4F6"),
-    "code_text":   HexColor("#1F2937"),
-    "table_header_bg": HexColor("#E5E7EB"),
-    "table_alt_row":   HexColor("#F9FAFB"),
-    "table_grid":      HexColor("#D1D5DB"),
-}
-```
-
-### Diagrams, Flowcharts & Charts
-
-Use the right rendering approach based on content type:
-
-| Content | Approach | When |
-|---------|----------|------|
-| ASCII art / box-drawing | `canvas.beginText()` + Courier | Preserve spatial alignment |
-| Simple flowchart (≤5 nodes) | ReportLab `Drawing` + shapes | Native vector, no deps |
-| Complex diagram (>5 nodes) | Mermaid → SVG → `svglib` | Scalable vector |
-| Data charts (pie/bar/line) | `reportlab.graphics.charts` | Native vector |
-| Architecture diagrams | `diagrams` library → PNG | Cloud/infra diagrams |
-| Custom plots | Matplotlib → PNG/SVG | Scientific/custom |
-
-**Critical**: Never use `Paragraph` for ASCII art or box-drawing diagrams — it reflows text and destroys alignment. Use `canvas.beginText()` with `Courier` font and `setCharSpace(0)`.
-
-For complete code patterns, decision tree, and examples, see `reference/diagrams-and-charts.md`.
-
-### Inline Annotations
-
-Add styled callout boxes (note, warning, tip, callout) to highlight important information in generated PDFs. Each style has a distinct background color, border, and icon. See `reference/diagrams-and-charts.md` for the `create_annotation()` function and `ANNOTATION_STYLES` palette.
+For canvas-drawn text (not Paragraph objects), manually adjust font the size and position rather than using Unicode subscripts/superscripts.
 
 ## Command-Line Tools
 
@@ -359,19 +302,13 @@ with open("encrypted.pdf", "wb") as output:
 | Extract text | pdfplumber | `page.extract_text()` |
 | Extract tables | pdfplumber | `page.extract_tables()` |
 | Create PDFs | reportlab | Canvas or Platypus |
-| Diagrams & charts | reportlab.graphics | Shapes, Drawing, charts |
-| Mermaid diagrams | mermaid-cli + svglib | `mmdc` → SVG → embed |
-| ASCII art in PDF | canvas.beginText() | Courier + setCharSpace(0) |
 | Command line merge | qpdf | `qpdf --empty --pages ...` |
 | OCR scanned PDFs | pytesseract | Convert to image first |
 | Fill PDF forms | pdf-lib or pypdf (see FORMS.md) | See FORMS.md |
 
 ## Next Steps
 
-- For advanced pypdfium2 usage and JavaScript libraries, see `reference/advanced.md`
+- For advanced pypdfium2 usage, see REFERENCE.md
+- For JavaScript libraries (pdf-lib), see REFERENCE.md
 - If you need to fill out a PDF form, follow the instructions in FORMS.md
-- For Unicode/font rendering details and the full replacement map, see `reference/unicode-and-fonts.md`
-- For diagrams, flowcharts, charts, and inline annotations, see `reference/diagrams-and-charts.md`
-- For internal cross-references and bookmarks in PDFs, see `reference/cross-references.md`
-- For Markdown-to-PDF conversion (tables, code blocks, page breaks, TOC), see `reference/markdown-to-pdf.md`
-- For Adobe-branded internal reports, see `reference/adobe-internal.md`
+- For troubleshooting guides, see REFERENCE.md

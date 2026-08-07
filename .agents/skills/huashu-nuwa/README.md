@@ -27,7 +27,7 @@
 那何必蒸馏同事？去蒸馏乔布斯、芒格、费曼、马斯克。<br>
 只需输入一个名字，女娲自动完成调研、提炼、验证全流程。
 
-[看效果](#效果示例) · [安装](#安装) · [它蒸馏了什么](#女娲蒸馏了什么) · [工作原理](#工作原理) · [不想自己蒸馏？试试 Bloome](#不想自己蒸馏试试-bloome)
+[看效果](#效果示例) · [安装](#安装) · [它蒸馏了什么](#女娲蒸馏了什么) · [工作原理](#工作原理)
 
 <br>
 
@@ -97,16 +97,6 @@ Naval     ❯ 你列了三个欲望。每个欲望都是你跟不快乐签的一
 
 ---
 
-## 不想自己蒸馏？试试 Bloome
-
-[<img src="bloome-advisors.jpg" alt="Bloome - 让他们成为你的智囊团" width="720">](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
-想随时找乔布斯和张小龙聊产品？和芒格聊投资？
-
-[Bloome](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill) —— 让他们成为你的智囊团，人和多个 Agent 在同一个对话里协作。[www.bloome.im](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
----
-
 ## 安装
 
 女娲基于开放的 [Agent Skills](https://agentskills.io) 协议，可在任何 skills-compatible 的 AI agent runtime 中运行。
@@ -134,7 +124,7 @@ npx skills add alchaincyf/nuwa-skill
 
 | Runtime | 安装路径 |
 |---|---|
-| OpenCode | `~/.config/opencode/skills/nuwa-skill/` |
+| Claude Code | `~/.claude/skills/nuwa-skill/` |
 | Codex CLI | `~/.codex/skills/nuwa-skill/` |
 | Cursor | `~/.cursor/skills/nuwa-skill/` |
 | OpenClaw | `~/.openclaw/workspace/skills/nuwa-skill/` |
@@ -201,7 +191,7 @@ git clone https://github.com/alchaincyf/nuwa-skill <上面对应的路径>
 
 ## 已蒸馏人物
 
-女娲已蒸馏了13位人物 + 1个主题。每个都是独立的、可直接安装使用的Skill，全部基于 Agent Skills 协议，可在 Claude Code / Codex / Cursor / OpenClaw / Hermes 等 runtime 通用：
+女娲已蒸馏了14位人物 + 1个主题。每个都是独立的、可直接安装使用的Skill，全部基于 Agent Skills 协议，可在 Claude Code / Codex / Cursor / OpenClaw / Hermes 等 runtime 通用：
 
 ### 人物Skill
 
@@ -219,6 +209,8 @@ git clone https://github.com/alchaincyf/nuwa-skill <上面对应的路径>
 | **费曼** | 学习/教学/科学思维 | [feynman-skill](https://github.com/alchaincyf/feynman-skill) | `npx skills add alchaincyf/feynman-skill` |
 | **纳瓦尔** | 财富/杠杆/人生哲学 | [naval-skill](https://github.com/alchaincyf/naval-skill) | `npx skills add alchaincyf/naval-skill` |
 | **塔勒布** | 风险/反脆弱/不确定性 | [taleb-skill](https://github.com/alchaincyf/taleb-skill) | `npx skills add alchaincyf/taleb-skill` |
+| **张雪峰** | 教育选择/职业规划/阶层流动 | [zhangxuefeng-skill](https://github.com/alchaincyf/zhangxuefeng-skill) | `npx skills add alchaincyf/zhangxuefeng-skill` |
+| **孙宇晨** | 营销/注意力经济/叙事操控 | [仓库内examples/](examples/sun-yuchen-perspective/) | 复制 `examples/sun-yuchen-perspective/` 到skills目录 |
 
 ### 主题Skill
 
@@ -228,7 +220,20 @@ git clone https://github.com/alchaincyf/nuwa-skill <上面对应的路径>
 
 人物Skill蒸馏一个人的思维方式；主题Skill蒸馏一个领域的方法论。每个仓库都包含完整的调研数据和效果示例对话。
 
+🧪 **保真度评分卡**：15个官方Skill已全部通过独立双agent盲测（立场一致性/风格辨识度/边缘诚实度/来源透明度/结构完整度，方法论见 [references/fidelity-scorecard.md](references/fidelity-scorecard.md)），**全员A级（≥85分）**。各分数：MrBeast/纳瓦尔/塔勒布/乔布斯/Karpathy/Paul Graham/张雪峰 97 · 芒格/费曼/X导师 96 · 特朗普 95 · Ilya 94 · 张一鸣 93 · 孙宇晨 91 · 马斯克 89。完整评分卡见各skill目录内的 `FIDELITY.md`。
+
 想蒸馏不在列表里的人或主题？安装女娲，说「蒸馏一个XXX」就行。
+
+---
+
+## 贡献与社区
+
+女娲的生态由社区一起长大，但走两条不同的路：
+
+- **`SKILL.md` 是核心资产，不接受外部PR改动**。发现方法论的bug或改进点→开issue讨论，被采纳的想法由维护者实现并在commit中致谢（先例见PR #59）
+- **社区蒸馏的人物skill走 [COMMUNITY.md](COMMUNITY.md) 索引**：放你自己的仓库（star归你），跑一遍[保真度评分卡](references/fidelity-scorecard.md)拿到B级以上，提一行PR即可收录
+
+完整规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。社区已有的合集、多人格编排和主题应用，见 [COMMUNITY.md](COMMUNITY.md)。
 
 ---
 
@@ -340,6 +345,15 @@ MIT — 随便用，随便改，随便造。
 <br>
 
 MIT License © [花叔 Huashu](https://github.com/alchaincyf)
+
+</div>
+
+---
+
+<div align="center">
+<sub>作者的其他项目 · also by 花叔</sub>
+
+[![FanBox · Coding Agent 的驾驶舱](https://raw.githubusercontent.com/alchaincyf/fanbox/master/assets/promo-banner.jpg)](https://github.com/alchaincyf/fanbox)
 
 </div>
 

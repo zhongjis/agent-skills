@@ -4,7 +4,6 @@ description: >
   Design database schemas with normalization, relationships, and constraints.
   Use when creating new database schemas, designing tables, or planning data
   models for PostgreSQL and MySQL.
-upstream: "https://github.com/aj-geddes/useful-ai-prompts/tree/main/skills/database-schema-design"
 ---
 
 # Database Schema Design
