@@ -243,13 +243,6 @@
       "skillPath": "agent/skills/tools/podman/SKILL.md",
       "computedHash": "4ddeb2eaca78b1725697ad9f21366333aa886158e13193b30f331012fef68d79"
     },
-    "postgresql-table-design": {
-      "source": "wshobson/agents",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "plugins/database-design/skills/postgresql/SKILL.md",
-      "computedHash": "505ed3a2eff27fa161a988a2d82c138cc253d668b25160bf9466489718b41f4d"
-    },
     "pptx": {
       "source": "anthropics/skills",
       "ref": "main",
@@ -312,20 +305,6 @@
       "sourceType": "github",
       "skillPath": "skills/skill-creator/SKILL.md",
       "computedHash": "5ea13a6d9f0d4bb694405d79acd00cadec0d21bb138c4dd10fcf3c500cb835c2"
-    },
-    "sql-code-review": {
-      "source": "github/awesome-copilot",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/sql-code-review/SKILL.md",
-      "computedHash": "18c1dcc32c570bc3be673d853924ebf80295bae1bc168d018ecc7c17b2633f09"
-    },
-    "sql-optimization-patterns": {
-      "source": "wshobson/agents",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "plugins/developer-essentials/skills/sql-optimization-patterns/SKILL.md",
-      "computedHash": "2350922fd66db3fe6f4f34b076ca0b941ee347ac9db71218748e15d2f57d7919"
     },
     "tdd": {
       "source": "mattpocock/skills",

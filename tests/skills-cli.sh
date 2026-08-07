@@ -251,8 +251,8 @@ printf 'resolved version: '
 "${cli[@]}" --version
 
 # skills-lock.json is committed, so `skills add . --list` offers only skills NOT in the
-# lockfile (the CLI treats locked skills as already-installed). The 61 vendored skills are
-# hidden from discovery; only these 17 authored (unlocked) skills remain discoverable.
+# lockfile (the CLI treats locked skills as already-installed). The 58 vendored skills are
+# hidden from discovery; only these 16 authored (unlocked) skills remain discoverable.
 discoverableSkills=(
   address-comments
   ast-grep
@@ -263,7 +263,6 @@ discoverableSkills=(
   find-skills
   gh
   github-pr-management
-  nix
   pi-jsonl-logs
   rg
   setup-repo-docs
@@ -283,18 +282,18 @@ workSkills=(
   python
 )
 
+git -C "$tempDir" init --quiet
+cd -- "$tempDir"
+
 sourceList="$("${cli[@]}" add "$repoRoot" --list)"
 printf 'source discovery:\n%s\n' "$sourceList"
 sourceNames="$(printf '%s\n' "$sourceList" \
   | sed -nE 's/^│    ([[:alnum:]][[:alnum:]-]*)[[:space:]]*$/\1/p' \
   | LC_ALL=C sort)"
 expectedSourceNames="$(printf '%s\n' "${discoverableSkills[@]}" | LC_ALL=C sort)"
-assert_lines_equal "source discovery exact 17 unlocked skills" \
+assert_lines_equal "source discovery exact 16 unlocked skills" \
   "$sourceNames" "$expectedSourceNames"
-printf 'source exact-17: yes\n'
-
-git -C "$tempDir" init --quiet
-cd -- "$tempDir"
+printf 'source exact-16: yes\n'
 
 updateSource="$tempDir/source.git"
 mkdir -p "$updateSource/skills"
@@ -314,7 +313,7 @@ run_profile personal \
   python \
   mysql-best-practices \
   nix \
-  "Unified Nix toolkit" \
+  "Package manager and functional language for reproducible environments" \
   "${personalSkills[@]}"
 # Reset lock between profile runs (normalizes behavior across CLI versions)
 rm -f -- "$tempDir/skills-lock.json"
