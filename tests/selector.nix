@@ -11,7 +11,6 @@ let
     "agents-md"
     "ast-grep"
     "before-and-after"
-    "biome-js"
     "bun"
     "caveman"
     "code-review"
@@ -36,7 +35,6 @@ let
     "huashu-nuwa"
     "improve-codebase-architecture"
     "jq"
-    "jujutsu"
     "kubectl"
     "last30days"
     "mcp-builder"
@@ -60,7 +58,6 @@ let
     "skill-maintainer"
     "sql-code-review"
     "sql-optimization-patterns"
-    "svg-logo-designer"
     "tdd"
     "teach"
     "to-spec"
@@ -238,12 +235,12 @@ in
     in builtins.hasAttr name skills && builtins.pathExists (skills.${name} + "/SKILL.md")
   ) (profiles.personal ++ profiles.work);
 
-  # Guardrail (iii): personal names in commonPersonal not commonWork, vice versa; 73 general
+  # Guardrail (iii): personal names in commonPersonal not commonWork, vice versa; 70 general
   assert builtins.all (n: builtins.hasAttr n commonPersonal) profiles.personal;
   assert !builtins.any (n: builtins.hasAttr n commonWork) profiles.personal;
   assert builtins.all (n: builtins.hasAttr n commonWork) profiles.work;
   assert !builtins.any (n: builtins.hasAttr n commonPersonal) profiles.work;
-  assert builtins.length commonGeneralNames == 73;
+  assert builtins.length commonGeneralNames == 70;
   assert fails (lib.skillsFor {profile = "general";});
   assert fails (lib.skillsFor {
     profile = "personal";

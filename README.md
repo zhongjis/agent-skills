@@ -8,7 +8,7 @@ Skills live in per-harness agent folders:
 
 | Folder | Harness | Skills |
 | --- | --- | ---: |
-| `.agents/skills/` | Universal (all harnesses) | 76 |
+| `.agents/skills/` | Universal (all harnesses) | 73 |
 | `.claude/skills/` | Claude Code | 1 |
 | `.pi/skills/` | Pi | 1 |
 
@@ -19,7 +19,7 @@ Profile membership lives in `profiles.nix` at the repo root. Skills not listed t
 | `personal` | _(none)_ |
 | `work` | github-pr-management, mysql-best-practices, splunk |
 
-The source contains 78 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
+The source contains 75 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
