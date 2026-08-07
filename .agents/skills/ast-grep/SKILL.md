@@ -1,7 +1,8 @@
 ---
 name: ast-grep
 description: Searches code by AST patterns and performs structural refactoring across files. Use when finding function calls, replacing code patterns, or refactoring syntax that regex cannot reliably match.
-upstream: "https://github.com/knoopx/pi/tree/main/agent/skills/tools/sg"
+adaptedFrom:
+  - "https://github.com/knoopx/pi/tree/main/agent/skills/tools/sg"
 ---
 
 # ast-grep

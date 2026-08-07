@@ -13,14 +13,11 @@ let
     "before-and-after"
     "biome-js"
     "bun"
-    "canvas-design"
     "caveman"
     "code-review"
     "code-review-v2"
     "codebase-design"
     "codebase-search"
-    "complexity"
-    "database-migration"
     "database-schema-design"
     "diagnosing-bugs"
     "docker"
@@ -51,10 +48,11 @@ let
     "podman"
     "postgresql-table-design"
     "pptx"
-    "prompt-engineering"
+    "prompt-engineering-patterns"
     "prototype"
     "python"
     "react-best-practices"
+    "refactor-method-complexity-reduce"
     "rg"
     "setup-matt-pocock-skills"
     "setup-repo-docs"
@@ -71,30 +69,19 @@ let
     "typescript-best-practices"
     "use-open-design-canvas"
     "uv"
-    "vite"
-    "vitepress"
     "vitest"
     "webapp-testing"
     "writing-clearly-and-concisely"
-    "writing-great-skills"
+    "writing-for-agents"
     "xlsx"
     "yq"
     "yt-dlp"
     "zoom-out"
   ];
-  personalNames = builtins.sort builtins.lessThan (
-    commonGeneralNames
-    ++ [
-      "recharts-patterns"
-      "supabase-postgres-best-practices"
-      "svelte"
-      "sveltekit"
-    ]
-  );
+  personalNames = builtins.sort builtins.lessThan commonGeneralNames;
   workNames = builtins.sort builtins.lessThan (
     commonGeneralNames
     ++ [
-      "enterprise-scala"
       "github-pr-management"
       "mysql-best-practices"
       "splunk"
@@ -166,7 +153,7 @@ let
     groups =
       {
         commonGeneral = {duplicate = ../.agents/skills/caveman;};
-        commonPersonal = {duplicate = ../.agents/skills/svelte;};
+        commonPersonal = {duplicate = ../.agents/skills/git-master;};
         commonWork = {};
         claudeCodeGeneral = {};
         claudeCodePersonal = {};
@@ -251,12 +238,12 @@ in
     in builtins.hasAttr name skills && builtins.pathExists (skills.${name} + "/SKILL.md")
   ) (profiles.personal ++ profiles.work);
 
-  # Guardrail (iii): personal names in commonPersonal not commonWork, vice versa; 77 general
+  # Guardrail (iii): personal names in commonPersonal not commonWork, vice versa; 73 general
   assert builtins.all (n: builtins.hasAttr n commonPersonal) profiles.personal;
   assert !builtins.any (n: builtins.hasAttr n commonWork) profiles.personal;
   assert builtins.all (n: builtins.hasAttr n commonWork) profiles.work;
   assert !builtins.any (n: builtins.hasAttr n commonPersonal) profiles.work;
-  assert builtins.length commonGeneralNames == 77;
+  assert builtins.length commonGeneralNames == 73;
   assert fails (lib.skillsFor {profile = "general";});
   assert fails (lib.skillsFor {
     profile = "personal";

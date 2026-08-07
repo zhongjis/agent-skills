@@ -82,7 +82,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - **Layout**: agent-folder per harness — common skills in `.agents/skills/`, Claude Code in `.claude/skills/`, Pi in `.pi/skills/`; absent harness folders are guarded by `builtins.pathExists` and yield empty groups
 - **Profile axis**: `profiles.nix` at repo root lists skills by profile (`personal`, `work`); unlisted skills are `general`
-- **Authored vs vendored**: vendored skills (from upstream) retain `upstream:` / `adaptedFrom:` frontmatter; authored skills do not have an upstream entry. `skills-lock.json` tracks vendored provenance going forward
+- **Authored vs vendored**: vendored skills carry `upstream:` frontmatter (single canonical origin) plus a `skills-lock.json` entry; authored skills have no `upstream:` (may carry `adaptedFrom:` for informational lineage only) and no lockfile entry. `skills-lock.json` stays **uncommitted** — committing it makes `skills add . --list` hide the locked skills from discovery
 - **Harness=folder rule**: each harness maps to exactly one folder; the folder name determines the harness key in `lib/default.nix`
 - **Whole-dir preservation**: move skills as complete directories; preserve scripts, references, licenses, and assets
 - **`--agent '*'` ban**: never use `skills add --agent '*'` (symlink fan-out pollutes harness folders)

@@ -6,7 +6,8 @@ description: >-
   or multi-file regex matching. Also use when user says "search file contents", "find text in files",
   "grep for", "search in files", "look for pattern in code", or "find occurrences of".
   Prefer rg over grep for speed and smart defaults.
-upstream: "https://github.com/laurigates/claude-plugins/tree/main/tools-plugin/skills/rg-code-search"
+adaptedFrom:
+  - "https://github.com/laurigates/claude-plugins/tree/main/tools-plugin/skills/rg-code-search"
 ---
 
 # rg (ripgrep) — Agent Guide

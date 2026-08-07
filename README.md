@@ -8,7 +8,7 @@ Skills live in per-harness agent folders:
 
 | Folder | Harness | Skills |
 | --- | --- | ---: |
-| `.agents/skills/` | Universal (all harnesses) | 85 |
+| `.agents/skills/` | Universal (all harnesses) | 76 |
 | `.claude/skills/` | Claude Code | 1 |
 | `.pi/skills/` | Pi | 1 |
 
@@ -16,10 +16,10 @@ Profile membership lives in `profiles.nix` at the repo root. Skills not listed t
 
 | Profile | Skills |
 | --- | --- |
-| `personal` | recharts-patterns, supabase-postgres-best-practices, svelte, sveltekit |
-| `work` | enterprise-scala, github-pr-management, mysql-best-practices, splunk |
+| `personal` | _(none)_ |
+| `work` | github-pr-management, mysql-best-practices, splunk |
 
-The source contains 87 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
+The source contains 78 unique selectable leaves. `skill-creator` is Claude Code-specific; `mcp-builder` is shared.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
@@ -46,22 +46,22 @@ Non-Nix users choose skills explicitly. `--agent` selects the destination harnes
 Personal example (Pi):
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill svelte --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill svelte --agent pi --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill python --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill python --agent pi --copy -y
 ```
 
 Work Claude Code example:
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --agent claude-code --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --agent claude-code --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill splunk --agent claude-code --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill splunk --agent claude-code --copy -y
 ```
 
 Work Pi example:
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skill pi-jsonl-logs --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill enterprise-scala --skill pi-jsonl-logs --agent pi --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-jsonl-logs --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-jsonl-logs --agent pi --copy -y
 ```
 
 Notes:

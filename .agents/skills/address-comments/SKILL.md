@@ -1,7 +1,7 @@
 ---
 name: address-comments
-upstream: "https://github.com/openai/skills/tree/main/skills/.curated/gh-address-comments"
 adaptedFrom:
+  - "https://github.com/openai/skills/tree/main/skills/.curated/gh-address-comments"
   - "https://github.com/v1-io/v1tamins/tree/main/claude/skills/address-review"
 description: >
   Address unresolved pull request review comments and threads to closure.
