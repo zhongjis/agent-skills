@@ -84,8 +84,8 @@ When the user requests a durable behavior change, record it here or in the relev
 - **Profile axis**: `profiles.nix` at repo root lists skills by profile (`personal`, `work`); unlisted skills are `general`
 - **Authored vs vendored**: vendored skills carry `upstream:` frontmatter (single canonical origin) plus a tracked `skills-lock.json` entry; those lock entries hide vendored skills from `skills add . --list`. Authored skills have no `upstream:` (may carry `adaptedFrom:` for informational lineage only) and no lockfile entry.
 - **Harness=folder rule**: each harness maps to exactly one folder; the folder name determines the harness key in `lib/default.nix`
-- **Whole-dir preservation**: move skills as complete directories; preserve scripts, references, licenses, and assets
-- **`--agent '*'` ban**: never use `skills add --agent '*'` (symlink fan-out pollutes harness folders)
+- **Whole-dir/source fidelity**: preserve complete skill directories and instructional content; only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them
+- **Scoped CLI projection**: add and refresh exactly one skill for one harness with `--copy`; never use wildcard selectors or broad `skills update`
 
 ## Child DOX Index
 

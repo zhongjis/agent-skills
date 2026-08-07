@@ -109,7 +109,7 @@ programs.pi.skills = inputs.agent-skills.lib.skillsFor {
 
 ## Maintenance
 
-Preserve each skill directory as one unit, including scripts, references, licenses, and assets. Keep existing `upstream` and `adaptedFrom` frontmatter when moving or updating a leaf.
+Preserve each skill directory and its instructional content, including scripts, references, licenses, and assets. Only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them.
 
 Run:
 
@@ -126,4 +126,4 @@ Flake-consumer realization check (verifies dot-dirs survive the Nix store copy):
 nix eval --impure --expr '(builtins.getFlake (toString ./.)).lib.skillsFor { profile = "personal"; harness = "pi"; }'
 ```
 
-The CLI test uses the installed `skills` command when available and falls back to `npx skills`. Set `SKILLS_CLI_FORCE_NPX=true` to exercise the fallback lifecycle even when `skills` is installed. The test verifies exact discovery, explicit installs, support-file copies, updates, removals, cleanup, and source-tree immutability.
+The CLI test uses the installed `skills` command when available and falls back to `npx skills`. Set `SKILLS_CLI_FORCE_NPX=true` to exercise the fallback lifecycle even when `skills` is installed. Synthetic fixtures verify lock-aware discovery, explicit copied install/list/refresh/remove behavior, support-file preservation, zero symlink fan-out, lock cleanup, source immutability, and temp cleanup.

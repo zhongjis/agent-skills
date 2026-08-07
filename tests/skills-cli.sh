@@ -6,15 +6,22 @@ fail() {
   exit 1
 }
 
-assert_lines_equal() {
+assert_contains_line() {
   local label="$1"
-  local actual="$2"
+  local lines="$2"
   local expected="$3"
 
-  if [[ "$actual" != "$expected" ]]; then
-    printf 'FAIL: %s\nExpected:\n%s\nActual:\n%s\n' \
-      "$label" "$expected" "$actual" >&2
-    exit 1
+  printf '%s\n' "$lines" | grep -Fqx -- "$expected" \
+    || fail "$label: missing $expected"
+}
+
+assert_excludes_line() {
+  local label="$1"
+  local lines="$2"
+  local unexpected="$3"
+
+  if printf '%s\n' "$lines" | grep -Fqx -- "$unexpected"; then
+    fail "$label: unexpectedly included $unexpected"
   fi
 }
 
@@ -40,183 +47,16 @@ handle_signal() {
   exit 130
 }
 
-installed_files() {
-  local skillsDir="$tempDir/.pi/skills"
-
-  if [[ ! -d "$skillsDir" ]]; then
-    return
-  fi
-
-  find "$skillsDir" -type f -name SKILL.md -print \
-    | sed "s#^$tempDir/##" \
-    | LC_ALL=C sort
-}
-
-canonical_installed_files() {
-  local skillsDir="$tempDir/.agents/skills"
-
-  if [[ ! -d "$skillsDir" ]]; then
-    return
-  fi
-
-  find "$skillsDir" -type f -name SKILL.md -print \
-    | sed "s#^$tempDir/##" \
-    | LC_ALL=C sort
-}
-
-all_installed_skill_files() {
-  local skillsDir
-
-  for skillsDir in "$tempDir/.agents/skills" "$tempDir/.pi/skills"; do
-    if [[ -d "$skillsDir" ]]; then
-      find "$skillsDir" -type f -name SKILL.md -print
-    fi
-  done | LC_ALL=C sort
-}
-
-expected_files() {
-  local skill
-
-  for skill in "$@"; do
-    printf '.pi/skills/%s/SKILL.md\n' "$skill"
-  done | LC_ALL=C sort
-}
-
-expected_canonical_files() {
-  local skill
-
-  for skill in "$@"; do
-    printf '.agents/skills/%s/SKILL.md\n' "$skill"
-  done | LC_ALL=C sort
-}
-
 json_skill_names() {
   sed -nE 's/.*"name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
     | LC_ALL=C sort
 }
 
-run_profile() {
-  local profile="$1"
-  local oppositeCommon="$2"
-  local oppositePi="$3"
-  local updateSkill="$4"
-  local updateMarker="$5"
-  shift 5
-  local profileSkills=("$@")
-  local expected
-  local actual
-  local listJson
-  local listedNames
-  local sourceSkillFile
-  local installedSkillFile
-  local copiedSkillFile
-  local beforeUpdateHash
-  local afterUpdateHash
-  local beforeCopiedUpdateHash
-  local afterCopiedUpdateHash
-  local updateOutput
-
-  printf 'profile %s expected skills:\n' "$profile"
-  printf '%s\n' "${profileSkills[@]}" | LC_ALL=C sort
-
-  "${cli[@]}" add "$updateSourceUrl" \
-    --skill "${profileSkills[@]}" \
-    --agent pi \
-    --copy \
-    -y
-
-  expected="$(expected_files "${profileSkills[@]}")"
-  actual="$(installed_files)"
-  assert_lines_equal "$profile installed file set" "$actual" "$expected"
-  [[ -f "$tempDir/.pi/skills/pi-jsonl-logs/scripts/pi-session-overview.sh" ]] \
-    || fail "$profile install omitted Pi skill support files"
-  [[ ! -e "$tempDir/.pi/skills/$oppositeCommon" ]] \
-    || fail "$profile installed opposite common profile skill"
-  [[ ! -e "$tempDir/.pi/skills/$oppositePi" ]] \
-    || fail "$profile installed opposite Pi profile skill"
-  [[ ! -e "$tempDir/.agents/skills/$oppositeCommon" ]] \
-    || fail "$profile installed opposite canonical profile skill"
-  [[ ! -e "$tempDir/.agents/skills/$oppositePi" ]] \
-    || fail "$profile installed opposite canonical Pi profile skill"
-  printf 'profile %s exact installed files:\n%s\n' "$profile" "$actual"
-
-  listJson="$("${cli[@]}" list --agent pi --json)"
-  printf 'profile %s list JSON:\n%s\n' "$profile" "$listJson"
-  listedNames="$(printf '%s\n' "$listJson" | json_skill_names)"
-  expected="$(printf '%s\n' "${profileSkills[@]}" | LC_ALL=C sort)"
-  assert_lines_equal "$profile list JSON skill set" "$listedNames" "$expected"
-
-  sourceSkillFile="$(find "$updateSource/skills" \
-    -path "*/$updateSkill/SKILL.md" -type f -print)"
-  [[ -n "$sourceSkillFile" && "$sourceSkillFile" != *$'\n'* ]] \
-    || fail "$profile update source skill is not unique"
-  installedSkillFile="$tempDir/.agents/skills/$updateSkill/SKILL.md"
-  copiedSkillFile="$tempDir/.pi/skills/$updateSkill/SKILL.md"
-
-  updateOutput="$("${cli[@]}" update -p -y)"
-  printf 'profile %s update fixture initialization:\n%s\n' \
-    "$profile" "$updateOutput"
-  [[ "$updateOutput" != *"No project skills to update."* ]] \
-    || fail "$profile update fixture was ineligible"
-  [[ -f "$installedSkillFile" ]] \
-    || fail "$profile canonical installed skill is missing"
-  [[ -f "$copiedSkillFile" ]] \
-    || fail "$profile copied Pi skill is missing"
-  beforeUpdateHash="$(cksum "$installedSkillFile")"
-  beforeCopiedUpdateHash="$(cksum "$copiedSkillFile")"
-
-  sed -i.bak "s/$updateMarker/${updateMarker}_UPDATED/" "$sourceSkillFile"
-  rm -f -- "$sourceSkillFile.bak"
-  grep -q "${updateMarker}_UPDATED" "$sourceSkillFile" \
-    || fail "$profile source sentinel did not change"
-  git -C "$updateSource" add "$sourceSkillFile"
-  git -C "$updateSource" commit --quiet -m "update $updateSkill"
-
-  updateOutput="$("${cli[@]}" update -p -y)"
-  printf 'profile %s update output:\n%s\n' "$profile" "$updateOutput"
-  [[ "$updateOutput" != *"No project skills to update."* ]] \
-    || fail "$profile update was a semantic no-op"
-  [[ "$updateOutput" == *"Updated $updateSkill"* ]] \
-    || fail "$profile update did not report the sentinel skill"
-  afterUpdateHash="$(cksum "$installedSkillFile")"
-  [[ "$beforeUpdateHash" != "$afterUpdateHash" ]] \
-    || fail "$profile installed sentinel hash did not change"
-  grep -q "${updateMarker}_UPDATED" "$installedSkillFile" \
-    || fail "$profile installed sentinel did not change"
-  afterCopiedUpdateHash="$(cksum "$copiedSkillFile")"
-  [[ "$beforeCopiedUpdateHash" != "$afterCopiedUpdateHash" ]] \
-    || fail "$profile copied Pi sentinel hash did not change during update"
-  grep -q "${updateMarker}_UPDATED" "$copiedSkillFile" \
-    || fail "$profile copied Pi sentinel did not change during update"
-  printf 'profile %s semantic update: %s -> %s\n' \
-    "$profile" "$beforeUpdateHash" "$afterUpdateHash"
-  printf 'profile %s observed copy-propagation behavior: canonical and Pi leaf both updated\n' \
-    "$profile"
-
-  actual="$(installed_files)"
-  # Pi leaves are removed during update -p -y (CLI promotes skills to canonical)
-  assert_lines_equal "$profile post-update Pi leaves empty" "$actual" ""
-  actual="$(canonical_installed_files)"
-  expected="$(expected_canonical_files "${profileSkills[@]}")"
-  assert_lines_equal "$profile post-update canonical file set" "$actual" "$expected"
-
-  "${cli[@]}" remove "${profileSkills[@]}" --agent pi -y
-  actual="$(installed_files)"
-  assert_lines_equal "$profile Pi leaves after CLI removal" "$actual" ""
-  for skill in "${profileSkills[@]}"; do
-    [[ ! -d "$tempDir/.pi/skills/$skill" ]] \
-      || fail "$profile Pi skill directory remained after removal: $skill"
-  done
-  actual="$(canonical_installed_files)"
-  expected="$(expected_canonical_files "${profileSkills[@]}")"
-  assert_lines_equal "$profile canonical leaves retained after CLI removal" "$actual" "$expected"
-  printf 'profile %s CLI removal: Pi projection empty; canonical leaves retained\n' "$profile"
-  for skill in "${profileSkills[@]}"; do
-    rm -rf -- "$tempDir/.agents/skills/$skill"
-  done
-  actual="$(all_installed_skill_files)"
-  assert_lines_equal "$profile zero installed SKILL.md leaves" "$actual" ""
-  printf 'profile %s temp cleanup after CLI removal: all leaves removed\n' "$profile"
+run_cli() {
+  (
+    cd -- "$targetDir"
+    "${cli[@]}" "$@"
+  )
 }
 
 scriptDir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -250,81 +90,129 @@ printf 'resolved command: %s\n' "${cli[*]}"
 printf 'resolved version: '
 "${cli[@]}" --version
 
-# skills-lock.json is committed, so `skills add . --list` offers only skills NOT in the
-# lockfile (the CLI treats locked skills as already-installed). The 58 vendored skills are
-# hidden from discovery; only these 16 authored (unlocked) skills remain discoverable.
-discoverableSkills=(
-  address-comments
-  ast-grep
-  code-review
-  code-review-v2
-  codebase-search
-  fd
-  find-skills
-  gh
-  github-pr-management
-  pi-jsonl-logs
-  rg
-  setup-repo-docs
-  skill-maintainer
-  splunk
-  use-open-design-canvas
-  zoom-out
-)
-personalSkills=(
-  caveman
-  nix
-  pi-jsonl-logs
-)
-workSkills=(
-  caveman
-  pi-jsonl-logs
-  python
-)
+visibleSkill="visible-fixture"
+lockedSkill="locked-fixture"
+sourceRepo="$tempDir/source.git"
+targetDir="$tempDir/target"
+mkdir -p \
+  "$sourceRepo/.agents/skills/$visibleSkill/scripts" \
+  "$sourceRepo/.agents/skills/$lockedSkill" \
+  "$targetDir"
 
-git -C "$tempDir" init --quiet
-cd -- "$tempDir"
+cat >"$sourceRepo/.agents/skills/$visibleSkill/SKILL.md" <<'EOF'
+---
+name: visible-fixture
+description: Synthetic lifecycle fixture.
+---
 
-sourceList="$("${cli[@]}" add "$repoRoot" --list)"
+# Visible fixture
+
+fixture-version-1
+EOF
+cat >"$sourceRepo/.agents/skills/$visibleSkill/scripts/helper.sh" <<'EOF'
+#!/usr/bin/env sh
+printf 'fixture support file\n'
+EOF
+chmod +x "$sourceRepo/.agents/skills/$visibleSkill/scripts/helper.sh"
+cat >"$sourceRepo/.agents/skills/$lockedSkill/SKILL.md" <<'EOF'
+---
+name: locked-fixture
+description: Synthetic lock-visibility fixture.
+---
+
+# Locked fixture
+EOF
+cat >"$sourceRepo/skills-lock.json" <<EOF
+{
+  "version": 1,
+  "skills": {
+    "$lockedSkill": {
+      "source": "fixture/origin",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/$lockedSkill/SKILL.md",
+      "computedHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}
+EOF
+
+git -C "$sourceRepo" init --quiet
+git -C "$sourceRepo" config user.email fixture@example.invalid
+git -C "$sourceRepo" config user.name "Skills CLI Fixture"
+git -C "$sourceRepo" add -A
+git -C "$sourceRepo" commit --quiet -m initial
+git -C "$targetDir" init --quiet
+sourceUrl="file://$sourceRepo"
+
+sourceList="$(run_cli add "$sourceUrl" --list)"
 printf 'source discovery:\n%s\n' "$sourceList"
 sourceNames="$(printf '%s\n' "$sourceList" \
   | sed -nE 's/^│    ([[:alnum:]][[:alnum:]-]*)[[:space:]]*$/\1/p' \
   | LC_ALL=C sort)"
-expectedSourceNames="$(printf '%s\n' "${discoverableSkills[@]}" | LC_ALL=C sort)"
-assert_lines_equal "source discovery exact 16 unlocked skills" \
-  "$sourceNames" "$expectedSourceNames"
-printf 'source exact-16: yes\n'
+assert_contains_line "source lock visibility" "$sourceNames" "$visibleSkill"
+assert_excludes_line "source lock visibility" "$sourceNames" "$lockedSkill"
+printf 'lock-aware discovery: unlocked fixture visible; locked fixture hidden\n'
 
-updateSource="$tempDir/source.git"
-mkdir -p "$updateSource/skills"
-cp -R "$repoRoot/.agents/skills/caveman" "$updateSource/skills/"
-cp -R "$repoRoot/.agents/skills/nix" "$updateSource/skills/"
-cp -R "$repoRoot/.agents/skills/python" "$updateSource/skills/"
-cp -R "$repoRoot/.pi/skills/pi-jsonl-logs" "$updateSource/skills/"
-git -C "$updateSource" init --quiet
-git -C "$updateSource" config user.email poc@example.invalid
-git -C "$updateSource" config user.name "Skills CLI PoC"
-git -C "$updateSource" add skills
-git -C "$updateSource" commit --quiet -m initial
-updateSourceUrl="file://$updateSource"
-printf 'local update source: %s\n' "$updateSourceUrl"
+run_cli add "$sourceUrl" \
+  --skill "$visibleSkill" \
+  --agent pi \
+  --copy \
+  -y
 
-run_profile personal \
-  python \
-  mysql-best-practices \
-  nix \
-  "Package manager and functional language for reproducible environments" \
-  "${personalSkills[@]}"
-# Reset lock between profile runs (normalizes behavior across CLI versions)
-rm -f -- "$tempDir/skills-lock.json"
-run_profile work \
-  nix \
-  mysql-best-practices \
-  python \
-  "Modern Python development with type hints" \
-  "${workSkills[@]}"
+installedDir="$targetDir/.pi/skills/$visibleSkill"
+installedSkillFile="$installedDir/SKILL.md"
+installedSupportFile="$installedDir/scripts/helper.sh"
+[[ -f "$installedSkillFile" && ! -L "$installedSkillFile" ]] \
+  || fail "copied SKILL.md is missing or symlinked"
+[[ -f "$installedSupportFile" && ! -L "$installedSupportFile" ]] \
+  || fail "support file is missing or symlinked"
+[[ ! -e "$targetDir/.agents/skills/$visibleSkill" ]] \
+  || fail "copy install created an unexpected canonical projection"
+[[ -z "$(find "$targetDir" -type l -print -quit)" ]] \
+  || fail "copy install created a symlink"
+printf 'explicit copied install: regular files only; support file preserved\n'
 
+listJson="$(run_cli list --agent pi --json)"
+listedNames="$(printf '%s\n' "$listJson" | json_skill_names)"
+assert_contains_line "Pi list JSON" "$listedNames" "$visibleSkill"
+printf 'explicit list: installed fixture visible\n'
+
+
+beforeRefreshHash="$(cksum "$installedSkillFile")"
+sed -i.bak 's/fixture-version-1/fixture-version-2/' \
+  "$sourceRepo/.agents/skills/$visibleSkill/SKILL.md"
+rm -f -- "$sourceRepo/.agents/skills/$visibleSkill/SKILL.md.bak"
+git -C "$sourceRepo" add -A
+git -C "$sourceRepo" commit --quiet -m refresh
+
+run_cli add "$sourceUrl" \
+  --skill "$visibleSkill" \
+  --agent pi \
+  --copy \
+  -y
+afterRefreshHash="$(cksum "$installedSkillFile")"
+[[ "$beforeRefreshHash" != "$afterRefreshHash" ]] \
+  || fail "scoped copy refresh did not change installed fixture"
+grep -Fq 'fixture-version-2' "$installedSkillFile" \
+  || fail "scoped copy refresh omitted source change"
+[[ -z "$(find "$targetDir" -type l -print -quit)" ]] \
+  || fail "scoped copy refresh created a symlink"
+printf 'scoped copy refresh: targeted fixture updated without symlinks\n'
+
+run_cli remove "$visibleSkill" --agent pi -y
+[[ ! -e "$installedDir" ]] \
+  || fail "explicit removal left installed fixture"
+if [[ -f "$targetDir/skills-lock.json" ]] \
+  && grep -Fq "\"$visibleSkill\"" "$targetDir/skills-lock.json"; then
+  fail "explicit removal left fixture lock entry"
+fi
+[[ -z "$(find "$targetDir/.pi/skills" -type f -name SKILL.md -print 2>/dev/null)" ]] \
+  || fail "explicit removal left installed skill leaves"
+printf 'explicit removal: copied leaf and lock entry removed\n'
+
+[[ -z "$(git -C "$sourceRepo" status --porcelain=v1 --untracked-files=all)" ]] \
+  || fail "fixture source was mutated by Skills CLI"
 sourceStatusAfter="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"
-assert_lines_equal "source git status invariant" \
-  "$sourceStatusAfter" "$sourceStatusBefore"
-printf 'source git status unchanged: yes\n'
+[[ "$sourceStatusAfter" == "$sourceStatusBefore" ]] \
+  || fail "repository source tree changed during CLI lifecycle"
+printf 'source trees unchanged by Skills CLI: yes\n'
