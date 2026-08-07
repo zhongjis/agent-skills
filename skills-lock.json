@@ -197,6 +197,24 @@
       "skillPath": "neat-freak/SKILL.md",
       "computedHash": "e30772f296f23b31a7168c974c6e89505f4c7139dbea5a7c9175552d03ee908e"
     },
+    "nh": {
+      "source": "knoopx/pi",
+      "sourceType": "github",
+      "skillPath": "agent/skills/tools/nh/SKILL.md",
+      "computedHash": "511120caac7caf789aa48ea3d67f26bd289e8ddb7dfe7118b7acd07031065b3f"
+    },
+    "nix": {
+      "source": "knoopx/pi",
+      "sourceType": "github",
+      "skillPath": "agent/skills/tools/nix/SKILL.md",
+      "computedHash": "0dfe88424d18a341ce4158631f945bbfd4e6cd2437b841e57b2c2cf19b45a1f1"
+    },
+    "nix-flake": {
+      "source": "knoopx/pi",
+      "sourceType": "github",
+      "skillPath": "agent/skills/tools/nix-flake/SKILL.md",
+      "computedHash": "9ea3bd03add953b74f5099f7d79267baf45c3affc4154a10b77119c7d1dc1e90"
+    },
     "obsidian-cli": {
       "source": "kepano/obsidian-skills",
       "ref": "main",
