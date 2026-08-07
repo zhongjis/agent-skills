@@ -401,11 +401,10 @@
       "computedHash": "ea118dd4035b91c8361881fc36b4876b8fa9779750bfd1c180a18a71a59f8692"
     },
     "yt-dlp": {
-      "source": "knoopx/pi",
-      "ref": "07747da19217308d5438d63c7b61be0587a71833",
+      "source": "lwmxiaobei/yt-dlp-skill",
       "sourceType": "github",
-      "skillPath": "agent/skills/yt-dlp/SKILL.md",
-      "computedHash": "be24db43b71e5690c4eb8df88b6090c9d760feddd0510fb6d4f56b414b217148"
+      "skillPath": "SKILL.md",
+      "computedHash": "0748a41e6c5dded47f2a9135805b7aea82d7a6f745a64e8e4fd1d49e69772631"
     }
   }
 }
