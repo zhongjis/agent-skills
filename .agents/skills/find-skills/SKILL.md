@@ -1,7 +1,8 @@
 ---
 name: find-skills
 description: Helps users discover agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. Discovery only — for installing or maintaining skills, use the skill-maintainer skill.
-upstream: "https://github.com/vercel-labs/skills/tree/main/skills/find-skills"
+adaptedFrom:
+  - "https://github.com/vercel-labs/skills/tree/main/skills/find-skills"
 ---
 
 # Find Skills

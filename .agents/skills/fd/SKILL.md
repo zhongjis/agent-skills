@@ -1,7 +1,8 @@
 ---
 name: fd
 description: "Fast file finding using fd command-line tool with smart defaults, gitignore awareness, and parallel execution. Use when: finding files by name, extension, or path pattern; filtering by metadata (size with --size +10m, modification time with --changed-within 1d, type with -t f/d/l/x); locating project roots (fd -t f '^Cargo.toml$' --format '{//}'); batch executing commands on found files (fd -e log -x rm); cleanup operations (removing node_modules, old logs, .pyc bytecache, .DS_Store); building file lists for downstream tools. Also use fd as a fallback when searching for files by content if no dedicated content search tool like rg is available. Do NOT use fd for: finding empty directories (use find -empty), complex boolean logic, or POSIX compliance."
-upstream: "https://github.com/laurigates/claude-plugins/tree/main/tools-plugin/skills/fd-file-finding"
+adaptedFrom:
+  - "https://github.com/laurigates/claude-plugins/tree/main/tools-plugin/skills/fd-file-finding"
 ---
 
 # fd File Finding

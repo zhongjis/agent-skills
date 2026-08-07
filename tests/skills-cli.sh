@@ -250,104 +250,37 @@ printf 'resolved command: %s\n' "${cli[*]}"
 printf 'resolved version: '
 "${cli[@]}" --version
 
-allSkills=(
+# skills-lock.json is committed, so `skills add . --list` offers only skills NOT in the
+# lockfile (the CLI treats locked skills as already-installed). The 61 vendored skills are
+# hidden from discovery; only these 17 authored (unlocked) skills remain discoverable.
+discoverableSkills=(
   address-comments
-  agent-browser
-  agent-readiness
-  agentation
-  agents-md
   ast-grep
-  before-and-after
-  biome-js
-  bun
-  canvas-design
-  caveman
   code-review
   code-review-v2
-  codebase-design
   codebase-search
-  complexity
-  database-migration
-  database-schema-design
-  diagnosing-bugs
-  docker
-  docx
-  domain-modeling
-  enterprise-scala
   fd
   find-skills
   gh
-  git-master
-  github-actions
   github-pr-management
-  grill-with-docs
-  grilling
-  handoff
-  html-diagram
-  huashu-design
-  huashu-nuwa
-  improve-codebase-architecture
-  jq
-  jujutsu
-  kubectl
-  last30days
-  mcp-builder
-  mysql-best-practices
-  neat-freak
   nix
-  obsidian-cli
-  pdf
   pi-jsonl-logs
-  pnpm
-  podman
-  postgresql-table-design
-  pptx
-  prompt-engineering
-  prototype
-  python
-  react-best-practices
-  recharts-patterns
   rg
-  setup-matt-pocock-skills
   setup-repo-docs
-  shell-expert
-  skill-creator
   skill-maintainer
   splunk
-  sql-code-review
-  sql-optimization-patterns
-  supabase-postgres-best-practices
-  svg-logo-designer
-  svelte
-  sveltekit
-  tdd
-  teach
-  to-spec
-  to-tickets
-  triage
-  typescript-best-practices
   use-open-design-canvas
-  uv
-  vite
-  vitepress
-  vitest
-  webapp-testing
-  writing-clearly-and-concisely
-  writing-great-skills
-  xlsx
-  yq
-  yt-dlp
   zoom-out
 )
 personalSkills=(
   caveman
+  nix
   pi-jsonl-logs
-  svelte
 )
 workSkills=(
   caveman
-  enterprise-scala
   pi-jsonl-logs
+  python
 )
 
 sourceList="$("${cli[@]}" add "$repoRoot" --list)"
@@ -355,10 +288,10 @@ printf 'source discovery:\n%s\n' "$sourceList"
 sourceNames="$(printf '%s\n' "$sourceList" \
   | sed -nE 's/^│    ([[:alnum:]][[:alnum:]-]*)[[:space:]]*$/\1/p' \
   | LC_ALL=C sort)"
-expectedSourceNames="$(printf '%s\n' "${allSkills[@]}" | LC_ALL=C sort)"
-assert_lines_equal "source discovery exact 87 unique skills" \
+expectedSourceNames="$(printf '%s\n' "${discoverableSkills[@]}" | LC_ALL=C sort)"
+assert_lines_equal "source discovery exact 17 unlocked skills" \
   "$sourceNames" "$expectedSourceNames"
-printf 'source exact-87: yes\n'
+printf 'source exact-17: yes\n'
 
 git -C "$tempDir" init --quiet
 cd -- "$tempDir"
@@ -366,8 +299,8 @@ cd -- "$tempDir"
 updateSource="$tempDir/source.git"
 mkdir -p "$updateSource/skills"
 cp -R "$repoRoot/.agents/skills/caveman" "$updateSource/skills/"
-cp -R "$repoRoot/.agents/skills/svelte" "$updateSource/skills/"
-cp -R "$repoRoot/.agents/skills/enterprise-scala" "$updateSource/skills/"
+cp -R "$repoRoot/.agents/skills/nix" "$updateSource/skills/"
+cp -R "$repoRoot/.agents/skills/python" "$updateSource/skills/"
 cp -R "$repoRoot/.pi/skills/pi-jsonl-logs" "$updateSource/skills/"
 git -C "$updateSource" init --quiet
 git -C "$updateSource" config user.email poc@example.invalid
@@ -378,18 +311,18 @@ updateSourceUrl="file://$updateSource"
 printf 'local update source: %s\n' "$updateSourceUrl"
 
 run_profile personal \
-  enterprise-scala \
+  python \
   mysql-best-practices \
-  svelte \
-  "Expert in Svelte" \
+  nix \
+  "Unified Nix toolkit" \
   "${personalSkills[@]}"
 # Reset lock between profile runs (normalizes behavior across CLI versions)
 rm -f -- "$tempDir/skills-lock.json"
 run_profile work \
-  recharts-patterns \
-  svelte \
-  enterprise-scala \
-  "Enterprise Scala guardrails" \
+  nix \
+  mysql-best-practices \
+  python \
+  "Modern Python development with type hints" \
   "${workSkills[@]}"
 
 sourceStatusAfter="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"

@@ -8,7 +8,8 @@ description: |
   Also use when the user asks "how do other projects do X", "find examples of Y on GitHub",
   "search repo Z for", or wants to explore code in repositories they haven't cloned.
 companions: [gh]
-upstream: https://github.com/supercent-io/skills-template/blob/a6d8358b4343a65059531af7656749275926052d/.agent-skills/codebase-search/SKILL.md
+adaptedFrom:
+  - "https://github.com/supercent-io/skills-template/blob/a6d8358b4343a65059531af7656749275926052d/.agent-skills/codebase-search/SKILL.md"
 ---
 
 # Codebase Search
