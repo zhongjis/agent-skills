@@ -39,12 +39,13 @@ let
     "last30days"
     "mcp-builder"
     "neat-freak"
+    "nh"
     "nix"
+    "nix-flake"
     "obsidian-cli"
     "pdf"
     "pnpm"
     "podman"
-    "postgresql-table-design"
     "pptx"
     "prompt-engineering-patterns"
     "prototype"
@@ -55,9 +56,8 @@ let
     "setup-matt-pocock-skills"
     "setup-repo-docs"
     "shell-expert"
+    "skill-creator"
     "skill-maintainer"
-    "sql-code-review"
-    "sql-optimization-patterns"
     "tdd"
     "teach"
     "to-spec"
@@ -86,7 +86,7 @@ let
   );
   piPersonalNames = builtins.sort builtins.lessThan (personalNames ++ ["pi-jsonl-logs"]);
   piWorkNames = builtins.sort builtins.lessThan (workNames ++ ["pi-jsonl-logs"]);
-  claudePersonalNames = builtins.sort builtins.lessThan (personalNames ++ ["skill-creator"]);
+  claudePersonalNames = personalNames;
   emptyHarnesses = ["codex" "factory" "omp" "opencode"];
 
   namesFor = args: builtins.attrNames (lib.skillsFor args);
@@ -167,7 +167,7 @@ let
         commonGeneral = {collision = ../.agents/skills/caveman;};
         commonPersonal = {};
         commonWork = {};
-        claudeCodeGeneral = {collision = ../.claude/skills/skill-creator;};
+        claudeCodeGeneral = {collision = ../.agents/skills/skill-creator;};
         claudeCodePersonal = {};
         claudeCodeWork = {};
         piGeneral = {};
@@ -216,8 +216,7 @@ in
   }
   == piWorkNames;
   assert builtins.match ".*/.agents/skills/mcp-builder" (toString claudePersonal.mcp-builder) != null;
-  assert builtins.match ".*/.claude/skills/skill-creator" (toString claudePersonal.skill-creator) != null;
-  assert builtins.match ".*/.claude/skills/skill-creator" (toString harnessOverride.collision) != null;
+  assert builtins.match ".*/.agents/skills/skill-creator" (toString harnessOverride.collision) != null;
   assert pathsAreValid commonPersonal;
   assert pathsAreValid commonWork;
   assert pathsAreValid claudePersonal;

@@ -11,7 +11,7 @@
 
 ## Local Contracts
 
-- `selector.nix` checks selection output against explicit expected name lists (`commonGeneralNames`, `personalNames`, `workNames`, and per-harness additions) plus failure cases; keep these lists in sync with agent-folder skill dirs when leaves change. Also imports `../profiles.nix` for 3 guardrail asserts: (i) personal∩work==[], (ii) every profile name has SKILL.md, (iii) bucket membership and 73-general count.
+- `selector.nix` checks selection output against explicit expected name lists (`commonGeneralNames`, `personalNames`, `workNames`, and per-harness additions) plus failure cases; keep these lists in sync with agent-folder skill dirs when leaves change. Also imports `../profiles.nix` for 3 guardrail asserts: (i) personal∩work==[], (ii) every profile name has SKILL.md, (iii) bucket membership and 70-general count.
 - `skills-cli.sh` uses the installed `skills` binary and falls back to `npx skills`. `SKILLS_CLI_FORCE_NPX=true` forces the npx path. It verifies discovery, explicit installs, support-file copies, updates, removals, cleanup, and source-tree immutability.
 
 ## Verification
