@@ -89,7 +89,6 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-- `docs/specs/` — product specs (PRDs) for planned work; not a code contract. Current: `npx-skills-first-restructure.md`.
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `select-skills.nix`, `default.nix`)
 - `tests/AGENTS.md` — repository verification (`selector.nix`, `skills-cli.sh`)
 - Root-owned files: `README.md`, `flake.nix`, `.gitignore`, and any other root-level project documentation.
