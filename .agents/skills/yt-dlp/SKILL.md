@@ -1,202 +1,188 @@
 ---
 name: yt-dlp
-description: Download videos from YouTube and other sites using yt-dlp. Use when downloading videos, extracting metadata, or batch downloading multiple files.
-upstream: "https://github.com/knoopx/pi/tree/07747da19217308d5438d63c7b61be0587a71833/agent/skills/yt-dlp"
+description: Download videos and extract audio from various platforms using yt-dlp. Use when user provides a video URL, asks to download a video, or when conversation contains video links from YouTube, Twitter/X, Vimeo, TikTok, Instagram, etc.
 ---
 
-# yt-dlp Cheatsheet
+# yt-dlp Video Downloader Skill
 
-Command-line tool for downloading videos from YouTube and other sites.
+This skill provides tools for downloading videos and extracting audio from various platforms using yt-dlp.
 
-## Quick Start
+## Features
 
+- Download videos from multiple platforms (YouTube, Twitter/X, Vimeo, TikTok, Instagram, Facebook, etc.)
+- Extract audio from videos
+- Auto-detect video URLs in conversations
+- Support for different quality settings and formats
+
+## Usage Patterns
+
+### 1. Command-based Download
+
+When user explicitly asks to download a video:
+```
+User: Download this video https://youtube.com/watch?v=...
+```
+
+**Action**: Extract URL and call download script
+
+### 2. Auto-detection in Conversations
+
+When conversation contains video URLs:
+```
+User: Check out this video https://twitter.com/... and let me know what you think
+```
+
+**Action**: Detect video URL, ask user if they want to download it
+
+### 3. Audio Extraction
+
+When user wants to extract audio only:
+```
+User: Extract the audio from https://youtu.be/...
+```
+
+**Action**: Use audio extraction script
+
+## Available Scripts
+
+Note: Scripts are located in the `scripts/` directory
+
+### download_video.py
+
+Main video downloader with quality and format options.
+
+**Usage**:
 ```bash
 # Download video
-yt-dlp https://url
+scripts/download_video.py <url> -o <output_dir>
 
-# Download with specific format
-yt-dlp -f best https://url
+# Download with specific quality
+scripts/download_video.py <url> --quality 720p
+scripts/download_video.py <url> --quality audio  # For audio only
 
-# Download with output filename
-yt-dlp -o "filename.%(ext)s" https://url
+# Custom format selector
+scripts/download_video.py <url> --format "bestvideo[height<=1080]+bestaudio/best"
+
+# Extract info only
+scripts/download_video.py <url> --info-only
 ```
 
-## Contents
+**Quality options**: `best`, `1080p`, `720p`, `480p`, `audio`
 
-- [Basic Download](./REFERENCE.md#basic-download)
-- [Format Selection](./REFERENCE.md#format-selection)
-- [Output Options](./REFERENCE.md#output-options)
-- [Playlist Handling](./REFERENCE.md#playlist-handling)
-- [Authentication](./REFERENCE.md#authentication)
-- [Metadata Extraction](./REFERENCE.md#metadata-extraction)
-- [Advanced Options](./REFERENCE.md#advanced-options)
-- [Batch Processing](./REFERENCE.md#batch-processing)
+### extract_audio.py
 
-## Basic Download
+Extract audio from videos in various formats.
 
+**Usage**:
 ```bash
-# Download video
-yt-dlp https://url
+# Extract as MP3 (default)
+/scripts/extract_audio.py <url> -o <output_dir>
 
-# Download to current directory
-yt-dlp https://url
+# Extract as M4A
+/scripts/extract_audio.py <url> --format m4a
 
-# Download with specific format
-yt-dlp -f best https://url
+# Custom quality
+/scripts/extract_audio.py <url> --quality 320
 ```
 
-See [Basic Download](./REFERENCE.md#basic-download) for details.
+**Formats**: `mp3`, `m4a`, `opus`, `flac`, `wav`
 
-## Format Selection
+### extract_urls.py
 
+Extract video URLs from text or files.
+
+**Usage**:
 ```bash
-# Best quality
-yt-dlp -f best https://url
+# Extract from text argument
+/scripts/extract_urls.py "Check https://youtube.com/watch?v=..."
 
-# Best audio
-yt-dlp -f bestaudio https://url
+# Extract from file
+/scripts/extract_urls.py <file_path>
 
-# Best video
-yt-dlp -f bestvideo https://url
-
-# Specific format
-yt-dlp -f 137 https://url
-
-# Format list
-yt-dlp --list-formats https://url
-
-# Format with preference
-yt-dlp -f "bestvideo[ext=mp4]+bestaudio/best" https://url
+# Read from stdin
+cat file.txt | /scripts/extract_urls.py
 ```
 
-See [Format Selection](./REFERENCE.md#format-selection) for details.
+## Video Platform Support
 
-## Output Options
+The skill recognizes URLs from:
+- YouTube (youtube.com, youtu.be)
+- Twitter/X (twitter.com, x.com)
+- Vimeo (vimeo.com)
+- TikTok (tiktok.com)
+- Instagram (instagram.com)
+- Facebook (facebook.com, fb.watch)
+- Twitch (twitch.tv, clips.twitch.tv)
+- Dailymotion (dailymotion.com)
+- Reddit (reddit.com)
+- Streamable (streamable.com)
+- And many more supported by yt-dlp
 
+## Workflow
+
+### When User Provides Video URL
+
+1. Extract URL from user's input using `extract_urls.py`
+2. Confirm with user what action to take:
+   - Download video
+   - Extract audio
+   - Show video info
+3. Execute appropriate script based on user's choice
+4. Notify user of success/failure and file location
+
+### When Auto-detecting URLs
+
+1. Scan conversation text with `extract_urls.py` (can process stdin)
+2. If video URLs found, ask user: "I found video URLs in this conversation. Would you like me to download them?"
+3. If yes, proceed with download workflow
+4. If no, continue with conversation
+
+### Handling Multiple URLs
+
+- For single URL: Direct download
+- For multiple URLs: Ask user if they want to download all or select specific ones
+- Provide option to download as playlist if URLs are from the same source
+
+## Quality and Format Selection
+
+When user doesn't specify preferences:
+- Default to best available quality
+- For audio: Default to MP3 at 192kbps
+
+When options needed:
 ```bash
-# Custom output filename
-yt-dlp -o "Title.%(ext)s" https://url
+# Ask user for quality preference if not specified
+# Options: best (default), 1080p, 720p, 480p, audio
 
-# Output template
-yt-dlp -o "%(title)s.%(ext)s" https://url
-
-# Keep original filename
-yt-dlp --keep-filename https://url
-
-# Skip existing files
-yt-dlp --continue https://url
-
-# Limit download rate
-yt-dlp --limit 1M https://url
-
-# Retries
-yt-dlp --retries 5 https://url
+# Ask for format if extracting audio
+# Options: mp3 (default), m4a, opus, flac, wav
 ```
 
-See [Output Options](./REFERENCE.md#output-options) for details.
+## Error Handling
 
-## Playlist Handling
+Common issues and solutions:
 
-```bash
-# Download single video
-yt-dlp https://url
+1. **yt-dlp not installed**:
+   - Check with `yt-dlp --version`
+   - Install with `pip install yt-dlp` or `brew install yt-dlp`
 
-# Download entire playlist
-yt-dlp --yes-playlist https://url
+2. **ffmpeg not installed** (required for format conversion):
+   - Install with `brew install ffmpeg` (macOS)
+   - Or `apt install ffmpeg` (Linux)
 
-# Download only certain videos
-yt-dlp --playlist-end 10 https://url
+3. **Video not available**:
+   - Check if URL is accessible
+   - Some videos may require authentication
+   - Age-restricted content may need cookies
 
-# Download with start number
-yt-dlp --playlist-start 5 https://url
+4. **Network errors**:
+   - Retry download
+   - Check internet connection
 
-# Download all except certain videos
-yt-dlp --ignore-errors https://url
-```
+## Dependencies
 
-See [Playlist Handling](./REFERENCE.md#playlist-handling) for details.
+- `yt-dlp`: Main video downloader
+- `ffmpeg`: Audio/video processing (required for format conversion)
+- `python3` with standard library
 
-## Authentication
-
-```bash
-# Username and password
-yt-dlp -u user -p pass https://url
-
-# API key
-yt-dlp --cookies cookies.txt https://url
-
-# Netflix username/password
-yt-dlp --username user --password pass https://url
-```
-
-See [Authentication](./REFERENCE.md#authentication) for details.
-
-## Metadata Extraction
-
-```bash
-# Extract info
-yt-dlp --dump-json https://url
-
-# Extract title
-yt-dlp --get-title https://url
-
-# Extract duration
-yt-dlp --get-duration https://url
-
-# Extract description
-yt-dlp --get-description https://url
-
-# Extract uploader
-yt-dlp --get-uploader https://url
-```
-
-See [Metadata Extraction](./REFERENCE.md#metadata-extraction) for details.
-
-## Advanced Options
-
-```bash
-# Download subtitles
-yt-dlp --write-sub https://url
-
-# Download all formats
-yt-dlp --all-formats https://url
-
-# Download best quality only
-yt-dlp --no-playlist https://url
-
-# Skip download, only extract info
-yt-dlp --skip-download https://url
-
-# Download to specific directory
-yt-dlp -o "downloads/%(title)s.%(ext)s" https://url
-
-# Concurrent downloads
-yt-dlp --concurrent-connections 10 https://url
-```
-
-See [Advanced Options](./REFERENCE.md#advanced-options) for details.
-
-## Batch Processing
-
-```bash
-# Download from file
-yt-dlp --batch-file urls.txt
-
-# Download all in directory
-yt-dlp --download-archive archive.txt https://url
-```
-
-See [Batch Processing](./REFERENCE.md#batch-processing) for details.
-
-## Tips
-
-- Use `-f best` for maximum quality
-- Use `-o "filename.%(ext)s"` for custom naming
-- Use `--continue` to skip already downloaded files
-- Use `--list-formats` to see available formats
-- Use `--skip-download` to extract metadata without downloading
-- Use `--download-archive` to avoid re-downloading
-
-## Related Skills
-
-- **tmux**: Run yt-dlp in background with watch mode
+All scripts are self-contained and use only built-in Python modules.
