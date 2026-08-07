@@ -3,6 +3,7 @@ name: find-skills
 description: "Discover and recommend external skills from the open agent skills ecosystem. Discovery only: qualify candidates, resolve a maintenance-ready handoff, then route all add, install, update, remove, and audit lifecycle work to skill-maintainer."
 adaptedFrom:
   - "https://github.com/vercel-labs/skills/tree/main/skills/find-skills"
+disable-model-invocation: true
 ---
 
 # Find Skills
@@ -44,8 +45,7 @@ Discover external candidates; leave repository lifecycle work to `skill-maintain
      checked_at: <ISO 8601 date or timestamp>
    ```
 
-Use a mutually consistent `source_spec`, `ref`, and `skill_path` that `skill-maintainer` can act on. Missing or ambiguous source, ref, or path means candidate is not maintenance-ready: continue research or report handoff as incomplete; never ask maintainer to guess.
-6. Route complete handoff to `skill-maintainer`.
+Use a mutually consistent `source_spec`, `ref`, and `skill_path` that `skill-maintainer` can act on. Missing or ambiguous source, ref, or path means candidate is not maintenance-ready: continue research or report handoff as incomplete; never ask maintainer to guess. 6. Route complete handoff to `skill-maintainer`.
 
 ## Boundary
 
