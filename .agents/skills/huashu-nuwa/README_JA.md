@@ -68,16 +68,6 @@ Naval    ❯ 君は三つの欲望をリストアップした。
 
 ---
 
-## 自分で蒸留したくない？Bloomeを試してみよう
-
-[<img src="bloome-advisors.jpg" alt="Bloome - 彼らをあなたのブレーンチームに" width="720">](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
-いつでもジョブズや張小龍とプロダクトの相談を？マンガーと投資の話を？
-
-[Bloome](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill) —— 彼らをあなたのブレーンチームに。一つの対話の中で、人と複数のAgentが協力する。[www.bloome.im](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
----
-
 ## インストール
 
 Nuwa はオープンな [Agent Skills](https://agentskills.io) 標準に基づき構築されており、skills 互換の任意の AI agent runtime で動作する。
@@ -105,7 +95,7 @@ npx skills add alchaincyf/nuwa-skill
 
 | Runtime | パス |
 |---|---|
-| OpenCode | `~/.config/opencode/skills/nuwa-skill/` |
+| Claude Code | `~/.claude/skills/nuwa-skill/` |
 | Codex CLI | `~/.codex/skills/nuwa-skill/` |
 | Cursor | `~/.cursor/skills/nuwa-skill/` |
 | OpenClaw | `~/.openclaw/workspace/skills/nuwa-skill/` |
@@ -167,6 +157,54 @@ skills を自動ロードしない runtime でも、`SKILL.md` の内容を会�
 - 公開発言 ≠ 本音 — 公開情報のみに基づく
 
 **自分の限界を教えてくれないスキルは、信頼に値しない。**
+
+---
+
+## 蒸留済みの人物
+
+Nuwaはすでに14人の人物 + 1つのテーマを蒸留した。それぞれが独立した、すぐにインストールして使えるSkillで、すべてAgent Skills標準に基づき、Claude Code / Codex / Cursor / OpenClaw / Hermes などの runtime で汎用的に動作する：
+
+### 人物Skill
+
+| 人物 | 領域 | 独立リポジトリ | ワンライナーインストール（クロス runtime） |
+|------|------|---------|---------|
+| 🔥 **ポール・グレアム** | 起業/執筆/プロダクト/人生哲学 | [paul-graham-skill](https://github.com/alchaincyf/paul-graham-skill) | `npx skills add alchaincyf/paul-graham-skill` |
+| 🔥 **張一鳴** | プロダクト/組織/グローバル化/人材 | [zhang-yiming-skill](https://github.com/alchaincyf/zhang-yiming-skill) | `npx skills add alchaincyf/zhang-yiming-skill` |
+| 🔥 **カルパシー** | AI/エンジニアリング/教育/オープンソース | [karpathy-skill](https://github.com/alchaincyf/karpathy-skill) | `npx skills add alchaincyf/karpathy-skill` |
+| 🔥 **イリヤ・サツケバー** | AI安全性/スケーリング/研究センス | [ilya-sutskever-skill](https://github.com/alchaincyf/ilya-sutskever-skill) | `npx skills add alchaincyf/ilya-sutskever-skill` |
+| 🔥 **MrBeast** | コンテンツ制作/YouTube方法論 | [mrbeast-skill](https://github.com/alchaincyf/mrbeast-skill) | `npx skills add alchaincyf/mrbeast-skill` |
+| 🔥 **トランプ** | 交渉/権力/伝播/行動予測 | [trump-skill](https://github.com/alchaincyf/trump-skill) | `npx skills add alchaincyf/trump-skill` |
+| ⭐ **ジョブズ** | プロダクト/デザイン/戦略 | [steve-jobs-skill](https://github.com/alchaincyf/steve-jobs-skill) | `npx skills add alchaincyf/steve-jobs-skill` |
+| **マスク** | エンジニアリング/コスト/第一原理 | [elon-musk-skill](https://github.com/alchaincyf/elon-musk-skill) | `npx skills add alchaincyf/elon-musk-skill` |
+| **マンガー** | 投資/多元的思考/逆向思考 | [munger-skill](https://github.com/alchaincyf/munger-skill) | `npx skills add alchaincyf/munger-skill` |
+| **ファインマン** | 学習/教育/科学的思考 | [feynman-skill](https://github.com/alchaincyf/feynman-skill) | `npx skills add alchaincyf/feynman-skill` |
+| **Naval** | 富/レバレッジ/人生哲学 | [naval-skill](https://github.com/alchaincyf/naval-skill) | `npx skills add alchaincyf/naval-skill` |
+| **タレブ** | リスク/反脆弱性/不確実性 | [taleb-skill](https://github.com/alchaincyf/taleb-skill) | `npx skills add alchaincyf/taleb-skill` |
+| **張雪峰** | 教育選択/キャリア設計/階層移動 | [zhangxuefeng-skill](https://github.com/alchaincyf/zhangxuefeng-skill) | `npx skills add alchaincyf/zhangxuefeng-skill` |
+| **孫宇晨** | マーケティング/アテンションエコノミー/ナラティブ操作 | [リポジトリ内examples/](examples/sun-yuchen-perspective/) | `examples/sun-yuchen-perspective/` をskillsディレクトリにコピー |
+
+### テーマSkill
+
+| テーマ | 領域 | 独立リポジトリ | ワンライナーインストール（クロス runtime） |
+|------|------|---------|---------|
+| **Xメンター** | X/Twitter運用フルスタック | [x-mentor-skill](https://github.com/alchaincyf/x-mentor-skill) | `npx skills add alchaincyf/x-mentor-skill` |
+
+人物Skillは一人の思考法を蒸留し、テーマSkillは一つの領域の方法論を蒸留する。各リポジトリには完全な調査データと効果例の対話が含まれている。
+
+🧪 **忠実度スコアカード**：15個の公式Skillはすべて独立した2エージェントによるブラインドテストを通過し（立場の一貫性/スタイルの識別度/エッジの誠実さ/出典の透明度/構造の完全性、方法論は [references/fidelity-scorecard.md](references/fidelity-scorecard.md) 参照）、**全員Aグレード（≥85点）**。各スコア：MrBeast/Naval/タレブ/ジョブズ/カルパシー/ポール・グレアム/張雪峰 97 · マンガー/ファインマン/Xメンター 96 · トランプ 95 · イリヤ 94 · 張一鳴 93 · 孫宇晨 91 · マスク 89。完全なスコアカードは各skillディレクトリ内の `FIDELITY.md` にある。
+
+リストにない人物やテーマを蒸留したい？Nuwaをインストールして「〇〇を蒸留して」と言うだけ。
+
+---
+
+## 貢献とコミュニティ
+
+Nuwaのエコシステムはコミュニティと共に成長するが、二つの異なる道を進む：
+
+- **`SKILL.md` はコア資産であり、外部PRによる変更は受け付けない**。方法論のバグや改善点を見つけたら→issueを立てて議論する。採用されたアイデアはメンテナーが実装し、commitで謝辞を記す（前例はPR #59）。
+- **コミュニティが蒸留した人物skillは [COMMUNITY.md](COMMUNITY.md) インデックスを通す**：自分のリポジトリに置き（starはあなたのもの）、[忠実度スコアカード](references/fidelity-scorecard.md)を実行してBグレード以上を取り、一行のPRを出せば収録される。
+
+完全なルールは [CONTRIBUTING.md](CONTRIBUTING.md) 参照。コミュニティの既存のコレクション、複数人格のオーケストレーション、テーマ応用は [COMMUNITY.md](COMMUNITY.md) を参照。
 
 ---
 

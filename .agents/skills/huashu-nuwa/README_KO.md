@@ -67,16 +67,6 @@ Naval   ❯ 당신은 세 가지 욕망을 나열했다.
 
 ---
 
-## 직접 증류하기 싫다면? Bloome을 써보세요
-
-[<img src="bloome-advisors.jpg" alt="Bloome - 그들을 당신의 두뇌집단으로" width="720">](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
-언제든 잡스나 장샤오룽과 제품 얘기를? 멍거와 투자 얘기를?
-
-[Bloome](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill) —— 그들을 당신의 두뇌집단으로. 하나의 대화 안에서 사람과 여러 Agent가 협업한다. [www.bloome.im](https://www.bloome.im/?utm_source=huashu-leon-202605&utm_medium=github&utm_campaign=nuwa-skill)
-
----
-
 ## 설치
 
 Nuwa는 오픈된 [Agent Skills](https://agentskills.io) 표준 기반으로 구축되어, skills 호환 AI agent runtime 어디에서나 작동한다.
@@ -104,7 +94,7 @@ npx skills add alchaincyf/nuwa-skill
 
 | Runtime | 경로 |
 |---|---|
-| OpenCode | `~/.config/opencode/skills/nuwa-skill/` |
+| Claude Code | `~/.claude/skills/nuwa-skill/` |
 | Codex CLI | `~/.codex/skills/nuwa-skill/` |
 | Cursor | `~/.cursor/skills/nuwa-skill/` |
 | OpenClaw | `~/.openclaw/workspace/skills/nuwa-skill/` |
@@ -166,6 +156,54 @@ skills를 자동 로드하지 않는 runtime이라도, `SKILL.md` 내용을 대�
 - 공개 발언 ≠ 진짜 생각 — 공개 정보에만 기반
 
 **자신의 한계를 알려주지 않는 스킬은 신뢰할 가치가 없다.**
+
+---
+
+## 증류된 인물
+
+Nuwa는 이미 14명의 인물 + 1개의 테마를 증류했다. 각각은 독립적이고 바로 설치해 사용할 수 있는 Skill이며, 모두 Agent Skills 표준 기반으로 Claude Code / Codex / Cursor / OpenClaw / Hermes 등 runtime에서 범용으로 작동한다:
+
+### 인물 Skill
+
+| 인물 | 영역 | 독립 저장소 | 원라인 설치(크로스 runtime) |
+|------|------|---------|---------|
+| 🔥 **폴 그레이엄** | 창업/글쓰기/제품/인생 철학 | [paul-graham-skill](https://github.com/alchaincyf/paul-graham-skill) | `npx skills add alchaincyf/paul-graham-skill` |
+| 🔥 **장이밍** | 제품/조직/글로벌화/인재 | [zhang-yiming-skill](https://github.com/alchaincyf/zhang-yiming-skill) | `npx skills add alchaincyf/zhang-yiming-skill` |
+| 🔥 **카파시** | AI/엔지니어링/교육/오픈소스 | [karpathy-skill](https://github.com/alchaincyf/karpathy-skill) | `npx skills add alchaincyf/karpathy-skill` |
+| 🔥 **일리야 수츠케버** | AI 안전/스케일링/연구 감각 | [ilya-sutskever-skill](https://github.com/alchaincyf/ilya-sutskever-skill) | `npx skills add alchaincyf/ilya-sutskever-skill` |
+| 🔥 **미스터비스트** | 콘텐츠 창작/YouTube 방법론 | [mrbeast-skill](https://github.com/alchaincyf/mrbeast-skill) | `npx skills add alchaincyf/mrbeast-skill` |
+| 🔥 **트럼프** | 협상/권력/전파/행동 예측 | [trump-skill](https://github.com/alchaincyf/trump-skill) | `npx skills add alchaincyf/trump-skill` |
+| ⭐ **스티브 잡스** | 제품/디자인/전략 | [steve-jobs-skill](https://github.com/alchaincyf/steve-jobs-skill) | `npx skills add alchaincyf/steve-jobs-skill` |
+| **머스크** | 엔지니어링/비용/제1원리 | [elon-musk-skill](https://github.com/alchaincyf/elon-musk-skill) | `npx skills add alchaincyf/elon-musk-skill` |
+| **멍거** | 투자/다원적 사고/역방향 사고 | [munger-skill](https://github.com/alchaincyf/munger-skill) | `npx skills add alchaincyf/munger-skill` |
+| **파인만** | 학습/교육/과학적 사고 | [feynman-skill](https://github.com/alchaincyf/feynman-skill) | `npx skills add alchaincyf/feynman-skill` |
+| **나발** | 부/레버리지/인생 철학 | [naval-skill](https://github.com/alchaincyf/naval-skill) | `npx skills add alchaincyf/naval-skill` |
+| **탈레브** | 리스크/반취약성/불확실성 | [taleb-skill](https://github.com/alchaincyf/taleb-skill) | `npx skills add alchaincyf/taleb-skill` |
+| **장쉐펑** | 교육 선택/커리어 설계/계층 이동 | [zhangxuefeng-skill](https://github.com/alchaincyf/zhangxuefeng-skill) | `npx skills add alchaincyf/zhangxuefeng-skill` |
+| **쑨위천** | 마케팅/주목 경제/내러티브 조작 | [저장소 내 examples/](examples/sun-yuchen-perspective/) | `examples/sun-yuchen-perspective/`를 skills 디렉터리에 복사 |
+
+### 테마 Skill
+
+| 테마 | 영역 | 독립 저장소 | 원라인 설치(크로스 runtime) |
+|------|------|---------|---------|
+| **X 멘토** | X/Twitter 운영 풀스택 | [x-mentor-skill](https://github.com/alchaincyf/x-mentor-skill) | `npx skills add alchaincyf/x-mentor-skill` |
+
+인물 Skill은 한 사람의 사고방식을 증류하고, 테마 Skill은 한 영역의 방법론을 증류한다. 각 저장소에는 완전한 조사 데이터와 효과 예시 대화가 포함되어 있다.
+
+🧪 **충실도 점수표**: 15개 공식 Skill이 모두 독립된 두 에이전트의 블라인드 테스트를 통과했다(입장 일관성/스타일 식별도/경계 정직성/출처 투명성/구조 완전성, 방법론은 [references/fidelity-scorecard.md](references/fidelity-scorecard.md) 참조), **전원 A등급(≥85점)**. 각 점수: 미스터비스트/나발/탈레브/잡스/카파시/폴 그레이엄/장쉐펑 97 · 멍거/파인만/X 멘토 96 · 트럼프 95 · 일리야 94 · 장이밍 93 · 쑨위천 91 · 머스크 89. 전체 점수표는 각 skill 디렉터리 내 `FIDELITY.md`에 있다.
+
+목록에 없는 인물이나 테마를 증류하고 싶은가? Nuwa를 설치하고 「〇〇를 증류해 줘」라고 말하면 된다.
+
+---
+
+## 기여와 커뮤니티
+
+Nuwa의 생태계는 커뮤니티와 함께 자라지만, 두 갈래의 다른 길을 간다:
+
+- **`SKILL.md`는 핵심 자산이며 외부 PR 수정을 받지 않는다**. 방법론의 버그나 개선점을 발견하면 → issue를 열어 논의하고, 채택된 아이디어는 메인테이너가 구현하며 commit에서 감사를 표한다(선례는 PR #59).
+- **커뮤니티가 증류한 인물 skill은 [COMMUNITY.md](COMMUNITY.md) 인덱스를 통한다**: 자신의 저장소에 두고(star는 당신의 것), [충실도 점수표](references/fidelity-scorecard.md)를 돌려 B등급 이상을 받은 뒤, 한 줄 PR을 제출하면 수록된다.
+
+전체 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md) 참조. 커뮤니티의 기존 컬렉션, 다중 페르소나 오케스트레이션, 테마 응용은 [COMMUNITY.md](COMMUNITY.md) 참조.
 
 ---
 

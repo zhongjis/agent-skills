@@ -67,7 +67,19 @@ npx skills add alchaincyf/huashu-design
 npx skills add alchaincyf/huashu-design
 ```
 
-然后在 Claude Code 里直接说话：
+> **装完先自检**：这个 skill 不只是 SKILL.md 一个文件，`references/`、`assets/`、`scripts/`、`demos/` 四个子目录里有 99 处被引用的配方、脚本、素材，缺一不可。装完看一眼安装目录（如 `~/.claude/skills/huashu-design/`），如果只有 SKILL.md、没有那几个子目录，说明你的 `skills` CLI 版本太旧（≤1.5.15 有个只同步单文件的 bug，已在 1.5.19 修复）。升级后再装一次即可：
+>
+> ```bash
+> npm i -g skills@latest        # 或 npx skills@latest add alchaincyf/huashu-design
+> ```
+>
+> 升级后仍异常，就用 `git clone` 兜底安装，把仓库克隆到任意 skills 目录即可：
+>
+> ```bash
+> git clone https://github.com/alchaincyf/huashu-design.git ~/.claude/skills/huashu-design
+> ```
+
+然后在 Claude Code / Codex / Cursor 等任意支持 skills 的 agent 里直接说话：
 
 ```
 「做一份 AI 心理学的演讲 PPT，推荐 3 个风格方向让我选」
@@ -256,6 +268,12 @@ Claude Design 是**更好的图形工具**，huashu-design 是**让图形工具�
 
 ---
 
+## 安全与数据流
+
+核心链路（设计→渲染→MP4/PDF/PPTX导出）**100%本地运行，零网络零key**。云能力（豆包TTS配音、AI看片评审）全部隔离在 `scripts/cloud/`，完全可选：用你自己的key、只发对应厂商官方API、首次调用需 `--yes` 显式确认。无telemetry，没有任何数据发往作者服务器。全部出站域名、密钥处理、删除边界的穷举声明见 [SECURITY.md](SECURITY.md)，欢迎用你的agent对着代码逐条核验。
+
+---
+
 ## Limitations
 
 - **不支持图层级可编辑的 PPTX 到 Figma**。产出 HTML，可截图、录屏、导图，但不能拖进 Keynote 改文字位置。
@@ -312,6 +330,28 @@ Anthropic 发布 Claude Design 那天我玩到凌晨四点。几天之后发现�
 于是让 agent 拆解 Claude Design 本身（包括社区流传的系统提示词、品牌资产协议、组件机制），蒸馏成结构化 spec，再写成 skill 装进自己的 Claude Code。
 
 感谢 Anthropic 把 Claude Design 的提示词写得清晰。这种基于其他产品灵感的二次创作，是开源文化在 AI 时代的新形态。
+
+---
+
+## 用 huashu-design 做的产品
+
+**[FanBox · Coding Agent 的驾驶舱](https://github.com/alchaincyf/fanbox)** 的三套界面皮肤，就是用 huashu-design 设计的。指挥 Claude Code / Codex 干活，看清它碰过的每个文件、每一行改动。
+
+[![FanBox · Coding Agent 的驾驶舱](https://raw.githubusercontent.com/alchaincyf/fanbox/master/assets/promo-banner.jpg)](https://github.com/alchaincyf/fanbox)
+
+---
+
+## 社区翻译版本
+
+社区维护的翻译版本。翻译质量与各版本 license 条款由对应维护者负责，使用前请先确认。
+
+| 语言 | 维护者 | 仓库 |
+|---|---|---|
+| English | [@namandhakad712](https://github.com/namandhakad712) | [namandhakad712/huashu-design-en](https://github.com/namandhakad712/huashu-design-en) |
+| 한국어（韩语） | [@ktkarchive](https://github.com/ktkarchive) | [ktkarchive/ktk-design](https://github.com/ktkarchive/ktk-design) |
+| Tiếng Việt（越南语） | [@letrquan](https://github.com/letrquan) | [letrquan/huashu-design](https://github.com/letrquan/huashu-design) |
+
+想加你的语言？fork 仓库、翻译 `SKILL.md` + `README.md`，然后回这边开个 issue，我会把链接加进来。
 
 ---
 

@@ -1,8 +1,6 @@
 ---
 name: agentation
 description: Add Agentation visual feedback toolbar to a Next.js project
-upstream: "https://github.com/benjitaylor/agentation/tree/main/skills/agentation"
-disable-model-invocation: true
 ---
 
 # Agentation Setup
@@ -47,10 +45,10 @@ Set up the Agentation annotation toolbar in this project.
 6. **Recommend MCP server setup**
    - Explain that for real-time annotation syncing with AI agents, they should also set up the MCP server
    - Recommend one of the following approaches:
-      - **Universal (supports multiple coding agents):**
-        See [add-mcp](https://github.com/neondatabase/add-mcp) — run `npx add-mcp` and follow the prompts to add `agentation-mcp` as an MCP server
-      - **Package-provided interactive wizard:**
-        Run `agentation-mcp init` after installing the package
+     - **Universal (supports 9+ agents including Claude Code, Cursor, Codex, Windsurf, etc.):**
+       See [add-mcp](https://github.com/neondatabase/add-mcp) — run `npx add-mcp` and follow the prompts to add `agentation-mcp` as an MCP server
+     - **Claude Code only (interactive wizard):**
+       Run `agentation-mcp init` after installing the package
    - Tell user to restart their coding agent after MCP setup to load the server
    - Explain that once configured, annotations will sync to the agent automatically
 

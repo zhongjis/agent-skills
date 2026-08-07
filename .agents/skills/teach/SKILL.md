@@ -1,7 +1,6 @@
 ---
 name: teach
 description: Teach the user a new skill or concept, within this workspace.
-upstream: "https://github.com/mattpocock/skills/tree/main/skills/productivity/teach"
 disable-model-invocation: true
 argument-hint: "What would you like to learn about?"
 ---
