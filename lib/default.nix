@@ -29,15 +29,24 @@ let
   in {
     general = builtins.listToAttrs (
       builtins.filter (e: !(isPersonal e.name) && !(isWork e.name))
-        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+      (map (name: {
+        name = name;
+        value = skillAttrs.${name};
+      }) (builtins.attrNames skillAttrs))
     );
     personal = builtins.listToAttrs (
       builtins.filter (e: isPersonal e.name)
-        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+      (map (name: {
+        name = name;
+        value = skillAttrs.${name};
+      }) (builtins.attrNames skillAttrs))
     );
     work = builtins.listToAttrs (
       builtins.filter (e: isWork e.name)
-        (map (name: {name = name; value = skillAttrs.${name};}) (builtins.attrNames skillAttrs))
+      (map (name: {
+        name = name;
+        value = skillAttrs.${name};
+      }) (builtins.attrNames skillAttrs))
     );
   };
 

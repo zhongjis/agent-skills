@@ -36,10 +36,10 @@
   duplicateNamesFor = selectedGroups: let
     selectedNames = builtins.concatLists (map builtins.attrNames selectedGroups);
     uniqueNames = builtins.attrNames (builtins.listToAttrs (map (name: {
-      inherit name;
-      value = null;
-    })
-    selectedNames));
+        inherit name;
+        value = null;
+      })
+      selectedNames));
   in
     builtins.filter
     (name: builtins.length (builtins.filter (selectedName: selectedName == name) selectedNames) > 1)
