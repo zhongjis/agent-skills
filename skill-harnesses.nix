@@ -1,0 +1,3 @@
+{
+  pi-jsonl-logs = "pi";
+}

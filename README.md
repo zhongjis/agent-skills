@@ -4,14 +4,14 @@ Canonical, public-safe agent skills for Nix and non-Nix consumers.
 
 ## Layout
 
-Skills live in per-harness agent folders:
+Authored and adapted skills live in root `skills/`; vendored common skills remain in `.agents/skills/`. Harness-specific physical skills use their agent folders. `skill-harnesses.nix` logically routes sparse root exceptions.
 
-| Folder | Harness | Skills |
+| Folder | Role | Skills |
 | --- | --- | ---: |
-| `.agents/skills/` | Universal (all harnesses) | 73 |
-| `.claude/skills/` | Claude Code | 0 |
-| `.pi/skills/` | Pi | 1 |
-
+| `skills/` | Authored/adapted (logical common unless routed) | 16 |
+| `.agents/skills/` | Vendored common | 56 |
+| `.claude/skills/` | Physical Claude Code | 0 |
+| `.pi/skills/` | Physical Pi | 0 |
 Profile membership lives in `profiles.nix` at the repo root. Skills not listed there are `general`.
 
 | Profile | Skills |
@@ -19,7 +19,7 @@ Profile membership lives in `profiles.nix` at the repo root. Skills not listed t
 | `personal` | _(none)_ |
 | `work` | github-pr-management, mysql-best-practices, splunk |
 
-The source contains 74 unique selectable leaves. `skill-creator` and `mcp-builder` are shared.
+The source contains 72 unique selectable leaves. Fifteen root skills are logical common; `pi-jsonl-logs` is routed only to Pi. `mcp-builder` is shared.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
@@ -34,7 +34,7 @@ skills add . --list
 npx skills add . --list
 ```
 
-Initialize a new leaf, then move it into the correct agent folder:
+Initialize a new authored leaf, then move it into root `skills/` (add a sparse `skill-harnesses.nix` route only when harness-specific):
 
 ```sh
 skills init skill-name

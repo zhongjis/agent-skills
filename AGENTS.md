@@ -80,10 +80,12 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Skill catalog
 
-- **Layout**: agent-folder per harness — common skills in `.agents/skills/`, Claude Code in `.claude/skills/`, Pi in `.pi/skills/`; absent harness folders are guarded by `builtins.pathExists` and yield empty groups
+- **Layout**: authored/adapted skills live in root `skills/`; vendored common skills live in `.agents/skills/`; physical harness skills live in `<agent-folder>/skills/`; absent harness folders yield empty groups
 - **Profile axis**: `profiles.nix` at repo root lists skills by profile (`personal`, `work`); unlisted skills are `general`
-- **Authored vs vendored**: vendored skills carry `upstream:` frontmatter (single canonical origin) plus a tracked `skills-lock.json` entry; those lock entries hide vendored skills from `skills add . --list`. Authored skills have no `upstream:` (may carry `adaptedFrom:` for informational lineage only) and no lockfile entry.
-- **Harness=folder rule**: each harness maps to exactly one folder; the folder name determines the harness key in `lib/default.nix`
+- **Authored vs vendored**: root `skills/` leaves without lock entries are authored/adapted; `.agents/skills/` leaves with lock entries are vendored; `adaptedFrom` is informational lineage
+- **Provenance drift**: `.agents/skills/` leaf without lock, root leaf with lock, orphan lock, or conflicting `upstream`/lock source is drift; singular `upstream`, when present, must agree with lock source
+- **Logical routing**: `skill-harnesses.nix` sparsely maps root skill names to supported harnesses; unlisted root skills are logical common
+- **Precedence/collisions**: physical harness skills override logical common at final selection; same-layer root/vendored or routed/physical duplicates are invalid
 - **Whole-dir/source fidelity**: preserve complete skill directories and instructional content; only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them
 - **Scoped CLI projection**: add and refresh exactly one skill for one harness with `--copy`; never use wildcard selectors or broad `skills update`
 
@@ -91,4 +93,5 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `select-skills.nix`, `default.nix`)
 - `tests/AGENTS.md` — repository verification (`selector.nix`, `skills-cli.sh`)
+- `skills/AGENTS.md` — authored/adapted skill ownership, routing, and whole-tree contracts
 - Root-owned files: `README.md`, `flake.nix`, `.gitignore`, and any other root-level project documentation.

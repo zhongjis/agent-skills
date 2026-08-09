@@ -95,11 +95,11 @@ lockedSkill="locked-fixture"
 sourceRepo="$tempDir/source.git"
 targetDir="$tempDir/target"
 mkdir -p \
-  "$sourceRepo/.agents/skills/$visibleSkill/scripts" \
+  "$sourceRepo/skills/$visibleSkill/scripts" \
   "$sourceRepo/.agents/skills/$lockedSkill" \
   "$targetDir"
 
-cat >"$sourceRepo/.agents/skills/$visibleSkill/SKILL.md" <<'EOF'
+cat >"$sourceRepo/skills/$visibleSkill/SKILL.md" <<'EOF'
 ---
 name: visible-fixture
 description: Synthetic lifecycle fixture.
@@ -109,11 +109,11 @@ description: Synthetic lifecycle fixture.
 
 fixture-version-1
 EOF
-cat >"$sourceRepo/.agents/skills/$visibleSkill/scripts/helper.sh" <<'EOF'
+cat >"$sourceRepo/skills/$visibleSkill/scripts/helper.sh" <<'EOF'
 #!/usr/bin/env sh
 printf 'fixture support file\n'
 EOF
-chmod +x "$sourceRepo/.agents/skills/$visibleSkill/scripts/helper.sh"
+chmod +x "$sourceRepo/skills/$visibleSkill/scripts/helper.sh"
 cat >"$sourceRepo/.agents/skills/$lockedSkill/SKILL.md" <<'EOF'
 ---
 name: locked-fixture
@@ -180,8 +180,8 @@ printf 'explicit list: installed fixture visible\n'
 
 beforeRefreshHash="$(cksum "$installedSkillFile")"
 sed -i.bak 's/fixture-version-1/fixture-version-2/' \
-  "$sourceRepo/.agents/skills/$visibleSkill/SKILL.md"
-rm -f -- "$sourceRepo/.agents/skills/$visibleSkill/SKILL.md.bak"
+  "$sourceRepo/skills/$visibleSkill/SKILL.md"
+rm -f -- "$sourceRepo/skills/$visibleSkill/SKILL.md.bak"
 git -C "$sourceRepo" add -A
 git -C "$sourceRepo" commit --quiet -m refresh
 

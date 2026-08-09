@@ -13,7 +13,9 @@ Run from repository root. Continue only when all canonical markers exist:
 
 ```bash
 test -f flake.nix \
+  && test -d skills/ \
   && test -d .agents/skills/ \
+  && test -f skill-harnesses.nix \
   && test -f profiles.nix \
   && test -f lib/select-skills.nix
 ```
@@ -41,19 +43,20 @@ evidence:
 For a new vendored import, confirm source, name, path, and ref before mutation. Determine harness and profile from user intent plus existing repository patterns. If harness or profile remains ambiguous in a behavior-changing way, stop and ask one precise question; never guess.
 
 Repository model:
-- Common skills live in `.agents/skills/`; harness-specific skills live in `<agent-folder>/skills/`.
+- Authored/adapted skills live in root `skills/`; vendored common skills live in `.agents/skills/`; physical harness skills live in `<agent-folder>/skills/`.
+- `skill-harnesses.nix` sparsely routes root skills to logical harnesses; unlisted root skills are logical common.
 - `profiles.nix` lists `personal` and `work` membership; unlisted skills are `general`.
-- Same-name common and harness-specific skills are allowed only as an intentional override.
+- Same-name common and harness-specific skills are allowed only as an intentional final override; same-layer duplicates are invalid.
 - Preserve whole skill directories, including `scripts/`, `references/`, `assets/`, licenses, and other required files.
 - For add and refresh, use one exact skill, one explicit harness, and `--copy`. Never execute `--agent '*'`.
 
 ## Provenance Audit
 
 Classify each skill before changing it:
-- No `upstream` and no lock entry → authored.
-- Singular `upstream` plus tracked CLI-generated `skills-lock.json` entry → valid vendored.
-- Lock-only → legacy vendored drift; repair provenance.
-- Upstream-only → incomplete vendored state; repair lock metadata.
+- Root `skills/` leaf with no lock entry → authored/adapted; `adaptedFrom` is informational lineage.
+- `.agents/skills/` leaf with a tracked CLI-generated lock entry → vendored.
+- Singular `upstream`, when present, must agree with the lock source.
+- `.agents/skills/` leaf without lock, root leaf with lock, orphan lock, or conflicting `upstream`/lock source → provenance drift.
 
 Skills CLI owns lock creation, update, removal, and hashes. Never calculate hashes or hand-write lock entries.
 
@@ -80,19 +83,19 @@ Inspect current top-level and subcommand `--help` before assuming flags. Add and
   -y
 ```
 
-Never use wildcard selectors or broad `skills update`; those operations do not preserve this skill/harness/copy scope. Normalize CLI output to intended canonical folder and profile, then ensure lock metadata still describes final canonical state.
+Never use wildcard selectors or broad `skills update`; those operations do not preserve this skill/harness/copy scope. Normalize CLI output to the provenance-owned canonical folder, profile, and sparse logical route; ensure lock metadata still describes final vendored state.
 
 ## Add
 
-1. Check same-name skills, target folder, profile membership, `upstream`, and lock state; distinguish intentional override from duplicate or drift.
+1. Check same-name skills across root, vendored common, and physical harness layers; confirm target folder, profile, logical route, `upstream`, and lock state; distinguish intentional final override from invalid same-layer duplication or drift.
 2. Acquire the whole source at confirmed `source_spec`, `ref`, and `skill_path` with the scoped `add --skill ... --agent ... --copy` command above.
 3. Review every acquired file semantically for public-safe publication. Preserve every file and its instructional content, including licenses and technically necessary vendor terms. If it contains private or work-internal material, secrets, hosts, credentials, or content incompatible with repository purpose, stop without importing it.
-4. Set one singular `upstream` pointing to the canonical source directory at confirmed ref.
-5. Normalize the complete directory and profile. Confirm directory, `upstream`, CLI-generated lock entry, and profile agree.
+4. Preserve singular `upstream` when present and confirm it agrees with the CLI-generated lock source.
+5. Normalize the complete directory, profile, and route. Confirm provenance-owned folder, logical/physical harness, CLI-generated lock entry, profile, and any singular `upstream` agree.
 
 ## Update
 
-1. Derive exact source, ref, and path from both lock metadata and singular `upstream`; resolve disagreement before mutation.
+1. Derive exact source, ref, and path from lock metadata plus any singular `upstream`; resolve disagreement before mutation.
 2. Refresh by rerunning the scoped `add --skill ... --agent ... --copy` command above for the exact skill and harness.
 3. Reconcile the full tree exactly: include upstream-added files, delete upstream-removed files, and discard local content changes.
 4. Re-run public-safe and provenance review; refresh profile, README, tests, and applicable DOX when behavior or catalog state changed.
@@ -121,7 +124,7 @@ SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
 ## Completion Criteria
 
 Complete only when:
-- intended canonical folder, harness, profile, lock entry, and singular `upstream` agree;
+- intended canonical folder, logical/physical harness, profile, and lock entry agree; any singular `upstream` agrees with lock source;
 - whole tree is reconciled, including added and removed files;
 - README, tests, and applicable DOX are synced;
 - scoped diff contains no unrelated edits;

@@ -51,7 +51,6 @@ let
   };
 
   agentFolders = {
-    common = ../.agents/skills;
     claude-code = ../.claude/skills;
     codex = ../.codex/skills;
     opencode = ../.opencode/skills;
@@ -60,13 +59,21 @@ let
     pi = ../.pi/skills;
   };
 
-  commonSkills = discoverSkillsIf agentFolders.common;
-  claudeCodeSkills = discoverSkillsIf agentFolders.claude-code;
-  codexSkills = discoverSkillsIf agentFolders.codex;
-  opencodeSkills = discoverSkillsIf agentFolders.opencode;
-  factorySkills = discoverSkillsIf agentFolders.factory;
-  ompSkills = discoverSkillsIf agentFolders.omp;
-  piSkills = discoverSkillsIf agentFolders.pi;
+  physicalHarnessSkills = builtins.mapAttrs (_: discoverSkillsIf) agentFolders;
+  assembled = import ./assemble-skills.nix {
+    rootSkills = discoverSkillsIf ../skills;
+    vendoredCommonSkills = discoverSkillsIf ../.agents/skills;
+    inherit physicalHarnessSkills;
+    skillHarnesses = import ../skill-harnesses.nix;
+    supportedHarnesses = builtins.attrNames agentFolders;
+  };
+  commonSkills = assembled.commonSkills;
+  claudeCodeSkills = assembled.harnessSkills.claude-code;
+  codexSkills = assembled.harnessSkills.codex;
+  opencodeSkills = assembled.harnessSkills.opencode;
+  factorySkills = assembled.harnessSkills.factory;
+  ompSkills = assembled.harnessSkills.omp;
+  piSkills = assembled.harnessSkills.pi;
 
   commonSplit = splitByProfile commonSkills;
   claudeCodeSplit = splitByProfile claudeCodeSkills;
