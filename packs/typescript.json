@@ -6,8 +6,16 @@
       "name": "typescript-best-practices"
     },
     {
+      "source": "bobmatnyc/claude-mpm-skills",
+      "name": "biome"
+    },
+    {
       "source": "antfu/skills",
       "name": "pnpm"
+    },
+    {
+      "source": "vercel/turborepo",
+      "name": "turborepo"
     },
     {
       "source": "antfu/skills",

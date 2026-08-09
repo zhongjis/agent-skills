@@ -68,10 +68,13 @@ reset_fixture() {
   rm -rf -- "$packsDir" "$callerDir"
   mkdir -p -- "$packsDir" "$callerDir"
   : >"$callsFile"
+  runPacksDir=""
 
   write_manifest typescript \
     '0xBigBoss/claude-code:typescript-best-practices' \
+    'bobmatnyc/claude-mpm-skills:biome' \
     'antfu/skills:pnpm' \
+    'vercel/turborepo:turborepo' \
     'antfu/skills:vitest'
   write_manifest vercel \
     'vercel-labs/agent-skills:deploy-to-vercel' \
@@ -92,7 +95,7 @@ run_packs() {
   set +e
   runOutput="$({
     cd -- "$callerDir"
-    PACKS_DIR="$packsDir" \
+    PACKS_DIR="${runPacksDir:-$packsDir}" \
       PACKS_SKILLS_BIN="$fakeSkills" \
       FAKE_SKILLS_CALLS="$callsFile" \
       FAKE_SKILLS_LOCK_BYTES_FILE="${lockBytesFile:-}" \
@@ -111,7 +114,9 @@ packs_multi_source_install() {
 
   local expected
   expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_multi_source_install "$expected"
 }
@@ -123,8 +128,24 @@ packs_exact_tuple_dedupe() {
 
   local expected
   expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_exact_tuple_dedupe "$expected"
+}
+
+packs_repository_typescript_catalog() {
+  reset_fixture
+  runPacksDir="$repoRoot/packs"
+  run_packs typescript --agent pi
+  assert_status packs_repository_typescript_catalog 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  assert_calls packs_repository_typescript_catalog "$expected"
 }
 
 packs_invalid_catalogs_fail_before_cli() {
@@ -208,6 +229,7 @@ failSource=""
 failStatus=""
 runOutput=""
 runStatus=0
+runPacksDir=""
 
 cat >"$fakeSkills" <<'FAKE'
 #!/usr/bin/env bash
@@ -232,6 +254,7 @@ chmod +x "$fakeSkills"
 
 run_test packs_multi_source_install
 run_test packs_exact_tuple_dedupe
+run_test packs_repository_typescript_catalog
 run_test packs_invalid_catalogs_fail_before_cli
 run_test packs_invalid_arguments_and_help
 run_test packs_preserves_cli_lock_bytes

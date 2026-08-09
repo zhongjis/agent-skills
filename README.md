@@ -85,7 +85,7 @@ The app performs noninteractive copied installs (`--copy -y`). It validates ever
 
 Pack membership:
 
-- `typescript`: `typescript-best-practices` from `0xBigBoss/claude-code`; `pnpm` and `vitest` from `antfu/skills`.
+- `typescript`: `typescript-best-practices` from `0xBigBoss/claude-code`; `biome` from `bobmatnyc/claude-mpm-skills`; `pnpm` and `vitest` from `antfu/skills`; `turborepo` from `vercel/turborepo`.
 - `vercel`: `deploy-to-vercel`, `vercel-react-best-practices`, `vercel-composition-patterns`, and `vercel-optimize` from `vercel-labs/agent-skills`.
 
 ## Nix selection
