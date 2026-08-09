@@ -29,6 +29,12 @@
       "skillPath": "skills/agents-md/SKILL.md",
       "computedHash": "8eeceac7eec19b4503bdb6e78bb2091d5651f44487d62fa72ca1bc0acf866dd4"
     },
+    "api-design-principles": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/backend-development/skills/api-design-principles/SKILL.md",
+      "computedHash": "19715a3a3ff7bf7b1e2ab1cb631ebe810d5b050ed6b3ab0c358e39e5e2e6d33a"
+    },
     "before-and-after": {
       "source": "vercel-labs/before-and-after",
       "ref": "main",
