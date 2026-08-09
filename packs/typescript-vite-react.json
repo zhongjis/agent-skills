@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "dependsOn": ["typescript"],
+  "skills": [
+    {
+      "source": "https://github.com/0xBigBoss/claude-code",
+      "name": "react-best-practices"
+    }
+  ]
+}

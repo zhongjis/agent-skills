@@ -2,23 +2,23 @@
   "schema": 1,
   "skills": [
     {
-      "source": "0xBigBoss/claude-code",
+      "source": "https://github.com/0xBigBoss/claude-code",
       "name": "typescript-best-practices"
     },
     {
-      "source": "bobmatnyc/claude-mpm-skills",
+      "source": "https://github.com/bobmatnyc/claude-mpm-skills",
       "name": "biome"
     },
     {
-      "source": "antfu/skills",
+      "source": "https://github.com/antfu/skills",
       "name": "pnpm"
     },
     {
-      "source": "vercel/turborepo",
+      "source": "https://github.com/vercel/turborepo",
       "name": "turborepo"
     },
     {
-      "source": "antfu/skills",
+      "source": "https://github.com/antfu/skills",
       "name": "vitest"
     }
   ]

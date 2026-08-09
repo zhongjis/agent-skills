@@ -77,17 +77,18 @@ Run a bootstrap pack from the target project directory. Omitting `--agent` insta
 
 ```sh
 nix run github:zhongjis/agent-skills#packs -- typescript
-nix run github:zhongjis/agent-skills#packs -- typescript vercel
+nix run github:zhongjis/agent-skills#packs -- vercel
 nix run github:zhongjis/agent-skills -- typescript
 nix run github:zhongjis/agent-skills#packs -- typescript --agent pi
 ```
 
-The app performs noninteractive copied installs (`--copy -y`). Without an override it invokes Skills CLI with `--agent universal`; explicit targets such as `--agent pi` remain unchanged. It validates every argument and manifest before installation, deduplicates exact source/name tuples, rejects one skill name from different sources, then groups ordered skills into one Skills CLI call per source. Skills CLI exclusively owns `skills-lock.json`. Packs are bootstrap-only: they do not prune existing skills and remain separate from `profiles.nix`.
+The app performs noninteractive copied installs (`--copy -y`). Without an override it invokes Skills CLI with `--agent universal`; explicit targets such as `--agent pi` remain unchanged. It resolves each pack's ordered `dependsOn` list before the pack, validates the full dependency closure before installation, deduplicates packs and exact source/name tuples, rejects cycles, missing dependencies, and one skill name from different sources, then groups ordered skills into one Skills CLI call per source. Manifest sources must be full HTTPS URLs. Skills CLI exclusively owns `skills-lock.json`. Packs are bootstrap-only: they do not prune existing skills and remain separate from `profiles.nix`.
 
 Pack membership:
 
-- `typescript`: `typescript-best-practices` from `0xBigBoss/claude-code`; `biome` from `bobmatnyc/claude-mpm-skills`; `pnpm` and `vitest` from `antfu/skills`; `turborepo` from `vercel/turborepo`.
-- `vercel`: `deploy-to-vercel`, `vercel-react-best-practices`, `vercel-composition-patterns`, and `vercel-optimize` from `vercel-labs/agent-skills`.
+- `typescript`: `typescript-best-practices` from `https://github.com/0xBigBoss/claude-code`; `biome` from `https://github.com/bobmatnyc/claude-mpm-skills`; `pnpm` and `vitest` from `https://github.com/antfu/skills`; `turborepo` from `https://github.com/vercel/turborepo`.
+- `typescript-vite-react`: `react-best-practices` from `https://github.com/0xBigBoss/claude-code`, after `typescript`.
+- `vercel`: `deploy-to-vercel`, `vercel-react-best-practices`, `vercel-composition-patterns`, and `vercel-optimize` from `https://github.com/vercel-labs/agent-skills`, after `typescript`.
 
 ## Nix selection
 

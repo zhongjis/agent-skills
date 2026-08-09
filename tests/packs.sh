@@ -55,13 +55,41 @@ write_manifest() {
     local separator=""
     local tuple source name
     for tuple in "$@"; do
-      source="${tuple%%:*}"
-      name="${tuple#*:}"
+      name="${tuple%%:*}"
+      source="${tuple#*:}"
       printf '%s{"source":"%s","name":"%s"}' "$separator" "$source" "$name"
       separator=,
     done
     printf ']}\n'
   } >"$packsDir/$pack.json"
+}
+
+write_dependent_manifest() {
+  local pack="$1"
+  local dependencies="$2"
+  shift 2
+
+  {
+    printf '{"schema":1,"dependsOn":%s,"skills":[' "$dependencies"
+    local separator=""
+    local tuple source name
+    for tuple in "$@"; do
+      name="${tuple%%:*}"
+      source="${tuple#*:}"
+      printf '%s{"source":"%s","name":"%s"}' "$separator" "$source" "$name"
+      separator=,
+    done
+    printf ']}\n'
+  } >"$packsDir/$pack.json"
+}
+
+write_source_manifest() {
+  local pack="$1"
+  local source="$2"
+  local name="$3"
+
+  printf '{"schema":1,"skills":[{"source":"%s","name":"%s"}]}\n' \
+    "$source" "$name" >"$packsDir/$pack.json"
 }
 
 reset_fixture() {
@@ -71,22 +99,52 @@ reset_fixture() {
   runPacksDir=""
 
   write_manifest typescript \
-    '0xBigBoss/claude-code:typescript-best-practices' \
-    'bobmatnyc/claude-mpm-skills:biome' \
-    'antfu/skills:pnpm' \
-    'vercel/turborepo:turborepo' \
-    'antfu/skills:vitest'
+    'typescript-best-practices:https://github.com/0xBigBoss/claude-code' \
+    'biome:https://github.com/bobmatnyc/claude-mpm-skills' \
+    'pnpm:https://github.com/antfu/skills' \
+    'turborepo:https://github.com/vercel/turborepo' \
+    'vitest:https://github.com/antfu/skills'
   write_manifest vercel \
-    'vercel-labs/agent-skills:deploy-to-vercel' \
-    'vercel-labs/agent-skills:vercel-react-best-practices' \
-    'vercel-labs/agent-skills:vercel-composition-patterns' \
-    'vercel-labs/agent-skills:vercel-optimize'
+    'deploy-to-vercel:https://github.com/vercel-labs/agent-skills' \
+    'vercel-react-best-practices:https://github.com/vercel-labs/agent-skills' \
+    'vercel-composition-patterns:https://github.com/vercel-labs/agent-skills' \
+    'vercel-optimize:https://github.com/vercel-labs/agent-skills'
   write_manifest collision \
-    'owner/one:shared-skill' \
-    'owner/two:shared-skill'
+    'shared-skill:https://github.com/owner/one' \
+    'shared-skill:https://github.com/owner/two'
   write_manifest failfirst \
-    'owner/failing:first-skill' \
-    'owner/later:later-skill'
+    'first-skill:https://github.com/owner/failing' \
+    'later-skill:https://github.com/owner/later'
+  write_manifest foundation 'foundation-skill:https://github.com/owner/foundation'
+  write_dependent_manifest shared '["foundation"]' 'shared-skill:https://github.com/owner/shared'
+  write_dependent_manifest left '["shared"]' 'left-skill:https://github.com/owner/left'
+  write_dependent_manifest right '["shared"]' 'right-skill:https://github.com/owner/right'
+  write_dependent_manifest app '["left","right"]' 'app-skill:https://github.com/owner/app'
+  write_manifest extra 'extra-skill:https://github.com/owner/extra'
+  write_source_manifest https-source 'https://github.com/antfu/skills' 'https-skill'
+  write_dependent_manifest missing-middle '["missing-leaf"]' 'middle-skill:https://github.com/owner/middle'
+  write_dependent_manifest missing-root '["missing-middle"]' 'root-skill:https://github.com/owner/root'
+  write_dependent_manifest cycle-a '["cycle-b"]' 'cycle-a-skill:https://github.com/owner/cycle-a'
+  write_dependent_manifest cycle-b '["cycle-a"]' 'cycle-b-skill:https://github.com/owner/cycle-b'
+  write_dependent_manifest malformed-root '["malformed-json"]' 'root-skill:https://github.com/owner/root'
+  write_manifest deep-one 'deep-conflict:https://github.com/owner/one'
+  write_manifest deep-two 'deep-conflict:https://github.com/owner/two'
+  write_dependent_manifest deep-root '["deep-one","deep-two"]' 'root-skill:https://github.com/owner/root'
+  write_dependent_manifest empty-dependencies '[]' 'empty-skill:https://github.com/owner/empty'
+  printf '{"schema":1,"dependsOn":"foundation","skills":[{"source":"https://github.com/owner/root","name":"root-skill"}]}\n' >"$packsDir/invalid-dependency-type.json"
+  printf '{"schema":1,"dependsOn":["foundation",42],"skills":[{"source":"https://github.com/owner/root","name":"root-skill"}]}\n' >"$packsDir/invalid-dependency-entry.json"
+  printf '{"schema":1,"dependsOn":["../foundation"],"skills":[{"source":"https://github.com/owner/root","name":"root-skill"}]}\n' >"$packsDir/invalid-dependency-name.json"
+  printf '{"schema":1,"dependsOn":[],"extra":true,"skills":[{"source":"https://github.com/owner/root","name":"root-skill"}]}\n' >"$packsDir/invalid-manifest-keys.json"
+  printf '{"schema":1,"skills":[{"source":7,"name":"bad-source"}]}\n' >"$packsDir/invalid-source-type.json"
+  write_source_manifest invalid-source-shorthand 'owner/repo' 'bad-source'
+  write_source_manifest invalid-source-http 'http://github.com/antfu/skills' 'bad-source'
+  write_source_manifest invalid-source-empty-https 'https://' 'bad-source'
+  write_source_manifest invalid-source-no-host 'https:///antfu/skills' 'bad-source'
+  write_source_manifest invalid-source-whitespace 'https://github.com/antfu/bad path' 'bad-source'
+  write_source_manifest invalid-source-control 'https://github.com/antfu/bad\u0001path' 'bad-source'
+  write_source_manifest invalid-source-ftp 'ftp://github.com/antfu/skills' 'bad-source'
+  write_source_manifest invalid-source-local '../local/path' 'bad-source'
+  write_source_manifest invalid-source-ssh 'git@github.com:antfu/skills' 'bad-source'
   printf '{not-json\n' >"$packsDir/malformed-json.json"
   printf '{"schema":2,"skills":[]}\n' >"$packsDir/malformed-schema.json"
 }
@@ -113,12 +171,47 @@ packs_multi_source_install() {
   assert_status packs_multi_source_install 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_multi_source_install "$expected"
+}
+
+packs_resolves_dependencies_in_dfs_order() {
+  reset_fixture
+  run_packs app extra --agent pi
+  assert_status packs_resolves_dependencies_in_dfs_order 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/owner/foundation'$'\t''--skill'$'\t''foundation-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/owner/shared'$'\t''--skill'$'\t''shared-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/owner/left'$'\t''--skill'$'\t''left-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/owner/right'$'\t''--skill'$'\t''right-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/owner/app'$'\t''--skill'$'\t''app-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/owner/extra'$'\t''--skill'$'\t''extra-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  assert_calls packs_resolves_dependencies_in_dfs_order "$expected"
+}
+
+packs_forwards_https_source_exactly() {
+  reset_fixture
+  run_packs https-source --agent pi
+  assert_status packs_forwards_https_source_exactly 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''https-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  assert_calls packs_forwards_https_source_exactly "$expected"
+}
+
+packs_accepts_schema_one_with_empty_dependencies() {
+  reset_fixture
+  run_packs empty-dependencies --agent pi
+  assert_status packs_accepts_schema_one_with_empty_dependencies 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/owner/empty'$'\t''--skill'$'\t''empty-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  assert_calls packs_accepts_schema_one_with_empty_dependencies "$expected"
 }
 
 packs_exact_tuple_dedupe() {
@@ -127,10 +220,10 @@ packs_exact_tuple_dedupe() {
   assert_status packs_exact_tuple_dedupe 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_exact_tuple_dedupe "$expected"
 }
 
@@ -140,10 +233,10 @@ packs_defaults_to_universal_agent() {
   assert_status packs_defaults_to_universal_agent 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'
   assert_calls packs_defaults_to_universal_agent "$expected"
 }
 
@@ -154,11 +247,26 @@ packs_repository_typescript_catalog() {
   assert_status packs_repository_typescript_catalog 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_repository_typescript_catalog "$expected"
+}
+
+packs_repository_vercel_catalog_includes_typescript_dependency() {
+  reset_fixture
+  runPacksDir="$repoRoot/packs"
+  run_packs vercel --agent pi
+  assert_status packs_repository_vercel_catalog_includes_typescript_dependency 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  assert_calls packs_repository_vercel_catalog_includes_typescript_dependency "$expected"
 }
 
 packs_invalid_catalogs_fail_before_cli() {
@@ -167,6 +275,40 @@ packs_invalid_catalogs_fail_before_cli() {
     reset_fixture
     run_packs "$pack" --agent pi
     [[ "$runStatus" -ne 0 ]] || fail "$pack: expected failure"
+    assert_no_calls "$pack"
+  done
+}
+
+packs_reachable_closure_fails_before_cli() {
+  local pack
+  for pack in missing-root cycle-a malformed-root deep-root; do
+    reset_fixture
+    run_packs "$pack" --agent pi
+    [[ "$runStatus" -ne 0 ]] || fail "$pack: expected closure failure"
+    assert_no_calls "$pack"
+  done
+}
+
+packs_invalid_dependency_and_source_shapes_fail_before_cli() {
+  local pack
+  for pack in \
+    invalid-dependency-type \
+    invalid-dependency-entry \
+    invalid-dependency-name \
+    invalid-manifest-keys \
+    invalid-source-type \
+    invalid-source-shorthand \
+    invalid-source-http \
+    invalid-source-empty-https \
+    invalid-source-no-host \
+    invalid-source-whitespace \
+    invalid-source-control \
+    invalid-source-ftp \
+    invalid-source-local \
+    invalid-source-ssh; do
+    reset_fixture
+    run_packs "$pack" --agent pi
+    [[ "$runStatus" -ne 0 ]] || fail "$pack: expected manifest failure"
     assert_no_calls "$pack"
   done
 }
@@ -211,13 +353,13 @@ packs_preserves_cli_lock_bytes() {
 
 packs_cli_failure_stops_later_sources() {
   reset_fixture
-  failSource='owner/failing'
+  failSource='https://github.com/owner/failing'
   failStatus=37
   run_packs failfirst --agent pi
   assert_status packs_cli_failure_stops_later_sources 37
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''owner/failing'$'\t''--skill'$'\t''first-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/owner/failing'$'\t''--skill'$'\t''first-skill'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_cli_failure_stops_later_sources "$expected"
   failSource=""
   failStatus=""
@@ -271,11 +413,17 @@ FAKE
 chmod +x "$fakeSkills"
 
 run_test packs_multi_source_install
+run_test packs_resolves_dependencies_in_dfs_order
+run_test packs_forwards_https_source_exactly
+run_test packs_accepts_schema_one_with_empty_dependencies
 run_test packs_exact_tuple_dedupe
 run_test packs_defaults_to_universal_agent
-run_test packs_repository_typescript_catalog
 run_test packs_invalid_catalogs_fail_before_cli
+run_test packs_reachable_closure_fails_before_cli
+run_test packs_invalid_dependency_and_source_shapes_fail_before_cli
 run_test packs_invalid_arguments_and_help
 run_test packs_preserves_cli_lock_bytes
 run_test packs_cli_failure_stops_later_sources
+run_test packs_repository_typescript_catalog
+run_test packs_repository_vercel_catalog_includes_typescript_dependency
 printf 'PASS: packs public seam\n'

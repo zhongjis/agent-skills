@@ -48,31 +48,58 @@ done
 ((${#packs[@]} > 0)) || fail "at least one pack is required"
 [[ -n "$agent" && "$agent" != '*' ]] || fail "invalid agent: $agent"
 
-manifestPaths=()
-for pack in "${packs[@]}"; do
-  [[ "$pack" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
-    || fail "invalid pack name: $pack"
-  manifest="$packsDir/$pack.json"
-  [[ -f "$manifest" ]] || fail "unknown pack: $pack"
-  manifestPaths+=("$manifest")
-done
-
 manifestFilter='type == "object"
-  and (keys | sort) == ["schema", "skills"]
+  and ((keys | sort) == ["schema", "skills"]
+    or (keys | sort) == ["dependsOn", "schema", "skills"])
   and .schema == 1
+  and (if has("dependsOn") then
+    (.dependsOn | type) == "array"
+    and all(.dependsOn[];
+      type == "string"
+      and test("^[A-Za-z0-9][A-Za-z0-9._-]*$"))
+  else true end)
   and (.skills | type) == "array"
   and (.skills | length) > 0
   and all(.skills[];
     type == "object"
     and (keys | sort) == ["name", "source"]
     and (.source | type) == "string"
-    and (.source | test("^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$"))
+    and (.source
+      | test("^https://[^/?#[:space:][:cntrl:]]*[A-Za-z0-9][^/?#[:space:][:cntrl:]]*([/?#][^[:space:][:cntrl:]]*)?$"))
     and (.name | type) == "string"
     and (.name | test("^[A-Za-z0-9][A-Za-z0-9._-]*$")))'
 
-for manifest in "${manifestPaths[@]}"; do
+manifestPaths=()
+declare -A packStates=()
+
+resolve_pack() {
+  local pack="$1"
+  local manifest dependency
+  local -a dependencies=()
+
+  [[ "$pack" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] \
+    || fail "invalid pack name: $pack"
+  case "${packStates[$pack]:-}" in
+    resolved) return ;;
+    visiting) fail "pack dependency cycle at: $pack" ;;
+  esac
+
+  manifest="$packsDir/$pack.json"
+  [[ -f "$manifest" ]] || fail "unknown pack: $pack"
   jq -e "$manifestFilter" "$manifest" >/dev/null 2>&1 \
     || fail "invalid manifest: $manifest"
+
+  packStates[$pack]=visiting
+  mapfile -t dependencies < <(jq -r '.dependsOn[]?' "$manifest")
+  for dependency in "${dependencies[@]}"; do
+    resolve_pack "$dependency"
+  done
+  packStates[$pack]=resolved
+  manifestPaths+=("$manifest")
+}
+
+for pack in "${packs[@]}"; do
+  resolve_pack "$pack"
 done
 
 sources=()

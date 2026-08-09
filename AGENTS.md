@@ -88,8 +88,8 @@ When the user requests a durable behavior change, record it here or in the relev
 - **Precedence/collisions**: physical harness skills override logical common at final selection; same-layer root/vendored or routed/physical duplicates are invalid
 - **Whole-dir/source fidelity**: preserve complete skill directories and instructional content; only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them
 - **Scoped CLI projection**: add and refresh exactly one skill for one harness with `--copy`; never use wildcard selectors or broad `skills update`
-- **Bootstrap packs**: `packs/` catalogs are ordered, explicit Skills CLI source/name sets for copied bootstrap installs; they are separate from profile selection and never prune existing skills
-- **Pack runner**: root `packs.sh` validates all selected catalogs before invoking Skills CLI, groups calls by source, defaults omitted `--agent` to Skills CLI `universal` (`.agents/skills/`), and leaves `skills-lock.json` under Skills CLI ownership; the flake exposes it as `#packs` and the default app
+- **Bootstrap packs**: `packs/` catalogs are ordered Skills CLI source/name sets with optional ordered pack dependencies; they are separate from profile selection and never prune existing skills
+- **Pack runner**: root `packs.sh` resolves dependencies first, validates the full closure before invoking Skills CLI, requires full HTTPS sources, groups calls by source, defaults omitted `--agent` to Skills CLI `universal` (`.agents/skills/`), and leaves `skills-lock.json` under Skills CLI ownership; the flake exposes it as `#packs` and the default app
 
 ## Child DOX Index
 
