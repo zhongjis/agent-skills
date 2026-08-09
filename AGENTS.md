@@ -88,10 +88,13 @@ When the user requests a durable behavior change, record it here or in the relev
 - **Precedence/collisions**: physical harness skills override logical common at final selection; same-layer root/vendored or routed/physical duplicates are invalid
 - **Whole-dir/source fidelity**: preserve complete skill directories and instructional content; only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them
 - **Scoped CLI projection**: add and refresh exactly one skill for one harness with `--copy`; never use wildcard selectors or broad `skills update`
+- **Bootstrap packs**: `packs/` catalogs are ordered, explicit Skills CLI source/name sets for copied bootstrap installs; they are separate from profile selection and never prune existing skills
+- **Pack runner**: root `packs.sh` validates all selected catalogs before invoking Skills CLI, groups calls by source, and leaves `skills-lock.json` under Skills CLI ownership; the flake exposes it as `#packs` and the default app
 
 ## Child DOX Index
 
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `select-skills.nix`, `default.nix`)
-- `tests/AGENTS.md` — repository verification (`selector.nix`, `skills-cli.sh`)
+- `packs/AGENTS.md` — bootstrap pack manifests, ordering, validation, and lock-ownership contracts
+- `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`, `skills-cli.sh`)
 - `skills/AGENTS.md` — authored/adapted skill ownership, routing, and whole-tree contracts
-- Root-owned files: `README.md`, `flake.nix`, `.gitignore`, and any other root-level project documentation.
+- Root-owned files: `README.md`, `flake.nix`, `packs.sh`, `.gitignore`, and any other root-level project documentation or runner.

@@ -71,6 +71,23 @@ Notes:
 
 Use explicit `--skill` names for profile selection. `--all` installs personal and work leaves together.
 
+## Skill packs with Nix
+
+Run a bootstrap pack from the project directory where Skills CLI should install copied skills and own `skills-lock.json`:
+
+```sh
+nix run github:zhongjis/agent-skills#packs -- typescript --agent pi
+nix run github:zhongjis/agent-skills#packs -- typescript vercel --agent pi
+nix run github:zhongjis/agent-skills -- typescript --agent pi
+```
+
+The app performs noninteractive copied installs (`--copy -y`). It validates every argument and manifest before installation, deduplicates exact source/name tuples, rejects one skill name from different sources, then groups ordered skills into one Skills CLI call per source. Skills CLI exclusively owns `skills-lock.json`. Packs are bootstrap-only: they do not prune existing skills and remain separate from `profiles.nix`.
+
+Pack membership:
+
+- `typescript`: `typescript-best-practices` from `0xBigBoss/claude-code`; `pnpm` and `vitest` from `antfu/skills`.
+- `vercel`: `deploy-to-vercel`, `vercel-react-best-practices`, `vercel-composition-patterns`, and `vercel-optimize` from `vercel-labs/agent-skills`.
+
 ## Nix selection
 
 The flake exports a pure `lib.skillsFor` function. It returns `{ skill-name = skill-directory-path; }`; it does not install Home Manager configuration.
@@ -116,6 +133,7 @@ Run:
 ```sh
 nix flake check path:.
 nix eval --file tests/selector.nix
+bash tests/packs.sh
 bash tests/skills-cli.sh
 SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
 ```

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "skills": [
+    {
+      "source": "vercel-labs/agent-skills",
+      "name": "deploy-to-vercel"
+    },
+    {
+      "source": "vercel-labs/agent-skills",
+      "name": "vercel-react-best-practices"
+    },
+    {
+      "source": "vercel-labs/agent-skills",
+      "name": "vercel-composition-patterns"
+    },
+    {
+      "source": "vercel-labs/agent-skills",
+      "name": "vercel-optimize"
+    }
+  ]
+}

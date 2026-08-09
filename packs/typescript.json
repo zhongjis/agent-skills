@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "skills": [
+    {
+      "source": "0xBigBoss/claude-code",
+      "name": "typescript-best-practices"
+    },
+    {
+      "source": "antfu/skills",
+      "name": "pnpm"
+    },
+    {
+      "source": "antfu/skills",
+      "name": "vitest"
+    }
+  ]
+}
