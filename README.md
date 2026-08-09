@@ -73,15 +73,16 @@ Use explicit `--skill` names for profile selection. `--all` installs personal an
 
 ## Skill packs with Nix
 
-Run a bootstrap pack from the project directory where Skills CLI should install copied skills and own `skills-lock.json`:
+Run a bootstrap pack from the target project directory. Omitting `--agent` installs to the shared `.agents/skills/` directory; pass `--agent` for a harness-specific destination:
 
 ```sh
+nix run github:zhongjis/agent-skills#packs -- typescript
+nix run github:zhongjis/agent-skills#packs -- typescript vercel
+nix run github:zhongjis/agent-skills -- typescript
 nix run github:zhongjis/agent-skills#packs -- typescript --agent pi
-nix run github:zhongjis/agent-skills#packs -- typescript vercel --agent pi
-nix run github:zhongjis/agent-skills -- typescript --agent pi
 ```
 
-The app performs noninteractive copied installs (`--copy -y`). It validates every argument and manifest before installation, deduplicates exact source/name tuples, rejects one skill name from different sources, then groups ordered skills into one Skills CLI call per source. Skills CLI exclusively owns `skills-lock.json`. Packs are bootstrap-only: they do not prune existing skills and remain separate from `profiles.nix`.
+The app performs noninteractive copied installs (`--copy -y`). Without an override it invokes Skills CLI with `--agent universal`; explicit targets such as `--agent pi` remain unchanged. It validates every argument and manifest before installation, deduplicates exact source/name tuples, rejects one skill name from different sources, then groups ordered skills into one Skills CLI call per source. Skills CLI exclusively owns `skills-lock.json`. Packs are bootstrap-only: they do not prune existing skills and remain separate from `profiles.nix`.
 
 Pack membership:
 

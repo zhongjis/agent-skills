@@ -3,9 +3,9 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: packs.sh PACK... --agent AGENT
+Usage: packs.sh PACK... [--agent AGENT]
 
-Install named skill packs for one agent.
+Install named skill packs for one agent. Defaults to shared .agents/skills.
 EOF
 }
 
@@ -18,7 +18,7 @@ scriptDir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 packsDir="${PACKS_DIR:-$scriptDir/packs}"
 skillsBin="${PACKS_SKILLS_BIN:-skills}"
 packs=()
-agent=""
+agent="universal"
 agentCount=0
 
 while (($#)); do
@@ -46,7 +46,6 @@ while (($#)); do
 done
 
 ((${#packs[@]} > 0)) || fail "at least one pack is required"
-((agentCount == 1)) || fail "--agent must be specified exactly once"
 [[ -n "$agent" && "$agent" != '*' ]] || fail "invalid agent: $agent"
 
 manifestPaths=()

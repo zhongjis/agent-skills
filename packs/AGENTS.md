@@ -14,6 +14,7 @@
 - Every manifest has exactly `{ "schema": 1, "skills": [{"source":"owner/repo","name":"skill-name"}] }`; `skills` is nonempty and every source/name tuple is explicit.
 - The runner merges selected manifests in pack order, preserves first source and skill order, deduplicates identical `(source, name)` tuples, and rejects one skill name assigned to different sources.
 - Packs bootstrap copied skills only. They do not prune existing skills and remain orthogonal to `profiles.nix` selection.
+- Omitted `--agent` targets Skills CLI `universal` and writes to project `.agents/skills/`; an explicit agent remains a harness-specific override.
 - Skills CLI exclusively owns caller `skills-lock.json`; manifests and runner must not restore, rewrite, remove, or otherwise manage it.
 
 ## Work Guidance

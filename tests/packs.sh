@@ -134,6 +134,19 @@ packs_exact_tuple_dedupe() {
   assert_calls packs_exact_tuple_dedupe "$expected"
 }
 
+packs_defaults_to_universal_agent() {
+  reset_fixture
+  run_packs typescript
+  assert_status packs_defaults_to_universal_agent 0
+
+  local expected
+  expected="${callerDir}"$'\t''add'$'\t''0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected+="${callerDir}"$'\t''add'$'\t''vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'
+  assert_calls packs_defaults_to_universal_agent "$expected"
+}
+
 packs_repository_typescript_catalog() {
   reset_fixture
   runPacksDir="$repoRoot/packs"
@@ -165,9 +178,14 @@ packs_invalid_arguments_and_help() {
   assert_no_calls "missing pack"
 
   reset_fixture
-  run_packs typescript
-  [[ "$runStatus" -ne 0 ]] || fail "missing --agent: expected failure"
-  assert_no_calls "missing --agent"
+  run_packs typescript --agent ''
+  [[ "$runStatus" -ne 0 ]] || fail "empty --agent: expected failure"
+  assert_no_calls "empty --agent"
+
+  reset_fixture
+  run_packs typescript --agent pi --agent universal
+  [[ "$runStatus" -ne 0 ]] || fail "duplicate --agent: expected failure"
+  assert_no_calls "duplicate --agent"
 
   reset_fixture
   run_packs typescript --agent pi --unknown
@@ -254,6 +272,7 @@ chmod +x "$fakeSkills"
 
 run_test packs_multi_source_install
 run_test packs_exact_tuple_dedupe
+run_test packs_defaults_to_universal_agent
 run_test packs_repository_typescript_catalog
 run_test packs_invalid_catalogs_fail_before_cli
 run_test packs_invalid_arguments_and_help
