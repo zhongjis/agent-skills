@@ -13,7 +13,7 @@
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skills/agent-readiness/SKILL.md",
-      "computedHash": "7ba36eff8204466e49640a0f31e4b2e6be684d68c9de8c890d6f79073f68f591"
+      "computedHash": "3c2c85a91518e1202ca8465733fd66461fb820b8ae88f3c45d8eec14b49b54e3"
     },
     "agentation": {
       "source": "benjitaylor/agentation",
@@ -227,13 +227,6 @@
       "sourceType": "github",
       "skillPath": "skills/pdf/SKILL.md",
       "computedHash": "cfbc539377088ca7e44a813b30c306327385bbd973cd7a721e1743f60837dd62"
-    },
-    "pnpm": {
-      "source": "antfu/skills",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/pnpm/SKILL.md",
-      "computedHash": "2ec08c851c6f901d4ed72c21b826416ed074a487db65662b36249418afd728bf"
     },
     "podman": {
       "source": "knoopx/pi",

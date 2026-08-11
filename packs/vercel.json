@@ -17,6 +17,10 @@
     {
       "source": "https://github.com/vercel-labs/agent-skills",
       "name": "vercel-optimize"
+    },
+    {
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "name": "vercel-cli"
     }
   ]
 }
