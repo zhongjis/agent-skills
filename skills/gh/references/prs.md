@@ -265,14 +265,11 @@ gh pr review 123 --comment --body "Some thoughts..."
 ## Update Branch
 
 ```bash
-# Update PR branch with latest base branch
+# Update PR branch by merging latest base
 gh pr update-branch 123
 
-# Force update
-gh pr update-branch 123 --force
-
-# Use merge strategy
-gh pr update-branch 123 --merge
+# Rebase PR branch onto latest base
+gh pr update-branch 123 --rebase
 ```
 
 ## Lock/Unlock Pull Request

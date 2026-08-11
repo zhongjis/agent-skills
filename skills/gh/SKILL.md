@@ -1,6 +1,6 @@
 ---
 name: gh
-description: GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. Use when creating PRs, managing issues, running workflows, checking CI status, managing releases, making GitHub API calls, or handling operational issue workflows such as bulk issue creation, sub-issues, blocked-by links, labels, and GitHub API/GraphQL issue relationships. Triggers on "create PR", "list issues", "gh command", "merge PR", "run workflow", "check status", "create release", "download artifacts", "set secret", "create issues", "sub-issues", "blocked by", and "GitHub API".
+description: GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. Use when creating or stacking PRs, managing issues, running workflows, checking CI status, managing releases, making GitHub API calls, or handling operational issue workflows such as bulk issue creation, sub-issues, blocked-by links, labels, and GitHub API/GraphQL issue relationships. Triggers on "create PR", "stacked PR", "list issues", "gh command", "merge PR", "run workflow", "check status", "create release", "download artifacts", "set secret", "create issues", "sub-issues", "blocked by", and "GitHub API".
 adaptedFrom:
   - "https://github.com/github/awesome-copilot/blob/main/skills/gh-cli/SKILL.md"
 ---
@@ -76,6 +76,7 @@ For comprehensive command documentation:
 - [Repositories](references/repos.md) - Create, clone, fork, sync, browse, edit
 - [Issues](references/issues.md) - Create, list, edit, close, comment, labels
 - [Pull Requests](references/prs.md) - Create, review, merge, checkout, diff
+- [Stacked Pull Requests](references/stacked-prs.md) - Create, submit, update, and merge dependent PRs
 - [Actions](references/actions.md) - Workflows, runs, caches, secrets, variables
 - [Releases](references/releases.md) - Create, upload, download, verify
 - [Projects](references/projects.md) - Create, manage items, fields
