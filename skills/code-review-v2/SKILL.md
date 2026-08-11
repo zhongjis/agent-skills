@@ -11,7 +11,7 @@ adaptedFrom:
 
 A review runs as a set of independent **axes** — each a single lens (correctness, standards, regression, security, and conditional spec / performance / tests / observability) that produces its own findings. Axes run as **isolated passes** and are reported side by side, so a pass on one axis never masks a fail on another.
 
-**Modes**: Local Review (git/jj diff) | PR Review (gh CLI).
+**Modes**: Local Review (git/jj diff) | PR Review (gh CLI). PR review prefers a local checkout — see `references/pr-workflow.md` § 0.
 
 ## Principles
 
@@ -30,7 +30,7 @@ Run these steps in order. Steps 1-3 run once, inline, in the main reviewing cont
 
 1. **Pin scope, mode + risk.** Fix the comparison point, note the mode, and classify the change's **Risk** — Trivial / Standard / Risky (see Risk dial; it is scope-level, readable from `git diff --stat` and the touched paths).
    - Local: `git diff <base>...HEAD` (three-dot, so the comparison is against the merge-base) or `jj diff`; `git diff --stat` for scope; `git log <base>..HEAD --oneline` for commits.
-   - PR: follow `references/pr-workflow.md` to gather PR metadata and the diff.
+   - PR: follow `references/pr-workflow.md` — prefer a local checkout (§ 0), then gather PR metadata and pin scope.
    - Confirm the base resolves (`git rev-parse <base>`) and the diff is non-empty before going further — a bad ref or empty diff fails here, not inside an axis.
 2. **Gather context + fetch links.** Read each changed file in full, not just the hunks. For every changed symbol, find its callers. Follow any links you encounter — the PR description, commit messages, linked issues or tickets, a path the user passed — and fetch the ones your environment can reach, so behavior and intent rest on real context. Scale depth to the Risk you pinned; `references/context-gathering.md` has the concrete caller / history / churn commands.
 3. **Build the foundation brief.** Fill the record once:
@@ -169,4 +169,4 @@ For PR reviews, the inline-vs-summary strategy, GitHub comment formatting rules,
 - `references/parallel-axes.md` — isolated-pass dispatch, the self-contained brief template, bundling, and aggregation mechanics.
 - `references/context-gathering.md` — the concrete caller / history / churn commands for the Gather-context step, scaled to the Risk dial.
 - `references/pr-workflow.md` — GitHub PR pipeline: collect prior feedback, incremental re-review scoping and output, atomic review API, AI attribution footer, comment formatting.
-- `references/language-patterns.md` — Python / TypeScript and cross-language bad/good examples, applied within Correctness, Standards, and Security.
+- `references/language-patterns.md` — Python / TypeScript bad/good examples, applied within Correctness, Standards, and Security.

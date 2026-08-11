@@ -2,10 +2,41 @@
 
 GitHub pull-request specifics for the PR Review mode. Loaded only when reviewing a PR; local reviews never need this file.
 
+## 0. Check the branch out locally (preferred)
+
+`gh pr diff` is text. Reviewing the branch **on disk** lets the real tools run — LSP diagnostics, go-to-definition, find-references, codegraph (`projectPath` pointed at the checkout), `git log` / blame, full-repo `rg` — a far more credible read than parsing a diff. Always prefer a local checkout; text-only review is the last resort below.
+
+Detect the situation first:
+
+```bash
+gh pr view <number> --json headRefName,headRepositoryOwner,baseRefName   # PR branch + base
+gh repo view --json nameWithOwner -q .nameWithOwner                      # repo of the cwd
+git branch --show-current                                                # cwd's branch
+git status --porcelain                                                   # empty ⇒ clean tree
+```
+
+Then pick the matching case. If the cwd is not this repo at all, clone it to a temp path first and apply the matching case there.
+
+- **cwd is the PR repo, on the PR branch, tree clean** — sync in place and review here with `git pull --ff-only`. If it refuses to fast-forward (the local branch carries its own commits), drop to the worktree case rather than force-resetting.
+- **cwd is the PR repo but the tree is dirty or on another branch** — leave the cwd untouched and review in a throwaway worktree (recipe below). Each checkout gets its own `$(mktemp -d)` directory and a unique branch ref tied to it, so parallel or repeated reviews of the same PR never collide. If you skipped syncing a dirty cwd, say so in the final report — that working tree was left untouched and unreviewed.
+- **local checkout impossible** (no repo access, restricted network, unfetchable fork) — only then review from `gh pr diff <number>` alone. Record the limitation in the Verification note and lower confidence, since no tool-backed checks ran.
+
+```bash
+# Worktree checkout — unique per review, never touches the cwd
+TMP=$(mktemp -d)                                    # unique dir for this checkout
+REF="review-pr-<number>-$(basename "$TMP")"         # unique branch ref, tied to the dir
+git fetch origin pull/<number>/head:"$REF"          # fork PRs included
+git worktree add "$TMP" "$REF"
+# … review in "$TMP" (codegraph projectPath / LSP point here) …
+git worktree remove "$TMP" && git branch -D "$REF"  # cleanup
+```
+
+Once checked out, the review follows the **Local Review** path in SKILL.md § Review process step 1 — scope from `git diff <baseRefName>...HEAD` (three-dot = merge-base), with the axes running against the working tree. The `gh` commands in § 1 remain the source for PR *metadata* and links, not the code read.
+
 ## 1. Gather PR context
 
 - `gh pr view <number>` — title, body, author, labels, linked issues. The body and linked issues are a Spec source — fetch the linked issues or tickets to ground the Spec axis.
-- `gh pr diff <number>` — the full changeset.
+- `gh pr diff <number>` — the full changeset. Use it as the **starting reference** for scope; when a local checkout exists (§ 0) the axes read the code there, not this text.
 
 ## 2. Collect existing feedback first
 
