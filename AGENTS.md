@@ -78,6 +78,8 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+- **huashu-nuwa marketing media purged (repo-size):** The vendored `huashu-nuwa` skill has its non-functional marketing media (`promo/`, `assets/hero.gif`, `cover-distill-minds.png`, `advisory-board.png`, `6-agents-parallel.png`, `wechat-qrcode.jpg` — ~31 MB) intentionally removed from the working tree **and** purged from git history to shrink the repo. This is a deliberate deviation from the whole-dir/source-fidelity contract; upstream reorg was requested in alchaincyf/nuwa-skill#74 (and alchaincyf/huashu-design#51). **Do NOT re-add these via `skills update huashu-nuwa`** — a refresh reconciles the full upstream tree and will re-bloat the repo. Re-vendor cleanly only after upstream moves the skill under a `skills/` subdir with marketing outside it. `huashu-design` media is functional (BGM/SFX) and was left intact.
+
 ## Skill catalog
 
 - **Layout**: authored/adapted skills live in root `skills/`; vendored common skills live in `.agents/skills/`; physical harness skills live in `<agent-folder>/skills/`; absent harness folders yield empty groups
