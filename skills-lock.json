@@ -291,6 +291,12 @@
       "skillPath": "tools-plugin/skills/shell-expert/SKILL.md",
       "computedHash": "6eec6fa225d11515b1a7a1bc6b2a066d6c0458d939ce754f540f6081290de61c"
     },
+    "show-me": {
+      "source": "humanlayer/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/show-me/skills/show-me/SKILL.md",
+      "computedHash": "258c662730a2898dd42ae5dd1cdb80de373d37bc43167c6035c2241a56d299d3"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "ref": "main",
