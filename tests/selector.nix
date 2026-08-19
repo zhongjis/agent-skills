@@ -34,6 +34,7 @@ let
     "codebase-search"
     "fd"
     "find-skills"
+    "flue-framework"
     "gh"
     "github-pr-management"
     "pi-jsonl-logs"
