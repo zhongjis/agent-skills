@@ -1,5 +1,7 @@
 {
-  personal = [];
+  personal = [
+    "linear"
+  ];
   work = [
     "github-pr-management"
     "mysql-best-practices"
