@@ -131,30 +131,22 @@ if len(errs) > 0 {
 
 ---
 
-## Panics — when allowed, when banned
+## Panics — return errors instead
 
-**Banned**:
+Library code returns errors. Registration, configuration parsing, exhaustive dispatch, and startup validation all use explicit functions whose callers decide whether to exit.
 
-- Anywhere a `(T, error)` could be returned.
-- Inside HTTP handlers (gin's `Recovery` middleware catches them, but you've already lost the error context).
-- Inside any goroutine that survives request lifetime.
+```go
+func ValidateStatusNames(names map[Status]string, statuses []Status) error {
+    for _, status := range statuses {
+        if _, ok := names[status]; !ok {
+            return fmt.Errorf("missing status name for %d", status)
+        }
+    }
+    return nil
+}
+```
 
-**Allowed** (with documentation):
-
-- Map literal init at package level: `var statusNames = map[Status]string{...}` followed by a `func init()` that panics if a const has no name. Catches the bug at startup, not runtime.
-- The `must*` convention for genuinely unrecoverable startup:
-  ```go
-  func MustParseURL(s string) *url.URL {
-      u, err := url.Parse(s)
-      if err != nil { panic(err) }
-      return u
-  }
-  // Use only with literals known at compile time:
-  var defaultAPI = MustParseURL("https://api.example.com")
-  ```
-- `default:` case of an exhaustive sealed-interface switch — see `type-patterns.md`.
-
-The `revive` linter rule `error-return` will flag suspect panic sites; treat them as bugs.
+Call validation during application assembly and propagate its error to `main`. This keeps startup deterministic and testable. Treat every panic site reported by tooling as a bug.
 
 ---
 
@@ -227,7 +219,7 @@ var (
 )
 
 // Wrap a domain error into an API error.
-func From(err error) *APIError {
+func From(ctx context.Context, logger *slog.Logger, err error) *APIError {
     if err == nil { return nil }
 
     var apiErr *APIError
@@ -242,14 +234,14 @@ func From(err error) *APIError {
     case errors.Is(err, ErrUnauthorized):
         return Unauthorized
     default:
-        // unknown — log full chain, return generic
-        slog.Error("unmapped error", slog.Any("err", err))
+        // Unknown: log full chain, return generic.
+        logger.ErrorContext(ctx, "unmapped error", slog.String("error", err.Error()))
         return Internal
     }
 }
 
-func Write(c *gin.Context, err error) {
-    apiErr := From(err)
+func Write(c *gin.Context, logger *slog.Logger, err error) {
+    apiErr := From(c.Request.Context(), logger, err)
     c.JSON(apiErr.Status, apiErr)
 }
 ```
@@ -260,7 +252,7 @@ Handlers become trivial:
 func (h *Handler) Create(c *gin.Context) {
     user, err := h.svc.Create(c.Request.Context(), req)
     if err != nil {
-        httperr.Write(c, err)
+        httperr.Write(c, h.logger, err)
         return
     }
     c.JSON(201, user)
@@ -308,15 +300,15 @@ See `concurrency.md` for the full pattern.
 ## Logging errors — structured, once
 
 ```go
-slog.ErrorContext(ctx, "save user failed",
+logger.ErrorContext(ctx, "save user failed",
     slog.String("user_id", string(id)),
-    slog.Any("err", err),   // %w chain is fully rendered
+    slog.String("error", err.Error()),
 )
 ```
 
 **Log once, at the outermost frame.** Logging at every wrap site produces five log lines for one error.
 
-The `sloglint` linter enforces `slog.Any("err", err)` over `slog.String("err", err.Error())` — the former preserves the chain when handlers walk the value.
+The strict logging policy requires an injected logger and typed attrs. Convert errors to strings at the logging boundary; keep wrapped errors intact while returning them.
 
 ---
 
@@ -326,7 +318,7 @@ The `sloglint` linter enforces `slog.Any("err", err)` over `slog.String("err", e
 |---|---|---|
 | `_ = err` | Silent ignore | Handle, log, or wrap |
 | `if err != nil { return err }` chained 10 deep without wrap | No path info | Add one fact per layer: `fmt.Errorf("step: %w", err)` |
-| `panic(err)` in HTTP handlers | Loses error chain, hits gin Recovery | `httperr.Write(c, err)` |
+| `panic(err)` in HTTP handlers | Loses error chain, hits gin Recovery | `httperr.Write(c, logger, err)` |
 | `err.Error() == "some string"` | Brittle, breaks on wrap | Define a sentinel, use `errors.Is` |
 | `if err == sql.ErrNoRows` | Breaks under wrap | `errors.Is(err, sql.ErrNoRows)` |
 | `catch-all log.Fatal(err)` in library code | Crashes the caller's process | Return error, let main decide |

@@ -9,7 +9,7 @@ The type checker is your compiler. Make illegal states unrepresentable. Parse at
 
 ## Hard rules
 
-These are deliberate project choices. Violations are always wrong, not "style preferences".
+These defaults apply to new code when the project has no established choice. Existing project dependencies, configuration, and local conventions win.
 
 ### Tooling
 
@@ -22,7 +22,7 @@ These are deliberate project choices. Violations are always wrong, not "style pr
 | Data | `polars` + `duckdb` + `numpy` | pandas |
 | Web framework | FastAPI + Pydantic v2 | Flask, Django REST |
 | ORM | SQLAlchemy 2.x async | Django ORM, Tortoise |
-| HTTP client | [`httpx2`](https://github.com/pydantic/httpx2) | requests, aiohttp, httpx |
+| HTTP client | Existing project client; otherwise [`httpx2`](https://github.com/pydantic/httpx2) | New dependencies that duplicate the established client |
 | Testing | `pytest` | unittest |
 | CLI | `typer` + `rich` | argparse, click, fire |
 
@@ -147,10 +147,10 @@ except Exception:
 # GOOD — catch what you expect
 try:
     result = api.fetch(url)
-except httpx.HTTPStatusError as e:
+except httpx2.HTTPStatusError as e:
     logger.error("API %d: %s", e.response.status_code, e.request.url)
     return None
-except httpx.ConnectError:
+except httpx2.ConnectError:
     raise ServiceUnavailableError(service="api") from None
 
 # GOOD — top-level boundary (only place broad catch is acceptable)
@@ -167,7 +167,7 @@ def main() -> int:  # noqa: BROAD_EXCEPT_OK
 - `import asyncio` is **BANNED**. Use `import anyio`.
 - For background tasks, use `anyio.create_task_group`. Never fire-and-forget with `asyncio.create_task`.
 - For concurrency gates, use `anyio.CapacityLimiter` (not `asyncio.Semaphore`).
-- Load `async-anyio.md` when writing async code for the full pattern library.
+- Load `async-anyio.md` for the topic index, then open only the relevant async reference.
 
 ### Data modeling — which container, when
 
@@ -195,26 +195,26 @@ Load `data-modeling.md` for the full decision flowchart and comparison matrix.
 
 - **ORM models** — SQLAlchemy `Mapped[]` requires mutation. Use `# noqa: MUTABLE_OK`.
 - **Builder / accumulator** — object exists to be mutated (counter, buffer, state machine). Docstring must explain why.
-- **Pydantic Settings** — tests override fields. Mutable is acceptable.
+- **Pydantic Settings** — keep cached settings frozen; tests override the settings dependency or clear the cache.
 
 If you need `# noqa: MUTABLE_OK`, the class docstring must say why mutation is required.
 
 ### Libraries
 
-Canonical defaults (override only if `pyproject.toml` explicitly picks something else):
+Fallback defaults for new projects. Existing project dependencies and configuration take precedence:
 
 | Domain | Library | Reason |
 |---|---|---|
 | CLI | `typer` | Type-annotated CLI from function sigs |
 | Pretty output | `rich` | Tables, progress, tracebacks, markdown |
-| HTTP client | [`httpx2`](https://github.com/pydantic/httpx2) | Next-gen HTTP client (Pydantic stewardship), HTTP/2, brotli+zstd. Always `httpx2[http2,brotli,zstd]`. See `httpx2-optimization.md` |
+| HTTP client | Existing project client; otherwise [`httpx2`](https://github.com/pydantic/httpx2) | For new clients, use `httpx2[http2,brotli,zstd]` through the factory in `httpx2-optimization.md` |
 | Validation | `pydantic` v2 | Fast native validator, JSON Schema |
 | Web API | `fastapi` | Async, Pydantic-native, OpenAPI |
 | ORM | `sqlalchemy` 2.x async | `Mapped[]` types, async sessions |
 | DB driver (Postgres) | `asyncpg` (via SQLAlchemy) | Fastest PG driver |
 | AI agents | `pydantic-ai` | Typed deps, structured output |
 | TUI | `textual` | Rich-based, CSS layout, widgets |
-| Logging | `rich.logging.RichHandler` | Pretty; swap to `structlog` in prod |
+| Logging | Existing project logging stack; otherwise stdlib `logging` | Add handlers and HTTP hooks only when project logging practice calls for them |
 
 ## pyproject.toml — the one true config
 
@@ -236,7 +236,9 @@ Load on demand — not all at once.
 | Type patterns (NewType, Final, enums, narrowing) | `type-patterns.md` |
 | Data modeling (container choice, frozen, parse-don't-validate) | `data-modeling.md` |
 | Error handling (typed errors, union returns, exhaustive match) | `error-handling.md` |
-| Async patterns (anyio) | `async-anyio.md` |
+| Async topic index | `async-anyio.md` |
+| Task groups, cancellation, timeouts, streams | `async-anyio-concurrency.md` |
+| Backends, interop, async snippets | `async-anyio-runtime.md` |
 | Data processing (polars / duckdb) | `data-processing.md` |
 | FastAPI + SQLAlchemy stack | `fastapi-stack.md` |
 | Library decision tree | `libraries.md` |
@@ -246,13 +248,13 @@ Load on demand — not all at once.
 | PydanticAI agents | `pydantic-ai.md` |
 | Textual TUI | `textual-tui.md` |
 
-## httpx2 — mandatory for ALL network requests
+## HTTP client policy
 
-Every outgoing HTTP call MUST use [`httpx2`](https://github.com/pydantic/httpx2) (`httpx2[http2,brotli,zstd]`). Never `requests`, never `aiohttp`, never the original `httpx`.
+Preserve an existing project's HTTP client and construction pattern. For a new project or subsystem with no established client, use [`httpx2`](https://github.com/pydantic/httpx2) with `httpx2[http2,brotli,zstd]` and the factory in `httpx2-optimization.md`; do not instantiate a bare client.
 
-**ALL optimizations are ON by default — not optional, not progressive, not "nice to have".** A bare `httpx2.AsyncClient()` is a bug — treat it like a lint violation. The correct way is the factory pattern in `httpx2-optimization.md` with: HTTP/2 enabled, tuned connection pool (200/40/30s), split timeouts (5/30/10/10), transport retries (3), TCP_NODELAY, follow_redirects, and event hooks for observability.
+Original `httpx` is permitted only at a narrow framework boundary whose public API requires its types, such as FastAPI's `ASGITransport` test client or a PydanticAI integration. Keep that dependency at the boundary; application-owned outbound requests follow the project client policy.
 
-When writing or reviewing ANY network code, **ALWAYS load `httpx2-optimization.md`** and use the factory pattern verbatim. No exceptions.
+Logging event hooks are conditional: connect them only when they match the project's logging and observability practice.
 
 ## No-excuse audit
 
@@ -295,8 +297,4 @@ Tests still follow the iron list — frozen dataclasses, typed errors, exhaustiv
 
 ## Existing codebases
 
-When editing an existing file that doesn't follow these rules: **write new code in strict style, don't refactor existing code in the same change.** Mixing feature work with style migration makes reviews harder and bugs likelier.
-
-## Activation
-
-This skill activates whenever you are writing or modifying any `.py` file. Even one-off scripts get the strict treatment — that is the whole point of PEP 723 + uv: production hygiene with throwaway ergonomics.
+When editing an existing file that doesn't follow these rules, keep the change scoped. Write new code in the local style plus applicable safety constraints; leave unrelated migration work for a separate change.

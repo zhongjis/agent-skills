@@ -7,7 +7,7 @@
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 <file.rs> [file.rs ...]" >&2
+    echo "Usage: $0 <file.rs|dir> [file.rs|dir ...]" >&2
     exit 2
 fi
 
@@ -24,18 +24,40 @@ report() {
 is_test_path() {
     local path="$1"
     case "$path" in
-        */tests/*|*/benches/*|*/examples/*|*/build.rs|*_test.rs|tests/*|benches/*|examples/*) return 0 ;;
+        */tests/*|*/benches/*|*/examples/*|*/build.rs|*_test.rs|tests/*|benches/*|examples/*|build.rs) return 0 ;;
     esac
     # In-file #[cfg(test)] modules are handled per-line below.
     return 1
 }
 
-for file in "$@"; do
-    [ -f "$file" ] || continue
-    case "$file" in
-        *.rs) ;;
-        *) continue ;;
+is_lib_path() {
+    local path="$1"
+    case "$path" in
+        src/main.rs|*/src/main.rs|src/bin/*|*/src/bin/*) return 1 ;;
+        src/*|*/src/*) return 0 ;;
     esac
+    return 1
+}
+
+files=()
+for arg in "$@"; do
+    if [ -f "$arg" ]; then
+        case "$arg" in
+            *.rs) files+=("$arg") ;;
+        esac
+    elif [ -d "$arg" ]; then
+        while IFS= read -r -d '' file; do
+            files+=("$file")
+        done < <(find "$arg" -type f -name '*.rs' -print0)
+    fi
+done
+
+if [ "${#files[@]}" -eq 0 ]; then
+    echo "warning: no .rs files found in the given arguments" >&2
+    exit 0
+fi
+
+for file in "${files[@]}"; do
 
     if is_test_path "$file"; then
         # Test files are exempt from unwrap/expect/todo rules.
@@ -108,7 +130,7 @@ for file in "$@"; do
             fi
 
             # panic!( in lib
-            if [[ "$file" == */src/lib.rs || "$file" == */src/*/mod.rs || ( "$file" == */src/*.rs && "$file" != */src/main.rs && "$file" != */src/bin/* ) ]]; then
+            if is_lib_path "$file"; then
                 if [[ "$code_only" =~ panic!\( ]]; then
                     report "$file" "$line_no" "lib-panic" "panic!() in library code - return Result"
                 fi
@@ -149,10 +171,10 @@ if [ "$violations" -gt 0 ]; then
     echo "  cargo +stable fmt --all -- --check" >&2
     echo "  cargo +stable clippy --all-targets --all-features -- -D warnings" >&2
     echo "  cargo nextest run --all-targets --all-features" >&2
-    echo "  cargo +nightly miri nextest run --all-features    # if unsafe touched" >&2
+    echo "  cargo +nightly miri test --all-features    # if unsafe touched" >&2
     echo "  cargo machete" >&2
     echo "  cargo deny check" >&2
     exit 1
 fi
 
-echo "rust-programmer: no-excuse rules passed for $# file(s)."
+echo "rust-programmer: no-excuse rules passed for ${#files[@]} file(s)."

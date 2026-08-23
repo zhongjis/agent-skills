@@ -19,7 +19,6 @@ NEVER pandas. Polars (with numpy) plus DuckDB. Pandas is 10-50x slower, has weak
 | Larger than RAM | Polars streaming or DuckDB out-of-core | Both handle OOM |
 | Mixed pipeline | Hybrid (zero-copy via Arrow) | Use each tool's strengths |
 
-For the deep version (per-operation benchmarks, OOM strategies, full execution templates), load the **`data-scientist`** skill - it lives in this same skill set and is the source of truth for performance numbers.
 
 ## Standard imports
 
@@ -35,7 +34,7 @@ import duckdb
 result = duckdb.sql("""
     SELECT category, SUM(amount) AS total
     FROM 'data.csv'
-    WHERE date >= '2026-01-01'
+    WHERE date >= '2024-01-01'
     GROUP BY category
     ORDER BY total DESC
 """).pl()  # zero-copy → Polars DataFrame
@@ -130,4 +129,3 @@ basedpyright understands `polars-stubs`, which ship with polars itself. No extra
 
 - Polars docs: <https://docs.pola.rs>
 - DuckDB Python API: <https://duckdb.org/docs/api/python/overview>
-- Cross-reference - this skill set's `data-scientist` skill (load it for the deep version)

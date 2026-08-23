@@ -124,7 +124,7 @@ rust-script --build-only --base-path . ./script.rs
 
 This drops a `target/` next to the script with the prebuilt binary.
 
-## `cargo-script` (RFC 3424, stable since Rust 1.85)
+## `cargo-script` (RFC 3424)
 
 The official replacement that landed in cargo proper. Same idea, slightly different syntax:
 
@@ -147,7 +147,7 @@ fn main() -> anyhow::Result<()> {
 }
 ```
 
-Status as of 2026-05: stabilization in progress. Use `rust-script` for production now, migrate when `cargo script` is stable everywhere your tools live.
+Use `rust-script` for portable one-file scripts. Adopt `cargo script` only when every target toolchain supports the required behavior.
 
 ## Strict mode for scripts
 

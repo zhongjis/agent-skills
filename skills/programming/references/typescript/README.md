@@ -17,8 +17,8 @@ These are deliberate project choices. Violations are always wrong, not "style pr
 
 | Category | Use | Never |
 |---|---|---|
-| Runtime | Bun (native TS, single binary) | ts-node, tsx |
-| Package manager | `pnpm` | npm, yarn (unless workspace requires it) |
+| Runtime | Bun for new projects; existing project runtime wins | introducing a second runtime without a requirement |
+| Package manager | Bun for new projects; existing `packageManager` field or lockfile wins | mixing package managers or lockfiles |
 | Linter + formatter | Biome | ESLint, Prettier |
 | Type checker | `tsc --noEmit` with strict config | skip type checking |
 | Web framework | Hono | Express |
@@ -32,7 +32,7 @@ These are deliberate project choices. Violations are always wrong, not "style pr
 2. **Branded types for distinct IDs** — `type UserId = Brand<string, "UserId">`. Never pass raw `string` where a branded type exists.
 3. **Exhaustive switch** — every `switch` on a discriminated union ends with `default: assertNever(x)`. No fall-through.
 4. **No any** — `any` is banned in annotations, returns, and parameters. Use `unknown` and narrow.
-5. **No type assertions** — `as any`, `as unknown` banned. `as const` and `satisfies` are fine.
+5. **No unsafe type assertions** — assertions that claim an unchecked type are banned, including `as any`, `as unknown`, and `value as SomeType`. `as const` and `satisfies` are allowed because they narrow or validate without claiming unchecked runtime evidence.
 6. **No non-null assertion** — `x!` is banned. Use narrowing or optional chaining (`x?.y`).
 7. **No @ts-ignore / @ts-expect-error** — fix the type.
 8. **No enum** — use `as const` objects + literal union types.
@@ -110,13 +110,13 @@ async function main(): Promise<void> {  // no-excuse-ok: catch
 | HTTP framework | Hono | Lightweight, multi-runtime, middleware, OpenAPI |
 | Validation | Zod | Runtime validation + type inference |
 | ORM | Drizzle | Type-safe SQL, no codegen |
-| HTTP client | `ky` | Thin fetch wrapper (5KB); auto-throw on non-2xx, retry, timeout, hooks, prefixUrl. Browser + Node + Bun + Deno |
+| HTTP client | `ky` | Auto-throw on non-2xx, retry, timeout, hooks, prefix URL; browser and server runtimes |
 | HTTP client (perf) | `undici` (direct API) | When a Node backend needs connection pooling, HTTP/2, or pipelining |
-
-> **HTTP client rule** - production code must not use bare `fetch()`. It has no retry, timeout, or error-handling policy and causes silent failures during incidents. Install **`ky`** by default, and use the **`undici`** direct API when a Node backend needs high-volume requests, connection pooling, HTTP/2, or pipelining. ~~`axios`~~ is forbidden after the supply-chain compromise (2026-03). `node-fetch` is unnecessary because Node 18+ includes built-in fetch.
 | Testing | `bun test` / vitest | Fast, ESM-native |
 | Logging | `pino` | Structured JSON, fast |
 | CLI | `@clack/prompts` + `commander` | Interactive + parsing |
+
+> **HTTP client rule** — outbound production HTTP uses a configured **`ky`** client with explicit timeout, retry, and hooks policy. Use the **`undici`** direct API when a Node backend needs high-volume requests, connection pooling, HTTP/2, or pipelining. Bare outbound Fetch API calls are not a canonical recipe. Hono server-adapter configuration such as `fetch: app.fetch` is not an outbound request and remains valid.
 
 ## tsconfig — the one true config
 
@@ -143,7 +143,10 @@ Load on demand — not all at once.
 | Type patterns (branded, as const, satisfies, narrowing, assertNever) | `type-patterns.md` |
 | Data modeling (type vs interface vs Zod, readonly, parse-don't-validate) | `data-modeling.md` |
 | Error handling (Result, typed errors, union vs throw) | `error-handling.md` |
-| Hono backend stack (hono-openapi, Scalar, Swagger) | `backend-hono.md` |
+| Hono backend stack overview | `backend-hono.md` |
+| Hono routes, validation, and OpenAPI generation | `backend-hono-routes.md` |
+| Scalar and Swagger documentation UIs | `backend-hono-documentation.md` |
+| Bun runtime, compatibility, and startup | `backend-hono-runtime.md` |
 
 ## No-excuse audit
 
@@ -182,7 +185,3 @@ Tests still follow the iron list — branded types, typed errors, exhaustive swi
 ## Existing codebases
 
 When editing an existing file that doesn't follow these rules: **write new code in strict style, don't refactor existing code in the same change.**
-
-## Activation
-
-This skill activates whenever you are writing or modifying any `.ts` or `.tsx` file. Even one-off scripts get the strict treatment.

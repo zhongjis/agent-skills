@@ -110,7 +110,7 @@ This is the canonical Release/Acquire pattern. **Use `OnceLock<Config>` instead*
 | Hold across `.await` | Dangerous (deadlock under current-thread runtime) | Dangerous | Safe |
 | Drop guard releases | Yes | Yes | Yes |
 | RAII | Yes (`MutexGuard`) | Yes | Yes |
-| Const constructor | Yes (since 1.63) | Yes | No |
+| Const constructor | Yes | Yes | No |
 | Async | No | No | Yes |
 
 **Rule of thumb:**
@@ -267,7 +267,7 @@ async fn main() {
 }
 ```
 
-`OnceLock` is `std::sync` and stable. `LazyLock` is in `std::sync` since 1.80. Avoid the older `once_cell` crate for new code.
+`OnceLock` and `LazyLock` are available in `std::sync`; prefer them over an extra initialization dependency when they meet the requirement.
 
 ## Loom — model-checking lock-free code
 

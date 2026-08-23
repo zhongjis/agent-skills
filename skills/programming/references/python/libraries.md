@@ -1,6 +1,6 @@
 # Library Defaults — Decision Tree
 
-For each domain, the canonical 2026 choice, why, and the canonical usage snippet. The skill enforces these unless the project's `pyproject.toml` explicitly says otherwise.
+Use the project's declared dependencies and conventions. The choices below are fallbacks for new projects with no established practice.
 
 ## CLI — typer
 
@@ -46,39 +46,11 @@ from rich.traceback import install
 install(show_locals=True)
 ```
 
-## HTTP client — [httpx2](https://github.com/pydantic/httpx2)
+## HTTP client
 
-Next-generation HTTP client under Pydantic stewardship. Sync and async in one library, HTTP/2 native, brotli + zstd content decoding, real type stubs. Replaces `requests` (sync only), `aiohttp` (async only), and the original `httpx`.
+Preserve the client and construction pattern already established by the project. When no client exists, install `httpx2[http2,brotli,zstd]` and use `create_client()` or `create_async_client()` from [httpx2-optimization.md](httpx2-optimization.md). Do not instantiate a bare `httpx2` client.
 
-**Install**: `httpx2[http2,brotli,zstd]` — always include all three extras, no exceptions.
-
-**A bare `httpx2.AsyncClient()` / `httpx2.Client()` is a bug.** Always use the factory pattern from `references/httpx2-optimization.md` with ALL optimizations enabled by default:
-
-```python
-import socket
-import httpx2
-
-# ── Production defaults — ALL ON, always. ──
-_LIMITS = httpx2.Limits(max_connections=200, max_keepalive_connections=40, keepalive_expiry=30.0)
-_TIMEOUT = httpx2.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
-_SOCKET_OPTS: list[tuple[int, int, int]] = [(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)]
-
-# Async (the common case)
-transport = httpx2.AsyncHTTPTransport(http2=True, retries=3, limits=_LIMITS, socket_options=_SOCKET_OPTS)
-async with httpx2.AsyncClient(transport=transport, timeout=_TIMEOUT, follow_redirects=True) as client:
-    response = await client.get("https://api.example.com/users")
-    response.raise_for_status()
-    users = response.json()
-
-# Sync
-transport = httpx2.HTTPTransport(http2=True, retries=3, limits=_LIMITS, socket_options=_SOCKET_OPTS)
-with httpx2.Client(transport=transport, timeout=_TIMEOUT, follow_redirects=True) as client:
-    response = client.get("https://api.example.com/users")
-    response.raise_for_status()
-    users = response.json()
-```
-
-See `references/httpx2-optimization.md` for the full factory functions (`create_client()` / `create_async_client()`), event hooks, and the rationale behind every setting. **Load that reference whenever you write ANY network code.**
+Original `httpx` is limited to framework test or transport boundaries that require its public types. Logging hooks are enabled only when they fit the project's logging and observability practice.
 
 ## JSON — stdlib `json` (default) or `orjson` (hot paths)
 
@@ -94,11 +66,11 @@ raw: bytes = orjson.dumps(
 )
 ```
 
-**Critical 2026 fact**: with Pydantic v2, `model.model_dump_json()` is backed by pydantic-core (Rust) and is faster than `orjson + default=` bridge for Pydantic-shaped responses. **Use `model_dump_json()` for Pydantic; orjson for everything else.**
+With Pydantic v2, `model.model_dump_json()` is backed by pydantic-core. Use it for Pydantic-shaped responses; use orjson for hot paths built from other structures.
 
 For FastAPI: `app = FastAPI(default_response_class=ORJSONResponse)`. Pydantic-typed responses bypass it (and that's correct — Pydantic's path is faster). Raw `dict`/`list` returns go through orjson.
 
-See `references/orjson-stack.md` for the full decision tree, option flag reference, FastAPI integration, Redis/queue/logging patterns, and the `model_dump_json()` vs orjson benchmark.
+See [orjson-stack.md](orjson-stack.md) for the decision tree, option flags, FastAPI integration, and queue or logging patterns.
 
 ## Validation — pydantic v2
 
@@ -277,7 +249,11 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="MYAPP_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="MYAPP_",
+        frozen=True,
+    )
 
     database_url: str
     api_key: str = Field(min_length=1)
@@ -286,9 +262,9 @@ class Settings(BaseSettings):
 settings = Settings()  # loads at import time; raises if any required var is missing
 ```
 
-## Logging — stdlib logging + rich handler
+## Logging
 
-Stdlib `logging` is fine; it gets a face-lift from `rich.logging.RichHandler`.
+Keep the project's logging stack. For a new CLI project with no logging setup, stdlib `logging` plus `rich.logging.RichHandler` is a reasonable interactive default:
 
 ```python
 import logging
@@ -304,4 +280,4 @@ log = logging.getLogger(__name__)
 log.info("ready")
 ```
 
-For structured logging in production, swap to `structlog` (separate dep). Don't roll your own.
+Use `structlog` only when the project already uses structured logging or has an explicit need for it.

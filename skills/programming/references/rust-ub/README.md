@@ -142,7 +142,7 @@ For each UB finding:
 
 After all beads are resolved:
 
-1. **Add Miri to CI** if not already present (see [miri-sanitizers-loom.md](miri-sanitizers-loom.md) for the GitHub Actions config).
+1. **Add Miri to CI** if not already present (see [miri.md](miri.md) for the GitHub Actions config).
 2. **Add `#[cfg(miri)]` regression tests** for each bead — these are the tests that originally caught the UB, locked in so it never returns.
 3. **Review SAFETY comments** on every remaining `unsafe` block. Each must name the specific invariant from the taxonomy.
 4. **Run the full paranoia sweep one final time** to confirm clean.
@@ -278,12 +278,11 @@ let raw = unsafe { ffi_call() };
 let result = NonNull::new(raw).ok_or(Error::NullFromFfi)?;
 ```
 
-## Activation
+## Reference Index
 
-This skill activates when:
-- The user requests a "UB audit", "miri sweep", "unsafe audit", "soundness check", "rustonomicon audit", "race hunt"
-- The agent encounters `unsafe` code during a Rust task and needs to verify it
-- Miri reports a failure and the agent needs to classify and fix it
-- The user asks "is this sound?" about Rust code
-
-**Miri is not optional. Miri is the proof. Ship nothing `unsafe` without Miri's blessing.**
+- [UB taxonomy](ub-taxonomy.md) — categories, detection coverage, fix patterns.
+- [Detection tools](miri-sanitizers-loom.md) — concise tool index.
+- [Miri](miri.md) — supported commands, strictness flags, CI, gating.
+- [Sanitizers](sanitizers.md) — FFI and real-hardware checks.
+- [Loom](loom.md) — exhaustive bounded interleaving checks.
+- [Fuzzing](fuzzing.md) — cargo-fuzz workflow and tool selection.

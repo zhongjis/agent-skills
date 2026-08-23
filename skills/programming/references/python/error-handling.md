@@ -150,21 +150,25 @@ data = Path("data.txt").read_text()
 
 ### Async resources
 
+Use the HTTP client factory selected by the project. For a new project using `httpx2`, import the factory from the local HTTP module described in `httpx2-optimization.md`:
+
 ```python
-import httpx
+from myapp.http_client import create_async_client
+
 
 async def fetch_users() -> list[User]:
-    async with httpx.AsyncClient() as client:
+    async with create_async_client() as client:
         response = await client.get("https://api.example.com/users")
         response.raise_for_status()
-        return [User(**u) for u in response.json()]
+        return [User(**item) for item in response.json()]
 ```
 
 ### Custom context manager
 
 ```python
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 
 @asynccontextmanager
 async def managed_connection(url: str) -> AsyncIterator[Connection]:
@@ -173,21 +177,19 @@ async def managed_connection(url: str) -> AsyncIterator[Connection]:
         yield conn
     finally:
         await conn.close()
-
-async with managed_connection("postgres://...") as conn:
-    await conn.execute("SELECT 1")
-# conn is closed here, guaranteed
 ```
 
----
+## Exception hierarchy
 
-## Exception hierarchy — when you do raise
-
-Keep exception hierarchies shallow and specific.
+Use one typed base exception when a boundary needs to translate related application errors together:
 
 ```python
+from dataclasses import dataclass
+
+
 class AppError(Exception):
-    """Base for all application errors."""
+    """Base class for expected application errors."""
+
 
 @dataclass(frozen=True, slots=True)
 class NotFoundError(AppError):
@@ -196,6 +198,7 @@ class NotFoundError(AppError):
 
     def __str__(self) -> str:
         return f"{self.entity} {self.id} not found"
+
 
 @dataclass(frozen=True, slots=True)
 class ConflictError(AppError):
@@ -207,7 +210,7 @@ class ConflictError(AppError):
         return f"{self.entity}.{self.field} = {self.value!r} already exists"
 ```
 
-Callers catch `AppError` at the boundary, or specific subtypes where they can do something useful.
+Callers catch `AppError` at the boundary, or specific subtypes where they can act on the details.
 
 ---
 

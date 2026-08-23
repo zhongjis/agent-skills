@@ -15,18 +15,13 @@
 | Bidirectional streaming with frame-level control | grpc-go |
 | Strict gRPC environment (Envoy with gRPC filters, Istio strict mode) | grpc-go |
 
-**Default**: Connect. The default has been correct since 2024.
+**Default**: Connect.
 
 ---
 
 ## Toolchain — Buf, not protoc
 
-```bash
-go install github.com/bufbuild/buf/cmd/buf@latest
-go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
-go install github.com/bufbuild/protovalidate/cmd/protoc-gen-go-vtproto@latest
-```
+Pin Buf and any local generators in repository tooling. Prefer remote plugins in `buf.gen.yaml`, which avoid local generator installation.
 
 Buf replaces `protoc` for everything: linting, breaking-change detection, codegen, formatting. The `protoc` toolchain is dead-letter walking — every modern proto project uses Buf.
 
@@ -156,71 +151,62 @@ message User {
 }
 ```
 
-`protovalidate` replaces the abandoned `protoc-gen-validate` — it is the official Buf-backed successor as of 2024, supported by Connect's interceptor pipeline.
+`protovalidate` replaces the abandoned `protoc-gen-validate` and integrates with Connect's interceptor pipeline.
 
 ---
 
 ## Server — Connect
 
 ```go
-package main
-
-import (
-    "context"
-    "log/slog"
-    "net/http"
-
-    "connectrpc.com/connect"
-    "buf.build/go/protovalidate"
-    validateinterceptor "connectrpc.com/validate"
-    "golang.org/x/net/http2"
-    "golang.org/x/net/http2/h2c"
-
-    myservicev1 "github.com/your-org/myservice/gen/myservice/v1"
-    "github.com/your-org/myservice/gen/myservice/v1/myservicev1connect"
-)
-
 type UserServer struct {
-    svc *UserService
+    svc    *UserService
+    logger *slog.Logger
+}
+
+func NewHandler(logger *slog.Logger, svc *UserService) (string, http.Handler, error) {
+    validator, err := protovalidate.New()
+    if err != nil {
+        return "", nil, fmt.Errorf("create validator: %w", err)
+    }
+    options := connect.WithInterceptors(
+        loggingInterceptor(logger),
+        validateinterceptor.NewInterceptor(validator),
+    )
+    return myservicev1connect.NewUserServiceHandler(
+        &UserServer{svc: svc, logger: logger},
+        options,
+    )
 }
 
 func (s *UserServer) CreateUser(
     ctx context.Context,
     req *connect.Request[myservicev1.CreateUserRequest],
 ) (*connect.Response[myservicev1.CreateUserResponse], error) {
-
-    // protovalidate already ran via the interceptor below.
-    // req.Msg is guaranteed to satisfy the .proto constraints.
-
     user, err := s.svc.Create(ctx, req.Msg.Email, req.Msg.Username, req.Msg.Age)
     if err != nil {
-        return nil, mapError(err)
+        return nil, mapError(ctx, s.logger, err)
     }
     return connect.NewResponse(&myservicev1.CreateUserResponse{
         User: userToProto(user),
     }), nil
 }
 
-func main() {
-    validator, _ := protovalidate.New()
-    interceptors := connect.WithInterceptors(
-        loggingInterceptor(),
-        validateinterceptor.NewInterceptor(validator),
-    )
-
+func Run(ctx context.Context, logger *slog.Logger, svc *UserService) error {
+    path, handler, err := NewHandler(logger, svc)
+    if err != nil {
+        return err
+    }
     mux := http.NewServeMux()
-    mux.Handle(myservicev1connect.NewUserServiceHandler(
-        &UserServer{svc: newUserService()},
-        interceptors,
-    ))
-
-    // h2c lets the server speak HTTP/2 cleartext for gRPC clients.
+    mux.Handle(path, handler)
     srv := &http.Server{
         Addr:    ":8080",
         Handler: h2c.NewHandler(mux, &http2.Server{}),
     }
-    slog.Info("rpc server listening", slog.String("addr", srv.Addr))
-    if err := srv.ListenAndServe(); err != nil { slog.Error("rpc", slog.Any("err", err)) }
+    logger.InfoContext(ctx, "rpc server listening", slog.String("addr", srv.Addr))
+    if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+        return fmt.Errorf("serve rpc: %w", err)
+    }
+    return nil
 }
 ```
 
@@ -231,7 +217,7 @@ The handler is **just an `http.Handler`** — mount it in the same `http.ServeMu
 ## Error mapping — Connect codes
 
 ```go
-func mapError(err error) error {
+func mapError(ctx context.Context, logger *slog.Logger, err error) error {
     if err == nil { return nil }
 
     switch {
@@ -245,7 +231,7 @@ func mapError(err error) error {
     case errors.Is(err, ErrConflict):
         return connect.NewError(connect.CodeAlreadyExists, err)
     default:
-        slog.Error("unmapped rpc error", slog.Any("err", err))
+        logger.ErrorContext(ctx, "unmapped rpc error", slog.String("error", err.Error()))
         return connect.NewError(connect.CodeInternal, errors.New("internal"))
     }
 }
@@ -258,7 +244,7 @@ Connect codes map 1:1 to gRPC codes. Clients see canonical error semantics.
 ## Logging interceptor
 
 ```go
-func loggingInterceptor() connect.UnaryInterceptorFunc {
+func loggingInterceptor(logger *slog.Logger) connect.UnaryInterceptorFunc {
     return func(next connect.UnaryFunc) connect.UnaryFunc {
         return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
             start := time.Now()
@@ -268,10 +254,10 @@ func loggingInterceptor() connect.UnaryInterceptorFunc {
                 slog.Duration("elapsed", time.Since(start)),
             }
             if err != nil {
-                attrs = append(attrs, slog.Any("err", err))
-                slog.LogAttrs(ctx, slog.LevelWarn, "rpc failed", attrs...)
+                attrs = append(attrs, slog.String("error", err.Error()))
+                logger.LogAttrs(ctx, slog.LevelWarn, "rpc failed", attrs...)
             } else {
-                slog.LogAttrs(ctx, slog.LevelInfo, "rpc ok", attrs...)
+                logger.LogAttrs(ctx, slog.LevelInfo, "rpc ok", attrs...)
             }
             return res, err
         }
@@ -330,13 +316,13 @@ res, err := client.CreateUser(ctx, connect.NewRequest(&myservicev1.CreateUserReq
 if err != nil {
     var connectErr *connect.Error
     if errors.As(err, &connectErr) {
-        slog.Error("rpc failed",
+        logger.ErrorContext(ctx, "rpc failed",
             slog.String("code", connectErr.Code().String()),
-            slog.String("msg",  connectErr.Message()))
+            slog.String("message", connectErr.Message()))
     }
     return err
 }
-slog.Info("created", slog.String("id", res.Msg.User.Id))
+logger.InfoContext(ctx, "created", slog.String("id", res.Msg.User.Id))
 ```
 
 ---
@@ -344,14 +330,20 @@ slog.Info("created", slog.String("id", res.Msg.User.Id))
 ## When you genuinely need raw grpc-go
 
 ```go
-import "google.golang.org/grpc"
-
-lis, _ := net.Listen("tcp", ":8080")
-srv := grpc.NewServer(
-    grpc.UnaryInterceptor(loggingUnaryInterceptor),
-)
-myservicev1.RegisterUserServiceServer(srv, &userServer{})
-_ = srv.Serve(lis)
+func RunGRPC(logger *slog.Logger, service myservicev1.UserServiceServer) error {
+    lis, err := net.Listen("tcp", ":8080")
+    if err != nil {
+        return fmt.Errorf("listen: %w", err)
+    }
+    srv := grpc.NewServer(
+        grpc.UnaryInterceptor(loggingUnaryInterceptor(logger)),
+    )
+    myservicev1.RegisterUserServiceServer(srv, service)
+    if err := srv.Serve(lis); err != nil {
+        return fmt.Errorf("serve grpc: %w", err)
+    }
+    return nil
+}
 ```
 
 The codegen is from `protoc-gen-go-grpc` (different binary from `protoc-gen-connect-go`). You can codegen **both** in the same `buf.gen.yaml` and switch by importing the right package. Most teams pick one.

@@ -2,7 +2,7 @@
 
 Every log line has exactly two legitimate readers: the operator reconstructing an incident and the developer reproducing a bug. A line that serves neither is cost — storage, noise, and attention stolen from the lines that matter. Everything below derives from that.
 
-This reference is deliberately stack-agnostic. It never tells you which logging library to use — the ecosystem table in SKILL.md owns stack defaults, and the project's existing practice overrides everything (Rule 0).
+This reference is deliberately stack-agnostic. Language READMEs own stack defaults, and the project's existing practice overrides everything (Rule 0).
 
 ---
 
@@ -28,7 +28,7 @@ A new service earns exactly this much logging infrastructure, and no more:
 1. **One init module.** Callers import a ready logger; only the init module knows the stage. No call site ever checks `NODE_ENV`-style vars to decide how to log.
 2. **Stage split by environment.** Dev = human-readable (pretty, colorized). Prod = structured, machine-parseable (JSON to stdout). Same logger API on both — the stage changes the sink and format, never the call sites.
 3. **Level threshold per stage.** Dev = `debug`, prod = `info`, overridable with a `LOG_LEVEL`-style env var.
-4. **The stack's standard structured logger** (the ecosystem table in SKILL.md names the default) — never a hand-rolled one.
+4. **The stack's standard structured logger** named by its language reference — never a hand-rolled one.
 5. **Error-serialization proof.** Before trusting error logging, pass a real Error/exception through the PROD formatter once and assert the output preserves type, message, and stack. Every structured-logging stack has a reserved-key contract, and violating it typically produces an empty `{}` where the stack trace should have been — discovered during the incident. This is a one-line test; write it at setup time and the whole bug class is dead permanently.
 
 ## Choosing the level — consumer, not severity

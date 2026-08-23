@@ -9,11 +9,7 @@ Self-contained Python scripts with declared dependencies, run with no environmen
 ### Pattern 1: inline `uv run` invocation
 
 ```bash
-uv run --with httpx2 --with rich python -c "
-import httpx2
-from rich import print
-print(httpx2.get('https://api.github.com').json())
-"
+uv run --with rich python -c "from rich import print; print('[green]ready[/green]')"
 ```
 
 Use for terminal one-shots that you don't want to save. `--with PKG` may be repeated.
@@ -27,7 +23,6 @@ A regular `.py` file with metadata in a comment block. uv reads the metadata, ma
 # /// script
 # requires-python = ">=3.13"
 # dependencies = [
-#     "httpx2[http2,brotli,zstd]",
 #     "rich",
 # ]
 # ///
@@ -43,15 +38,11 @@ A regular `.py` file with metadata in a comment block. uv reads the metadata, ma
 
 from __future__ import annotations
 
-import httpx2
 from rich import print as rprint
 
 
 def main() -> None:
-    with httpx2.Client(http2=True, follow_redirects=True) as client:
-        resp = client.get("https://api.github.com")
-        resp.raise_for_status()
-        rprint(resp.json())
+    rprint("[green]ready[/green]")
 
 
 if __name__ == "__main__":
@@ -118,18 +109,39 @@ Replace `<SCRIPT_NAME>` with the actual filename. Add argument descriptions if t
 
 from __future__ import annotations
 
+import socket
 import sys
 
 import httpx2
 from rich import print as rprint
 
 
+def create_client() -> httpx2.Client:
+    limits = httpx2.Limits(
+        max_connections=200,
+        max_keepalive_connections=40,
+        keepalive_expiry=30.0,
+    )
+    timeout = httpx2.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
+    transport = httpx2.HTTPTransport(
+        http2=True,
+        retries=3,
+        limits=limits,
+        socket_options=[(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)],
+    )
+    return httpx2.Client(
+        transport=transport,
+        timeout=timeout,
+        follow_redirects=True,
+    )
+
+
 def main() -> None:
     url = sys.argv[1] if len(sys.argv) > 1 else "https://api.github.com"
-    with httpx2.Client(http2=True, follow_redirects=True) as client:
-        resp = client.get(url)
-        resp.raise_for_status()
-        rprint(resp.json())
+    with create_client() as client:
+        response = client.get(url)
+        response.raise_for_status()
+        rprint(response.json())
 
 
 if __name__ == "__main__":
@@ -243,7 +255,6 @@ if __name__ == "__main__":
 | `python -m venv .venv && ...` | `uv run --script` handles it |
 | Script without usage comment | Always include the "How to run" block |
 | `import asyncio; asyncio.run(main())` | `import anyio; anyio.run(main)` |
-| Bare `httpx2.AsyncClient()` | Full production defaults (see `references/httpx2-optimization.md`) |
 
 ## Sources
 

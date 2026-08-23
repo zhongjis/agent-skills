@@ -1,6 +1,6 @@
-# Library Defaults — Full Decision Tree (Go 2026)
+# Library Defaults — Full Decision Tree
 
-The opinionated, in-production stack for 2026 Go. Every entry has a one-line rationale and a canonical snippet so the agent does not relearn each library's idioms.
+Opinionated production defaults. Every entry has a one-line rationale and canonical snippet so the agent does not relearn each library's idioms.
 
 The biggest difference from Python/Rust/TypeScript: **Go has fewer "best" choices and more "boring" choices.** The standard library is the default; reach outside it only when the rationale below applies.
 
@@ -8,20 +8,18 @@ The biggest difference from Python/Rust/TypeScript: **Go has fewer "best" choice
 
 ## HTTP framework — `gin` (default) or `chi` (minimalist) or `net/http` (no deps)
 
-The reality of 2026 Go: **`gin` runs ~48% of new Go API projects** (Go Developer Survey 2024 + crawls of new repos), with `gorilla/mux` (~17%, in maintenance), `echo` (~16%), and `fiber` (~11%) the remaining quarter. The skill picks gin not because it is technically superior — it is not — but because:
+The skill picks gin for ecosystem depth, not technical superiority:
 
 1. The ecosystem (middleware, examples, SO answers) is largest.
 2. The CLIProxyAPI codebase, which this skill's `backend-stack.md` is distilled from, uses gin in production for OpenAI/Gemini/Claude proxying including SSE streaming and WebSocket upgrades. That is real reference code, not a toy.
 3. Gin's `Context` API is the closest thing Go has to a framework-blessed "request-scoped object", which makes middleware composition straightforward.
 
 ```go
-import "github.com/gin-gonic/gin"
-
-func main() {
+func NewRouter(logger *slog.Logger) *gin.Engine {
     r := gin.New()
-    r.Use(gin.Recovery(), middleware.RequestLogger(), middleware.RequestID())
+    r.Use(middleware.Recovery(logger), middleware.RequestLogger(logger), middleware.RequestID())
     r.GET("/healthz", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
-    _ = r.Run(":8080")
+    return r
 }
 ```
 
@@ -48,17 +46,13 @@ The default RPC layer. **Use Connect, not raw grpc-go**, unless you have a measu
 - Buf toolchain (`buf generate`, `buf lint`, `buf breaking`) for codegen is dramatically nicer than `protoc`.
 
 ```go
-// Server
-mux := http.NewServeMux()
-mux.Handle(elizav1connect.NewElizaServiceHandler(&elizaServer{}))
-_ = http.ListenAndServe(":8080", h2c.NewHandler(mux, &http2.Server{}))
+func NewRPCHandler(server *ElizaServer) (string, http.Handler) {
+    return elizav1connect.NewElizaServiceHandler(server)
+}
 
-// Client
-client := elizav1connect.NewElizaServiceClient(
-    http.DefaultClient,
-    "http://localhost:8080",
-)
-res, err := client.Say(ctx, connect.NewRequest(&elizav1.SayRequest{Sentence: "hi"}))
+func NewRPCClient(baseURL string) elizav1connect.ElizaServiceClient {
+    return elizav1connect.NewElizaServiceClient(http.DefaultClient, baseURL)
+}
 ```
 
 **Use raw `grpc-go`** only when:
@@ -71,11 +65,7 @@ See `grpc-connect.md`.
 
 ## Database — `pgx/v5` + `sqlc` + `goose`
 
-```bash
-go get github.com/jackc/pgx/v5
-go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-go install github.com/pressly/goose/v3/cmd/goose@latest
-```
+Pin `sqlc` and `goose` in the repository's tool module, then expose generation and migration commands through the task runner.
 
 - **`pgx/v5`** is faster, more type-safe, and has better PostgreSQL feature coverage than `database/sql + lib/pq`. Use the `pgxpool` package for connection pooling. Avoid `database/sql` driver mode — it loses pgx's batch, COPY, listen/notify.
 - **`sqlc`** generates type-safe Go from `.sql` files. Hand-written SQL with hand-written struct mapping is the #1 source of subtle DB bugs. sqlc eliminates the class.
@@ -122,15 +112,15 @@ See `data-modeling.md` for the full pattern.
 ## Logging — `log/slog` (stdlib)
 
 ```go
-import "log/slog"
+func NewLogger(out io.Writer, level slog.Leveler) *slog.Logger {
+    return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{
+        Level:     level,
+        AddSource: true,
+    }))
+}
 
-logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-    Level:     slog.LevelInfo,
-    AddSource: true,
-}))
-slog.SetDefault(logger)
-
-slog.InfoContext(ctx, "request handled",
+logger := NewLogger(os.Stdout, slog.LevelInfo)
+logger.InfoContext(ctx, "request handled",
     slog.String("path", r.URL.Path),
     slog.Int("status", 200),
     slog.Duration("elapsed", elapsed),
@@ -141,17 +131,13 @@ slog.InfoContext(ctx, "request handled",
 - The `slog.Handler` interface is implemented by all major exporters (OpenTelemetry, Datadog, Honeycomb).
 - The skill bans `logrus`, `zap`, `zerolog` for new code. They are not bad — they are simply superseded. Existing projects on those keep them; new files use slog.
 
-Use the `sloglint` linter from `golangci-strict.md` to enforce attr style (`slog.String(...)` instead of `slog.Any(...)`).
+Use `sloglint` policy from `golangci-strict.md` to enforce injected loggers and typed attrs.
 
 ---
 
 ## CLI — `cobra` + `pflag` + slog
 
-```bash
-go install github.com/spf13/cobra-cli@latest
-cobra-cli init mytool
-cobra-cli add server
-```
+Pin `cobra-cli` in the repository's tool module before scaffolding commands. Do not depend on an unpinned installer invocation.
 
 `cobra` is the de facto Go CLI framework — Kubernetes, Docker CLI, Helm, GitHub CLI all use it. The companion `viper` for config-file-+-env-+-flag merging is **optional**: prefer `caarlos0/env/v11` for env-only configs (12-factor apps), reach for viper only when you genuinely need file-based config.
 
@@ -175,7 +161,7 @@ See `bubbletea-v2.md` for the full IME-correct skeleton.
 
 ## HTTP client — stdlib + `hashicorp/go-retryablehttp`
 
-Default: `net/http.Client` with a tuned `http.Transport`. The stdlib client is **already excellent** in 2026 — HTTP/2 by default, connection pooling, sane timeouts when configured.
+Default: `net/http.Client` with a tuned `http.Transport`. The stdlib client provides HTTP/2, connection pooling, and explicit timeout controls.
 
 ```go
 client := &http.Client{
@@ -234,7 +220,7 @@ type Clock interface { Now() time.Time }
 var realClock Clock = clockImpl{}
 // Test
 fake := clock.NewMock()
-fake.Set(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+fake.Set(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 ```
 
 **Never call `time.Now()` directly inside domain code.** Inject a `Clock`. Tests become deterministic, no `time.Sleep` flakiness.
@@ -256,7 +242,7 @@ For short, URL-safe IDs (~12 bytes, sortable) use `rs/xid` — Kubernetes-style.
 
 ## Crypto — stdlib + `alecthomas/argon2id` for passwords
 
-Stdlib `crypto/*` for everything. For password hashing, **argon2id is the 2026 standard** — bcrypt is acceptable but argon2 is OWASP's recommendation since 2023.
+Use stdlib `crypto/*` primitives where applicable. For password hashing, prefer argon2id; bcrypt remains acceptable for compatibility.
 
 ```go
 import "github.com/alecthomas/argon2id"
@@ -276,7 +262,7 @@ Same philosophy as Python's "never pandas":
 | Numerical | `gonum.org/v1/gonum` |
 | Stats | `gonum/stat` |
 
-Go's data-science story is intentionally thin. For heavy data work, write the pipeline in Polars/DuckDB (see `python/data-processing.md`), expose the result via Parquet or Arrow, consume from Go.
+Go's data-science story is intentionally thin. For heavy data work, write the pipeline in Polars/DuckDB (see `../python/data-processing.md`), expose the result via Parquet or Arrow, consume from Go.
 
 ---
 
@@ -306,8 +292,13 @@ type Config struct {
     Timeout     time.Duration `env:"TIMEOUT" envDefault:"30s"`
 }
 
-var cfg Config
-if err := env.Parse(&cfg); err != nil { log.Fatal(err) }
+func LoadConfig() (Config, error) {
+    var cfg Config
+    if err := env.Parse(&cfg); err != nil {
+        return Config{}, fmt.Errorf("parse config: %w", err)
+    }
+    return cfg, nil
+}
 ```
 
 Pure 12-factor. Defaults via struct tag, required marker, parsing for `time.Duration`, slices, maps. **Use viper only if you also need file-based config** — most services do not.
@@ -318,9 +309,9 @@ Pure 12-factor. Defaults via struct tag, required marker, parsing for `time.Dura
 
 Before `go get`-ing anything new:
 
-1. Is it maintained? Latest tag within 12 months? Owner active?
+1. Is it maintained? Recent reviewed release and active owner?
 2. Does it expose stdlib-compatible types (`io.Reader`, `context.Context`, `http.Handler`)? If it invents its own `Connection` or `Request` type, that's a yellow flag.
-3. Does it use `init()` for side effects? **REJECT.** `init()` ruins testability.
+3. Does it rely on hidden package-startup side effects? **REJECT.** Require explicit constructors and registration.
 4. Does it call `log.Fatal` / `panic` outside of true programmer-error paths? **REJECT.**
 5. Does it have a `context.Context` first-arg convention? If not, **REJECT** — cancellation is non-negotiable.
 6. Does adding it overlap with something already in your `go.mod`? Pick one.
@@ -329,7 +320,6 @@ Before `go get`-ing anything new:
 
 ## Sources
 
-- 2024 Go Developer Survey: https://go.dev/blog/survey2024-h1-results
 - Connect-Go docs: https://connectrpc.com/docs/go/getting-started
 - sqlc: https://docs.sqlc.dev
 - bubbletea v2 IME: https://github.com/code-yeongyu/bubbletea-wm (reference for `SetVirtualCursor(false)` pattern)

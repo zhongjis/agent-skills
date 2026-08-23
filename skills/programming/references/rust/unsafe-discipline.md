@@ -8,7 +8,7 @@ Every `unsafe` block needs all three. No exceptions.
 
 1. **Safe wrapper.** No `unsafe fn` or raw pointer types in the crate's public API. If a caller needs to construct an instance, the constructor either does the work safely or is `unsafe` with a documented contract.
 2. **SAFETY comment.** A `// SAFETY:` line within 5 lines above the `unsafe { ... }` block, stating which invariant is upheld and where it comes from. Generic phrases ("this is safe because we checked") fail review.
-3. **miri proof.** A test that exercises the unsafe path under `cargo +nightly miri nextest run`. If the path cannot be exercised under miri (FFI, syscalls), provide an alternate proof and gate behind a feature flag ending in `-skip-miri`.
+3. **miri proof.** A test that exercises the unsafe path under `cargo +nightly miri test`. If the path cannot be exercised under miri (FFI, syscalls), provide an alternate proof and gate behind a feature flag ending in `-skip-miri`.
 
 ## The Wrapper Pattern (`NonNull<T>` style)
 
@@ -174,7 +174,7 @@ rustup component add miri rust-src --toolchain nightly
 
 # run on every change that touches unsafe
 MIRIFLAGS="-Zmiri-strict-provenance -Zmiri-symbolic-alignment-check" \
-  cargo +nightly miri nextest run --all-features
+  cargo +nightly miri test --all-features
 ```
 
 What miri catches that the borrow checker cannot:

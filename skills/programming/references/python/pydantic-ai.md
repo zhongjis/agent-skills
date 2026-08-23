@@ -1,7 +1,7 @@
-# PydanticAI Reference (v1.x, 2026)
+# PydanticAI Reference
 
-> Canonical patterns for wiring PydanticAI agents. Target: production usage, late-2025 / 2026.
-> Source: [ai.pydantic.dev](https://ai.pydantic.dev) and [pydantic/pydantic-ai@`cad9569`](https://github.com/pydantic/pydantic-ai/blob/cad956910079737ea0886b50cef15777208f92e6).
+Production patterns for the current `output_type` and `result.output` API.
+Source: [ai.pydantic.dev](https://ai.pydantic.dev).
 
 ---
 
@@ -25,7 +25,6 @@ agent = Agent(
 )
 ```
 
-**Breaking change (v1.88.0)**: `result_type` was renamed to `output_type`. Use `output_type`.
 
 ---
 
@@ -102,7 +101,7 @@ print(result.output)            # City(name='Tokyo', country='Japan', ...)
 print(result.output.name)       # 'Tokyo'
 ```
 
-**Note**: `result.data` was renamed; the canonical accessor is `result.output`.
+Use `result.output` for run results.
 
 ---
 
@@ -137,38 +136,46 @@ async with agent.run_stream('What is the capital of the UK?') as response:
 
 ## 6. Dependencies
 
-Use a `@dataclass` container, pass the **type** to `deps_type`, and pass an **instance** to `deps` at run time.
+Use a frozen `@dataclass` container, pass the **type** to `deps_type`, and pass an **instance** to `deps` at run time. Follow the existing project's HTTP client. This example uses the default `httpx2` factory for a project with no established client:
 
 ```python
 from dataclasses import dataclass
-import httpx
+
+import httpx2
+from myapp.http_client import create_async_client
 from pydantic_ai import Agent, RunContext
 
-@dataclass
+
+@dataclass(frozen=True, slots=True)
 class Deps:
     api_key: str
-    http_client: httpx.AsyncClient
+    http_client: httpx2.AsyncClient
+
 
 agent = Agent(
     'openai:gpt-5.5',
     deps_type=Deps,
 )
 
+
 @agent.tool
 async def fetch_data(ctx: RunContext[Deps], endpoint: str) -> str:
-    r = await ctx.deps.http_client.get(
+    response = await ctx.deps.http_client.get(
         endpoint,
         headers={'Authorization': f'Bearer {ctx.deps.api_key}'},
     )
-    r.raise_for_status()
-    return r.text
+    response.raise_for_status()
+    return response.text
 
-async def main():
-    async with httpx.AsyncClient() as client:
+
+async def main() -> None:
+    async with create_async_client() as client:
         deps = Deps(api_key='sk-...', http_client=client)
         result = await agent.run('Get /users', deps=deps)
         print(result.output)
 ```
+
+PydanticAI itself may expose original-`httpx` transport types. Use original `httpx` only at that framework interop boundary; application-owned tool requests still follow project HTTP policy.
 
 ---
 
@@ -202,7 +209,7 @@ with capture_run_messages() as messages:
 
 ## 8. Logfire Integration
 
-One-line setup if the `logfire` extra is installed (included in the default `pydantic-ai` package):
+Enable Logfire only when it matches the project's logging and observability practice and the `logfire` extra is installed:
 
 ```python
 import logfire
@@ -275,11 +282,3 @@ async def main() -> None:
 
 anyio.run(main)
 ```
-
----
-
-## Version Notes
-
-- **V1** reached API stability in September 2025. Breaking changes are reserved for V2 (earliest April 2026).
-- **v1.88.0** renamed `result_type` → `output_type` and `result_tool_name` / `result_tool_description` were removed. Use `output_type`.
-- The canonical accessor for run results is `result.output` (not `result.data`).

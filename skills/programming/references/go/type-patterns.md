@@ -169,21 +169,21 @@ func (e Deleted) OccurredAt() time.Time    { return e.Timestamp }
 Consumer code:
 
 ```go
-func Render(e event.Event) string {
+func Render(e event.Event) (string, error) {
     switch v := e.(type) {
     case event.Created:
-        return fmt.Sprintf("created %s with %s", v.UserID, v.Email)
+        return fmt.Sprintf("created %s with %s", v.UserID, v.Email), nil
     case event.Updated:
-        return fmt.Sprintf("updated %s: %v", v.UserID, v.Changes)
+        return fmt.Sprintf("updated %s: %v", v.UserID, v.Changes), nil
     case event.Deleted:
-        return fmt.Sprintf("deleted %s (reason: %s)", v.UserID, v.Reason)
+        return fmt.Sprintf("deleted %s (reason: %s)", v.UserID, v.Reason), nil
     default:
-        panic(fmt.Sprintf("unhandled event variant: %T", v))
+        return "", fmt.Errorf("unsupported event variant: %T", v)
     }
 }
 ```
 
-The `panic` in `default` is the Go equivalent of TS's `assertNever` or Python's `assert_never`. It is only reachable if a new variant is added without updating the switch.
+The error fallback protects callers at runtime. The `exhaustive` linter still requires every sealed variant to have an explicit case.
 
 ### The `exhaustive` linter — your compiler
 

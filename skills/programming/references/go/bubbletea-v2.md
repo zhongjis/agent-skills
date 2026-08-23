@@ -1,6 +1,6 @@
 # Bubbletea v2 — TUI with First-Class CJK / IME Support
 
-The TUI stack for 2026. Use **v2 RC**, not v1. If your users include Korean, Japanese, or Chinese speakers, v1 is broken — IME composition lands in the wrong cells. v2 fixes this. This document is the canonical setup.
+Use **v2**, not v1. If users include Korean, Japanese, or Chinese speakers, v1 is broken: IME composition lands in wrong cells. v2 fixes this. This document is canonical setup.
 
 The reference implementation this document is distilled from: [`code-yeongyu/bubbletea-wm`](https://github.com/code-yeongyu/bubbletea-wm) — a floating window manager built specifically to nail down v2 + IME.
 

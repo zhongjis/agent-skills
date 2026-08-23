@@ -148,16 +148,27 @@ app.onError((error, c) => {
 
 ## Async error patterns
 
-```typescript
-// Promise.allSettled — when partial failure is OK
-const results = await Promise.allSettled(urls.map(fetch))
-const successes = results
-  .filter((r): r is PromiseFulfilledResult<Response> => r.status === "fulfilled")
-  .map((r) => r.value)
+Configure one outbound client, then reuse its timeout, retry, and error policy.
 
-// AbortSignal — cancellation
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
-  return fetch(url, { signal: AbortSignal.timeout(ms) })
+```typescript
+import ky from "ky"
+
+const api = ky.create({
+  timeout: 10_000,
+  retry: { limit: 2 },
+})
+
+// Promise.allSettled — when partial failure is OK
+const results = await Promise.allSettled(
+  urls.map((url) => api.get(url)),
+)
+const successes = results
+  .filter((result): result is PromiseFulfilledResult<Response> => result.status === "fulfilled")
+  .map((result) => result.value)
+
+// AbortSignal — caller-controlled cancellation
+async function request(url: string, signal: AbortSignal): Promise<Response> {
+  return api.get(url, { signal })
 }
 ```
 

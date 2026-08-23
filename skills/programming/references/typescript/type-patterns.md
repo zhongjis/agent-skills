@@ -4,38 +4,35 @@ How to use TypeScript's type system to catch bugs at compile time.
 
 ---
 
-## Branded types — distinct primitives
+## Branded types — distinct validated primitives
 
-Same runtime type, different meaning. The compiler prevents mixing.
+Same runtime type, different meaning. Create branded values by parsing runtime evidence, not by asserting a raw primitive.
 
-```typescript
-declare const brand: unique symbol
-type Brand<T, B extends string> = T & { readonly [brand]: B }
-
-type UserId = Brand<string, "UserId">
-type OrderId = Brand<string, "OrderId">
-type Milliseconds = Brand<number, "Milliseconds">
-type Seconds = Brand<number, "Seconds">
-
-function UserId(value: string): UserId { return value as UserId }
-function OrderId(value: string): OrderId { return value as OrderId }
-
-function getUser(id: UserId): User { ... }
-
-getUser(UserId("abc"))    // OK
-getUser(OrderId("abc"))   // type error: OrderId is not UserId
-getUser("abc")            // type error: string is not UserId
-```
-
-With Zod (preferred at boundaries):
 ```typescript
 import { z } from "zod"
 
 const UserIdSchema = z.string().uuid().brand("UserId")
+const OrderIdSchema = z.string().uuid().brand("OrderId")
+
 type UserId = z.infer<typeof UserIdSchema>
+type OrderId = z.infer<typeof OrderIdSchema>
+
+function UserId(value: unknown): UserId {
+  return UserIdSchema.parse(value)
+}
+
+function OrderId(value: unknown): OrderId {
+  return OrderIdSchema.parse(value)
+}
+
+function getUser(id: UserId): User { ... }
+
+getUser(UserId("9e3d3ec7-2f06-4ee8-88cf-46e90e4a6591")) // OK
+getUser(OrderId("9e3d3ec7-2f06-4ee8-88cf-46e90e4a6591")) // type error
+getUser("9e3d3ec7-2f06-4ee8-88cf-46e90e4a6591") // type error
 ```
 
-**Use when**: IDs, indices, units of measurement — any pair where swapping is a bug.
+Use for IDs, indices, units, or any primitive pair where swapping is a bug. Parse at creation boundaries; pass branded values internally without re-validation.
 
 ---
 

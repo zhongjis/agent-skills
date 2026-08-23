@@ -146,9 +146,9 @@ Run, then delete `/tmp/migrate-tool`. Throwaway.
 
 ### Option B — `gorun` (community tool)
 
-```bash
-go install github.com/erning/gorun@latest
+Pin `gorun` to a reviewed version in repository tooling before using it.
 
+```bash
 cat > script.go <<'EOF'
 //usr/bin/env gorun "$0" "$@"; exit
 // /// go.mod

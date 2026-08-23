@@ -33,6 +33,8 @@ uv add fastapi 'sqlalchemy[asyncio]>=2.0' asyncpg 'pydantic[email]>=2' pydantic-
 uv add --dev httpx pytest alembic
 ```
 
+FastAPI's in-process ASGI test transport requires original `httpx`; this is a framework test boundary, not the client for application-owned outbound HTTP. Follow the existing project client for outbound requests, or use the `httpx2` factory in `httpx2-optimization.md` when no client exists.
+
 `orjson` is mandatory: set `default_response_class=ORJSONResponse` on the FastAPI app. Pydantic-typed responses bypass it (Pydantic v2's `model_dump_json` is already Rust-backed); raw `dict` / `list` returns are accelerated. For SSE / NDJSON streams, call `orjson.dumps(...)` per chunk inside `StreamingResponse`. See `orjson-stack.md` for the decision tree, flag reference, and benchmarks.
 
 ## Configuration (`config.py`)
@@ -40,34 +42,28 @@ uv add --dev httpx pytest alembic
 ```python
 from functools import lru_cache
 
-from pydantic import Field, PostgresDsn
+from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="MYAPI_")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="MYAPI_",
+        frozen=True,
+    )
 
     database_url: PostgresDsn
     debug: bool = False
-    cors_origins: list[str] = Field(default_factory=list)
+    cors_origins: tuple[str, ...] = ()
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()  # type: ignore[call-arg]  # pydantic populates from env
+    return Settings()
 ```
 
-Wait — that comment violates the no-excuse rule. Use proper field defaults instead. Real version:
-
-```python
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="MYAPI_")
-    database_url: PostgresDsn
-    debug: bool = False
-    cors_origins: list[str] = Field(default_factory=list)
-```
-
-Construct via `Settings(_env_file=".env")` if needed in tests; in production it reads from env.
+Cached settings must be immutable because every caller receives the same instance. Tests should override the FastAPI dependency or call `get_settings.cache_clear()` after changing environment variables.
 
 ## Database (`db.py`)
 

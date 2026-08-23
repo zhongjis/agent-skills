@@ -93,10 +93,10 @@ class CounterApp(App[None]):
 
 ## Async work — workers
 
-NEVER block the event loop. For network/disk/CPU work, use `@work` (creates a worker) or `run_worker`.
+Keep network, disk, and CPU work off the event loop with `@work` or `run_worker`. Follow the existing project's HTTP client; this example uses the `httpx2` factory for a project with no established client.
 
 ```python
-import httpx
+from myapp.http_client import create_async_client
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Static
 from textual.work import work
@@ -109,7 +109,7 @@ class FetchApp(App[None]):
 
     @work(exclusive=True)
     async def fetch(self, url: str) -> None:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with create_async_client() as client:
             response = await client.get(url)
         self.query_one("#result", Static).update(f"{response.status_code} - {len(response.text)} bytes")
 
@@ -119,7 +119,7 @@ class FetchApp(App[None]):
 
 `exclusive=True` cancels the previous worker if the user submits a new URL before the first finishes. Workers integrate with Textual's lifecycle - they're cancelled when the app exits.
 
-`@work` is asyncio-flavoured under the hood. That is fine - it does not violate the no-asyncio rule because you are calling Textual's API, not importing asyncio yourself. Inside the worker body, use `httpx.AsyncClient` and other anyio-friendly libraries.
+`@work` uses Textual's runtime internally; application code need not import `asyncio`. Inside the worker, use the project's HTTP factory and other AnyIO-compatible libraries.
 
 ## Action handlers
 

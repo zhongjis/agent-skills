@@ -269,7 +269,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - env:
           MIRIFLAGS: "-Zmiri-strict-provenance -Zmiri-symbolic-alignment-check"
-        run: cargo +nightly miri nextest run --all-features --workspace
+        run: cargo +nightly miri test --all-features --workspace
 
   machete:
     runs-on: ubuntu-latest
@@ -313,5 +313,5 @@ After every change:
 cargo fmt --all -- --check && \
 cargo clippy --all-targets --all-features -- -D warnings && \
 cargo nextest run && \
-cargo +nightly miri nextest run    # only if unsafe is involved
+cargo +nightly miri test    # only if unsafe is involved
 ```

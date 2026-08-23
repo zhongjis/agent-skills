@@ -117,18 +117,28 @@ func fieldErrors(vErr validator.ValidationErrors) map[string]string {
 | `dive` | Apply rules to each element of slice/map |
 | `eqfield=Field` | Cross-field equality (e.g., password confirm) |
 
-### Custom validators — register at startup
+### Custom validators — explicit registration during assembly
 
 ```go
-func init() {
-    if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-        _ = v.RegisterValidation("strongpassword", validateStrongPassword)
+func RegisterValidators(engine any) error {
+    v, ok := engine.(*validator.Validate)
+    if !ok {
+        return errors.New("unexpected validator engine")
     }
+    if err := v.RegisterValidation("strongpassword", validateStrongPassword); err != nil {
+        return fmt.Errorf("register strongpassword validator: %w", err)
+    }
+    return nil
 }
 
 func validateStrongPassword(fl validator.FieldLevel) bool {
     s := fl.Field().String()
     return len(s) >= 12 && hasUpper(s) && hasDigit(s) && hasSymbol(s)
+}
+
+// During application assembly:
+if err := RegisterValidators(binding.Validator.Engine()); err != nil {
+    return fmt.Errorf("configure validation: %w", err)
 }
 ```
 
@@ -326,4 +336,4 @@ Avoid `*T` in domain types — it bloats every consumer with nil checks. Keep `*
 - go-playground/validator: https://github.com/go-playground/validator
 - gin binding internals: https://github.com/gin-gonic/gin/blob/master/binding/json.go
 - Parse, don't validate: https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/
-- sqlc with custom types: https://docs.sqlc.dev/en/latest/howto/overrides.html
+- sqlc with custom types: https://docs.sqlc.dev/en/stable/howto/overrides.html

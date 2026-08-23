@@ -1,6 +1,6 @@
 # Rust Programmer
 
-Production Rust in 2026. **Explicit allocation, compile-time proof, zero hidden cost.** Type-state-first, unsafe-banished-by-default, agent-proof.
+Production Rust. **Explicit allocation, compile-time proof, zero hidden cost.** Type-state-first, unsafe-banished-by-default, agent-proof.
 
 ## Identity — What Kind of Rust You Write
 
@@ -10,11 +10,11 @@ You write Rust that looks like a Zig programmer designed it and a Rust compiler 
 
 | Pillar | Default Behavior | Reference |
 |---|---|---|
-| **Explicit allocation** | Arena for hot paths, `&[T]`/`Cow` over `Vec`/`String` in signatures, `try_*` when allocation can fail | [zero-cost-safety.md §1](zero-cost-safety.md) |
-| **Compile-time proof** | `const fn` everything const-eligible, `const { assert!(...) }` for compile-time guards, const generics for sized buffers | [zero-cost-safety.md §2](zero-cost-safety.md) |
-| **Zero hidden cost** | Slice-based APIs where caller owns memory, no hidden `.clone()`/`.to_string()`, `Cow` to defer allocation | [zero-cost-safety.md §3](zero-cost-safety.md) |
+| **Explicit allocation** | Arena for hot paths, `&[T]`/`Cow` over `Vec`/`String` in signatures, `try_*` when allocation can fail | [explicit-allocators.md](explicit-allocators.md) |
+| **Compile-time proof** | Use `const fn` when compile-time callers need it; use `const { assert!(...) }` for compile-time guards and const generics for sized buffers | [compile-time-computation.md](compile-time-computation.md) |
+| **Zero hidden cost** | Slice-based APIs where caller owns memory, no hidden `.clone()`/`.to_string()`, `Cow` to defer allocation | [zero-allocation-apis.md](zero-allocation-apis.md) |
 | **Type-encoded invariants** | Newtype wrappers for every semantic unit, type-state for state machines, branded IDs | [type-state.md](type-state.md) |
-| **Deterministic cleanup** | `scopeguard::guard` for errdefer, `Drop` for RAII, defuse-on-success for rollback | [zero-cost-safety.md §5](zero-cost-safety.md) |
+| **Deterministic cleanup** | `scopeguard::guard` for errdefer, `Drop` for RAII, defuse-on-success for rollback | [deterministic-cleanup.md](deterministic-cleanup.md) |
 
 The two highest-leverage tools Rust gives a coding agent:
 
@@ -39,15 +39,15 @@ Typed errors for libraries ([thiserror](https://docs.rs/thiserror)), ad-hoc erro
 
 ### 2. No `unsafe` Without Miri Proof
 
-If `unsafe` is unavoidable, you have miri. Run it. Always. **Load [`../rust-ub/README.md`](../rust-ub/README.md) plus every file under [`../rust-ub/`](../rust-ub/)** for the full UB taxonomy, Miri escalation protocol (4 strictness levels), and the fix-and-prove workflow. Every `unsafe` block needs the three components from [unsafe-discipline.md](unsafe-discipline.md): safe wrapper, `// SAFETY:` comment, miri test.
+If `unsafe` is unavoidable, you have miri. Run it. Always. **Load [`../rust-ub/README.md`](../rust-ub/README.md) and follow its on-demand pointers** for the UB taxonomy, Miri escalation protocol, and fix-and-prove workflow. Every `unsafe` block needs the three components from [unsafe-discipline.md](unsafe-discipline.md): safe wrapper, `// SAFETY:` comment, miri test.
 
 ```bash
-cargo +nightly miri nextest run
+cargo +nightly miri test
 ```
 
 ### 3. Explicit Allocation — Arena by Default in Hot Paths
 
-**Do not scatter `Box::new()` / `Vec::new()` across hot loops.** Use arena allocation to make allocation scope visible and bulk-freeable. Full recipes → [zero-cost-safety.md §1](zero-cost-safety.md).
+**Do not scatter `Box::new()` / `Vec::new()` across hot loops.** Use arena allocation to make allocation scope visible and bulk-freeable. Full recipes → [explicit-allocators.md](explicit-allocators.md).
 
 ```rust
 use bumpalo::Bump;
@@ -73,9 +73,9 @@ fn process(input: &str) -> Cow<'_, str> { ... }
 fn process(input: &[u8], output: &mut [u8]) -> usize { ... }
 ```
 
-### 4. Compile-Time First — const fn Everything Const-Eligible
+### 4. Compile-Time Proof — Demand-Driven `const fn`
 
-If a function CAN be `const fn`, it MUST be `const fn`. Full recipes → [zero-cost-safety.md §2](zero-cost-safety.md).
+Use `const fn` when a compile-time caller, const initializer, or const-generic design needs evaluation in a const context. Keep ordinary runtime-only functions non-const unless const qualification remains natural and serves a concrete API requirement. Full recipes → [compile-time-computation.md](compile-time-computation.md).
 
 ```rust
 // Lookup tables computed at compile time — zero runtime cost
@@ -111,7 +111,7 @@ struct RingBuffer<T, const N: usize> {
 
 ### 5. Scope Guards — Deterministic Cleanup on Every Path
 
-Zig's `errdefer` in Rust. Full recipes → [zero-cost-safety.md §5](zero-cost-safety.md).
+Zig's `errdefer` in Rust. Full recipes → [deterministic-cleanup.md](deterministic-cleanup.md).
 
 ```rust
 use scopeguard::guard;
@@ -132,7 +132,7 @@ fn deploy(artifact: &Path) -> Result<(), DeployError> {
 
 ### 6. Bit-Level Layout — zerocopy for Wire Formats
 
-Never hand-write `transmute` or pointer casts for parsing binary data. Full recipes → [zero-cost-safety.md §4](zero-cost-safety.md).
+Never hand-write `transmute` or pointer casts for parsing binary data. Full recipes → [bit-level-layout.md](bit-level-layout.md).
 
 ```rust
 use zerocopy::{FromBytes, IntoBytes, KnownLayout, Immutable};
@@ -189,7 +189,7 @@ impl Order<Validated> {
 
 ## Standard Library Defaults
 
-Full decision tree with rationale and code snippets → [libraries.md](libraries.md).
+Full decision tree with rationale and code snippets → [library-decision-tree.md](library-decision-tree.md).
 
 | Category | Crate | Why |
 |---|---|---|
@@ -200,11 +200,11 @@ Full decision tree with rationale and code snippets → [libraries.md](libraries
 | Error (library) | `thiserror` | Derive `Error` with zero boilerplate |
 | Error (binary) | `anyhow` / `color-eyre` | Context-rich ad-hoc errors |
 | Database | `sqlx` (compile-time checked) | No runtime SQL surprises |
-| Arena alloc | `bumpalo` / `typed-arena` | Explicit allocation scope. Patterns → [zero-cost-safety.md §1](zero-cost-safety.md) |
-| Zero-copy parse | `zerocopy` | Safe binary parsing, no transmute. Patterns → [zero-cost-safety.md §4](zero-cost-safety.md) |
-| Scope guard | `scopeguard` | errdefer/defer. Patterns → [zero-cost-safety.md §5](zero-cost-safety.md) |
-| Stack collections | `smallvec` / `arrayvec` / `tinyvec` | Stack-first, heap-spillover. Patterns → [zero-cost-safety.md §3](zero-cost-safety.md) |
-| Bitfield | `bitfield` / `modular-bitfield` | Bit-packed flags. Patterns → [zero-cost-safety.md §4](zero-cost-safety.md) |
+| Arena alloc | `bumpalo` / `typed-arena` | Explicit allocation scope. Patterns → [explicit-allocators.md](explicit-allocators.md) |
+| Zero-copy parse | `zerocopy` | Safe binary parsing, no transmute. Patterns → [bit-level-layout.md](bit-level-layout.md) |
+| Scope guard | `scopeguard` | errdefer/defer. Patterns → [deterministic-cleanup.md](deterministic-cleanup.md) |
+| Stack collections | `smallvec` / `arrayvec` / `tinyvec` | Stack-first, heap-spillover. Patterns → [zero-allocation-apis.md](zero-allocation-apis.md) |
+| Bitfield | `bitfield` / `modular-bitfield` | Bit-packed flags. Patterns → [bit-level-layout.md](bit-level-layout.md) |
 | Testing | `proptest` + `insta` | Property + snapshot tests. Patterns → [proptest-insta.md](proptest-insta.md) |
 | Concurrency | `tokio::sync` / `parking_lot` | Channel-first, lock-second. Patterns → [concurrency.md](concurrency.md) |
 
@@ -218,7 +218,7 @@ Every new project gets the strict lint config from [cargo-strict.md](cargo-stric
 cargo fmt --all -- --check && \
 cargo clippy --all-targets --all-features -- -D warnings && \
 cargo nextest run && \
-cargo +nightly miri nextest run  # when unsafe is involved
+cargo +nightly miri test  # when unsafe is involved
 ```
 
 ---
@@ -229,12 +229,12 @@ Run through this list after writing any Rust code. Every item links to its recip
 
 | # | Check | Fix Reference |
 |---|---|---|
-| 1 | Every function signature prefers `&[T]`/`&str`/`Cow` over owned types | [zero-cost-safety.md §3](zero-cost-safety.md) |
-| 2 | Hot-path allocations use arena (`bumpalo`) not scattered `Box`/`Vec` | [zero-cost-safety.md §1](zero-cost-safety.md) |
-| 3 | Const-eligible functions are `const fn` | [zero-cost-safety.md §2](zero-cost-safety.md) |
-| 4 | Lookup tables / config constants computed at compile time | [zero-cost-safety.md §2](zero-cost-safety.md) |
-| 5 | Binary format parsing uses `zerocopy`, not `transmute` | [zero-cost-safety.md §4](zero-cost-safety.md) |
-| 6 | Cleanup logic uses `scopeguard` or `Drop`, never manual `if err` cleanup | [zero-cost-safety.md §5](zero-cost-safety.md) |
+| 1 | Every function signature prefers `&[T]`/`&str`/`Cow` over owned types | [zero-allocation-apis.md](zero-allocation-apis.md) |
+| 2 | Hot-path allocations use arena (`bumpalo`) not scattered `Box`/`Vec` | [explicit-allocators.md](explicit-allocators.md) |
+| 3 | `const fn` is used where compile-time callers or const contexts require it | [compile-time-computation.md](compile-time-computation.md) |
+| 4 | Lookup tables / config constants computed at compile time | [compile-time-computation.md](compile-time-computation.md) |
+| 5 | Binary format parsing uses `zerocopy`, not `transmute` | [bit-level-layout.md](bit-level-layout.md) |
+| 6 | Cleanup logic uses `scopeguard` or `Drop`, never manual `if err` cleanup | [deterministic-cleanup.md](deterministic-cleanup.md) |
 | 7 | Distinct semantic units are newtypes, not primitive aliases | [type-state.md](type-state.md) |
 | 8 | State machines use type-state, not runtime `if state ==` | [type-state.md](type-state.md) |
 | 9 | No `unwrap()`/`expect()` outside `#[cfg(test)]` | [libraries.md](libraries.md) |
@@ -273,20 +273,20 @@ zerocopy = { version = "0.8", features = ["derive"] }
 
 | File | When to Load |
 |---|---|
-| [zero-cost-safety.md](zero-cost-safety.md) | Arena, allocator, const fn, comptime, zero-alloc, bitfield, repr, scopeguard, errdefer, Zig-like patterns |
+| [zero-cost-safety.md](zero-cost-safety.md) | Index: [allocators](explicit-allocators.md), [compile time](compile-time-computation.md), [zero-allocation APIs](zero-allocation-apis.md), [layout](bit-level-layout.md), [cleanup](deterministic-cleanup.md) |
 | [type-state.md](type-state.md) | Newtype wrappers, type-state machines, branded IDs, phantom types |
-| [unsafe-discipline.md](unsafe-discipline.md) | Any `unsafe` block — SAFETY comments, safe wrappers, miri proof |
-| [libraries.md](libraries.md) | Library selection, crate decision tree, dependency audit |
+| [unsafe-discipline.md](unsafe-discipline.md) | Any `unsafe` block — SAFETY comments, safe wrappers, Miri proof |
+| [libraries.md](libraries.md) | Index: [core](libraries-core.md), [specialized](libraries-specialized.md), [decision tree](library-decision-tree.md) |
 | [cargo-strict.md](cargo-strict.md) | Project bootstrap, lint config, CI gate commands |
 | [async-tokio.md](async-tokio.md) | Async runtime, spawning, cancellation, `JoinSet`, `select!` |
-| [axum-stack.md](axum-stack.md) | HTTP services — axum + sqlx + tower + tracing |
-| [clap-stack.md](clap-stack.md) | CLI tools — clap derive + color-eyre + indicatif |
-| [concurrency.md](concurrency.md) | Locks, atomics, channels, loom model checker |
-| [proptest-insta.md](proptest-insta.md) | Property tests, snapshot tests, round-trip invariants |
+| [axum-stack.md](axum-stack.md) | Index: [foundation](axum-foundation.md), [routing/runtime](axum-routing-runtime.md), [operations](axum-operations.md) |
+| [clap-stack.md](clap-stack.md) | Index: [foundation](clap-foundation.md), [interaction/output](clap-interaction-output.md), [operations](clap-operations.md) |
+| [concurrency.md](concurrency.md) | Locks, atomics, channels, Loom model checker |
+| [proptest-insta.md](proptest-insta.md) | Index: [properties](proptest-properties.md), [snapshots](insta-snapshots.md), [combined strategy](testing-strategy.md) |
 | [one-liners.md](one-liners.md) | `rust-script` one-liners, disposable scripts, inline deps |
-| [../rust-ub/README.md](../rust-ub/README.md) | UB hunting — miri escalation, sanitizers, fuzzing |
+| [../rust-ub/README.md](../rust-ub/README.md) | UB hunting workflow and Miri escalation |
 | [../rust-ub/ub-taxonomy.md](../rust-ub/ub-taxonomy.md) | 14-category UB taxonomy with detection status |
-| [../rust-ub/miri-sanitizers-loom.md](../rust-ub/miri-sanitizers-loom.md) | Miri flags, ASAN/TSAN/MSAN, loom, cargo-fuzz |
+| [../rust-ub/miri-sanitizers-loom.md](../rust-ub/miri-sanitizers-loom.md) | Index: [Miri](../rust-ub/miri.md), [sanitizers](../rust-ub/sanitizers.md), [Loom](../rust-ub/loom.md), [fuzzing](../rust-ub/fuzzing.md) |
 
 ---
 
@@ -297,7 +297,7 @@ zerocopy = { version = "0.8", features = ["derive"] }
 ///
 /// # Errors
 /// Returns `FooError::Bar` when the input is invalid.
-const fn frobnicate<'a>(
+fn frobnicate<'a>(
     arena: &'a Bump,        // explicit allocator when arena is in play
     input: &[u8],           // borrow, not owned
     output: &mut [u8],      // caller-provided buffer
@@ -307,11 +307,3 @@ const fn frobnicate<'a>(
 ```
 
 **Why this shape:** the caller sees every cost. Allocation scope is the arena's lifetime. Input is borrowed. Output buffer is caller-owned. Error is typed. The compiler enforces all of it.
-
----
-
-## Activation
-
-This skill activates whenever you are writing or modifying any `.rs` file or `Cargo.toml`. One-off scripts get the strict treatment too — `rust-script` + the same lints, the same gates. Details → [one-liners.md](one-liners.md).
-
-**The promise:** production hygiene with throwaway ergonomics. Explicit allocation, compile-time proof, zero hidden cost, and **agent-proof safety at any volume**.

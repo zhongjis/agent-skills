@@ -27,4 +27,5 @@
 
 ## Child DOX Index
 
-- No child project AGENTS.md files. Nested fixture AGENTS.md files are test material.
+- `programming/AGENTS.md` — programming skill routing, reference ownership, checker consistency, and local verification.
+- Other nested AGENTS.md files under skill fixtures are test material unless indexed here.

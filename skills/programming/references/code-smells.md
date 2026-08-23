@@ -1,6 +1,6 @@
 # Code Smells — Full Reference
 
-When any of these smells is detected, **STOP and re-examine your design.** A code smell is not a syntax error — it is a signal that the current structure deserves a second look. The correct response is to assess whether `/refactor` is warranted, fix the smell, or document a SPECIFIC justification for carrying it. "It's fine" is not a justification.
+When any of these smells is detected, **STOP and re-examine your design.** A code smell is not a syntax error — it signals that the current structure deserves a second look. Fix the smell or document a SPECIFIC justification for carrying it. "It's fine" is not a justification.
 
 ---
 

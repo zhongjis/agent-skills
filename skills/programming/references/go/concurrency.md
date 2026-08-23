@@ -265,21 +265,28 @@ func (c *Cache) Set(key string, e Entry) {
 - Always `defer mu.Unlock()` immediately after `Lock()`. Forgetting is the #1 deadlock cause.
 - Never call user code (callbacks, listener notifications) while holding the lock. Drop the lock, snapshot the data, release, then call out.
 
-### `sync.OnceValue` / `sync.OnceFunc` (Go 1.21+)
-
-Replacement for `sync.Once` for typed lazy init:
+### `sync.OnceValues` for fallible lazy construction (Go 1.21+)
 
 ```go
-var loadConfig = sync.OnceValue(func() Config {
+var loadConfig = sync.OnceValues(func() (Config, error) {
     var cfg Config
-    if err := env.Parse(&cfg); err != nil { panic(err) }
-    return cfg
+    if err := env.Parse(&cfg); err != nil {
+        return Config{}, fmt.Errorf("parse config: %w", err)
+    }
+    return cfg, nil
 })
 
-func handler() { cfg := loadConfig(); ... }
+func handler() error {
+    cfg, err := loadConfig()
+    if err != nil {
+        return err
+    }
+    // use cfg
+    return nil
+}
 ```
 
-Type-safe, no `sync.Once` + global variable boilerplate.
+Prefer explicit construction during application assembly. Use `sync.OnceValues` only when lazy construction is required and preserve its error result.
 
 ### Atomics — the typed API only
 
@@ -312,7 +319,7 @@ type Service struct {
 // Tests
 import "github.com/benbjohnson/clock"
 fake := clock.NewMock()
-fake.Set(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+fake.Set(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))
 svc := &Service{clock: fake}
 ```
 

@@ -1,12 +1,12 @@
 # httpx2 — Production Defaults
 
-> **Source**: [pydantic/httpx2](https://github.com/pydantic/httpx2) — next-generation HTTP client for Python 3, continuation of HTTPX under Pydantic stewardship.
+> **Source**: [pydantic/httpx2](https://github.com/pydantic/httpx2).
 >
-> **Rule**: Every network request MUST use `httpx2`. **ALL optimizations below are ON by default** — HTTP/2, brotli+zstd, tuned connection pool, fine-grained timeouts, transport retries, TCP_NODELAY. This is the baseline, not a stretch goal. A bare `httpx2.AsyncClient()` is a bug.
+> Preserve an existing project's HTTP client and factory. Use this `httpx2` baseline only when the project has no established client. Original `httpx` remains a narrow exception for framework test or transport APIs that require its types.
 
 ---
 
-## 1. Installation — all extras, always
+## 1. Installation for a new httpx2 client
 
 ```toml
 # pyproject.toml
@@ -22,13 +22,13 @@ dependencies = [
 | `zstd` | Zstandard content decoding | Faster decompression than brotli at similar ratios; stdlib in Python ≥ 3.14 |
 | `socks` | SOCKS5 proxy support via `socksio` | Install only if you route through SOCKS proxies |
 
-All three core extras (`http2,brotli,zstd`) are non-negotiable. Omitting any is leaving performance on the table.
+For a new `httpx2` client, install all three core extras. Preserve an existing project's dependency choices.
 
 ---
 
-## 2. The canonical defaults — ALL ON
+## 2. Fallback defaults
 
-These are not "optimizations to consider". These are **the correct defaults** that every httpx2 client must use.
+These are baseline values for a new project. Tune them from measured workload needs; do not replace an existing project's settings without evidence.
 
 ```python
 import socket
@@ -71,17 +71,16 @@ SOCKET_OPTIONS: list[tuple[int, int, int]] = [
 
 ---
 
-## 3. Factory functions — the ONE correct way to create clients
+## 3. Factory functions
 
-Copy this into your project. This is the canonical pattern.
+Copy this into a new project that has no HTTP factory. Keep client construction centralized.
 
 ```python
-"""httpx2 client factory. Always use create_client() / create_async_client()."""
+"""Central httpx2 client factory."""
 
 from __future__ import annotations
 
 import socket
-import typing
 
 import httpx2
 
@@ -111,8 +110,6 @@ def create_async_client(
     limits: httpx2.Limits = _LIMITS,
     timeout: httpx2.Timeout = _TIMEOUT,
     headers: dict[str, str] | None = None,
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] | None = None,
-    **kwargs: typing.Any,
 ) -> httpx2.AsyncClient:
     transport = httpx2.AsyncHTTPTransport(
         http2=http2,
@@ -125,9 +122,7 @@ def create_async_client(
         timeout=timeout,
         base_url=base_url,
         headers=headers or {},
-        event_hooks=event_hooks or {},
         follow_redirects=True,
-        **kwargs,
     )
 
 
@@ -139,8 +134,6 @@ def create_client(
     limits: httpx2.Limits = _LIMITS,
     timeout: httpx2.Timeout = _TIMEOUT,
     headers: dict[str, str] | None = None,
-    event_hooks: dict[str, list[typing.Callable[..., typing.Any]]] | None = None,
-    **kwargs: typing.Any,
 ) -> httpx2.Client:
     transport = httpx2.HTTPTransport(
         http2=http2,
@@ -153,9 +146,7 @@ def create_client(
         timeout=timeout,
         base_url=base_url,
         headers=headers or {},
-        event_hooks=event_hooks or {},
         follow_redirects=True,
-        **kwargs,
     )
 ```
 
@@ -171,7 +162,7 @@ with create_client() as client:
     r = client.get("https://api.example.com/health")
 ```
 
-**If you are NOT using this factory pattern, you are doing it wrong.** A bare `httpx2.AsyncClient()` leaves HTTP/2 off, retries off, TCP_NODELAY off, keepalive too short, and timeouts too uniform.
+Route project-owned `httpx2` construction through this factory. Framework-owned original-`httpx` clients stay confined to documented interop boundaries.
 
 ---
 
@@ -190,9 +181,9 @@ The factory defaults cover 95% of use cases. Override only when you have a speci
 
 ---
 
-## 5. Event hooks — always wire observability
+## 5. Conditional event hooks
 
-This is not optional. Every production client should log requests.
+Add hooks to the local factory only when they match the project's logging and observability practice. Projects without request logging should leave `event_hooks` unset. Example hooks for a project using stdlib logging:
 
 ```python
 import time
@@ -241,70 +232,7 @@ async def raise_on_error(response: httpx2.Response) -> None:
 
 ---
 
-## 6. Verification script — confirm your setup is fully optimized
-
-Run this against your target endpoint to **verify** (not decide) that all optimizations are active:
-
-```python
-"""Verify httpx2 is fully optimized against a target endpoint."""
-
-from __future__ import annotations
-
-import socket
-import time
-
-import anyio
-import httpx2
-
-
-TARGET_URL = "https://api.example.com/health"
-ITERATIONS = 30
-
-
-async def bench(label: str, client: httpx2.AsyncClient, url: str, n: int) -> float:
-    for _ in range(3):  # warmup
-        await client.get(url)
-    start = time.perf_counter()
-    for _ in range(n):
-        r = await client.get(url)
-        assert r.status_code == 200
-    elapsed = time.perf_counter() - start
-    avg_ms = (elapsed / n) * 1000
-    print(f"  {label}: {avg_ms:.1f}ms avg ({n} reqs in {elapsed:.2f}s)")
-    return avg_ms
-
-
-async def main() -> None:
-    results: dict[str, float] = {}
-
-    # BAD: bare defaults (this is what we're proving is worse)
-    async with httpx2.AsyncClient() as c:
-        results["BAD-bare-defaults"] = await bench("BAD-bare-defaults", c, TARGET_URL, ITERATIONS)
-
-    # GOOD: full production defaults (this is what we always use)
-    limits = httpx2.Limits(max_connections=200, max_keepalive_connections=40, keepalive_expiry=30.0)
-    timeout = httpx2.Timeout(connect=5.0, read=30.0, write=10.0, pool=10.0)
-    transport = httpx2.AsyncHTTPTransport(
-        http2=True, retries=3, limits=limits,
-        socket_options=[(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)],
-    )
-    async with httpx2.AsyncClient(transport=transport, timeout=timeout, follow_redirects=True) as c:
-        results["GOOD-full-production"] = await bench("GOOD-full-production", c, TARGET_URL, ITERATIONS)
-
-    print("\n--- Proof ---")
-    baseline = results["BAD-bare-defaults"]
-    for label, avg in results.items():
-        delta = ((avg - baseline) / baseline) * 100
-        print(f"  {label}: {avg:.1f}ms ({delta:+.1f}% vs bare)")
-
-
-if __name__ == "__main__":
-    anyio.run(main)
-```
-
----
-
-## 7. Quick reference — all knobs
+## 6. Quick reference — fallback knobs
 
 ### `httpx2.AsyncClient` / `httpx2.Client`
 
@@ -320,7 +248,7 @@ if __name__ == "__main__":
 | `limits` | `Limits` | `Limits(100, 20, 5.0)` | **`Limits(200, 40, 30.0)`** |
 | `follow_redirects` | `bool` | `False` | **`True`** |
 | `max_redirects` | `int` | `20` | `20` |
-| `event_hooks` | `dict` | `{}` | **Wire logging** |
+| `event_hooks` | `dict` | `{}` | Follow project logging practice |
 | `base_url` | `str` | `""` | Set for single-API clients |
 | `trust_env` | `bool` | `True` | `True` |
 | `default_encoding` | `str \| Callable` | `"utf-8"` | `"utf-8"` |
