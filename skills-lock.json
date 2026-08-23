@@ -207,12 +207,6 @@
       "skillPath": "neat-freak/SKILL.md",
       "computedHash": "e30772f296f23b31a7168c974c6e89505f4c7139dbea5a7c9175552d03ee908e"
     },
-    "nh": {
-      "source": "knoopx/pi",
-      "sourceType": "github",
-      "skillPath": "agent/skills/tools/nh/SKILL.md",
-      "computedHash": "511120caac7caf789aa48ea3d67f26bd289e8ddb7dfe7118b7acd07031065b3f"
-    },
     "nix": {
       "source": "knoopx/pi",
       "sourceType": "github",
@@ -286,6 +280,12 @@
       "sourceType": "github",
       "skillPath": "skills/refactor-method-complexity-reduce/SKILL.md",
       "computedHash": "739dd30004e305f3fa8a398e370d021be5dc4a574ebcd1abd3afa08ab2b6629e"
+    },
+    "remove-deadcode": {
+      "source": "code-yeongyu/oh-my-openagent",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/remove-deadcode/SKILL.md",
+      "computedHash": "35006d391550f87fc8f2358b6ee7c046477d1b9cb2e7d3401f791f576af3287f"
     },
     "research": {
       "source": "mattpocock/skills",
