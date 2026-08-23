@@ -99,7 +99,6 @@ reset_fixture() {
   runPacksDir=""
 
   write_manifest typescript \
-    'typescript-best-practices:https://github.com/0xBigBoss/claude-code' \
     'biome:https://github.com/bobmatnyc/claude-mpm-skills' \
     'pnpm:https://github.com/antfu/skills' \
     'turborepo:https://github.com/vercel/turborepo' \
@@ -171,8 +170,7 @@ packs_multi_source_install() {
   assert_status packs_multi_source_install 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
@@ -220,8 +218,7 @@ packs_exact_tuple_dedupe() {
   assert_status packs_exact_tuple_dedupe 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_exact_tuple_dedupe "$expected"
@@ -233,8 +230,7 @@ packs_defaults_to_universal_agent() {
   assert_status packs_defaults_to_universal_agent 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''universal'$'\t''--copy'$'\t''-y'
   assert_calls packs_defaults_to_universal_agent "$expected"
@@ -247,8 +243,7 @@ packs_repository_typescript_catalog() {
   assert_status packs_repository_typescript_catalog 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
   assert_calls packs_repository_typescript_catalog "$expected"
@@ -261,8 +256,7 @@ packs_repository_vercel_catalog_includes_typescript_dependency() {
   assert_status packs_repository_vercel_catalog_includes_typescript_dependency 0
 
   local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/0xBigBoss/claude-code'$'\t''--skill'$'\t''typescript-best-practices'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
+  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
   expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'

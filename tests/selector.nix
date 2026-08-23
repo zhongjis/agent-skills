@@ -38,6 +38,7 @@ let
     "gh"
     "github-pr-management"
     "pi-jsonl-logs"
+    "programming"
     "rg"
     "setup-repo-docs"
     "skill-maintainer"

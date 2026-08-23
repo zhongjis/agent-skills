@@ -2,10 +2,6 @@
   "schema": 1,
   "skills": [
     {
-      "source": "https://github.com/0xBigBoss/claude-code",
-      "name": "typescript-best-practices"
-    },
-    {
       "source": "https://github.com/bobmatnyc/claude-mpm-skills",
       "name": "biome"
     },

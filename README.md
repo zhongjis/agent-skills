@@ -8,8 +8,8 @@ Authored and adapted skills live in root `skills/`; vendored common skills remai
 
 | Folder | Role | Skills |
 | --- | --- | ---: |
-| `skills/` | Authored/adapted (logical common unless routed) | 16 |
-| `.agents/skills/` | Vendored common | 56 |
+| `skills/` | Authored/adapted (logical common unless routed) | 18 |
+| `.agents/skills/` | Vendored common | 62 |
 | `.claude/skills/` | Physical Claude Code | 0 |
 | `.pi/skills/` | Physical Pi | 0 |
 Profile membership lives in `profiles.nix` at the repo root. Skills not listed there are `general`.
@@ -19,7 +19,7 @@ Profile membership lives in `profiles.nix` at the repo root. Skills not listed t
 | `personal` | _(none)_ |
 | `work` | github-pr-management, mysql-best-practices, splunk |
 
-The source contains 72 unique selectable leaves. Fifteen root skills are logical common; `pi-jsonl-logs` is routed only to Pi. `mcp-builder` is shared.
+The source contains 80 unique selectable leaves. Seventeen root skills are logical common; `pi-jsonl-logs` is routed only to Pi. `mcp-builder` is shared.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
@@ -46,8 +46,8 @@ Non-Nix users choose skills explicitly. `--agent` selects the destination harnes
 Personal example (Pi):
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill python --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill python --agent pi --copy -y
+skills add zhongjis/agent-skills --skill caveman --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --agent pi --copy -y
 ```
 
 Work Claude Code example:
@@ -86,7 +86,7 @@ The app performs noninteractive copied installs (`--copy -y`). Without an overri
 
 Pack membership:
 
-- `typescript`: `typescript-best-practices` from `https://github.com/0xBigBoss/claude-code`; `biome` from `https://github.com/bobmatnyc/claude-mpm-skills`; `pnpm` and `vitest` from `https://github.com/antfu/skills`; `turborepo` from `https://github.com/vercel/turborepo`.
+- `typescript`: `biome` from `https://github.com/bobmatnyc/claude-mpm-skills`; `pnpm` and `vitest` from `https://github.com/antfu/skills`; `turborepo` from `https://github.com/vercel/turborepo`.
 - `typescript-vite-react`: `react-best-practices` from `https://github.com/0xBigBoss/claude-code`, after `typescript`.
 - `vercel`: `deploy-to-vercel`, `vercel-react-best-practices`, `vercel-composition-patterns`, and `vercel-optimize` from `https://github.com/vercel-labs/agent-skills`, after `typescript`.
 
