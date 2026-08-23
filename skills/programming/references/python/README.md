@@ -218,23 +218,11 @@ Canonical defaults (override only if `pyproject.toml` explicitly picks something
 
 ## pyproject.toml — the one true config
 
-Scaffold a new project with all strict defaults pre-configured:
-
-```bash
-uv run ../../scripts/python/new-project.py myproject
-uv run ../../scripts/python/new-project.py myproject --path ./workspace
-uv run ../../scripts/python/new-project.py myproject --lib   # publishable library
-```
-
-Creates via `uv init`, then injects basedpyright `typeCheckingMode = "all"` + ruff `select = ["ALL"]` + pytest strict. Cross-platform (macOS, Linux, Windows).
-
 For manual setup: `uv init --app myproject`, then load `pyproject-strict.md`.
 
 ## PEP 723 — inline script metadata (mandatory for ALL scripts)
 
 Every `.py` script — even throwaway — MUST use PEP 723 inline metadata with the `# ─── How to run ───` comment block. No venv, no `requirements.txt`. The script IS the environment spec. A script without the usage comment block is incomplete.
-
-Scaffold with: `uv run ../../scripts/python/new-script.py <name> --deps "httpx2[http2,brotli,zstd]"` (writes to temp dir by default, `--output` for specific path).
 
 Load `one-liners.md` for full patterns, examples, and anti-patterns.
 

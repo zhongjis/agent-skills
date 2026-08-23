@@ -120,15 +120,6 @@ async function main(): Promise<void> {  // no-excuse-ok: catch
 
 ## tsconfig — the one true config
 
-Scaffold a new project with all strict defaults pre-configured:
-
-```bash
-bun run ../../scripts/typescript/new-project.ts my-api
-bun run ../../scripts/typescript/new-project.ts my-api --path ./projects
-```
-
-Creates: `package.json` (Hono + Zod + Biome), `tsconfig.json` (ultra-strict), `biome.json`, `src/index.ts`, `.gitignore`. Works on macOS, Linux, Windows.
-
 For manual setup: `bunx tsc --init`, then load `tsconfig-strict.md` for the full strict config.
 
 Key flags beyond `"strict": true`:
@@ -152,7 +143,6 @@ Load on demand — not all at once.
 | Type patterns (branded, as const, satisfies, narrowing, assertNever) | `type-patterns.md` |
 | Data modeling (type vs interface vs Zod, readonly, parse-don't-validate) | `data-modeling.md` |
 | Error handling (Result, typed errors, union vs throw) | `error-handling.md` |
-| Bootstrapping a new project (Bun, pnpm, Hono, Vite) | `bootstrap.md` |
 | Hono backend stack (hono-openapi, Scalar, Swagger) | `backend-hono.md` |
 
 ## No-excuse audit

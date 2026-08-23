@@ -178,7 +178,9 @@ A bare default constructor for any of these (no timeouts, no pool tuning, no sch
 
 ---
 
-## Modern toolchain - the only acceptable setup
+## Recommended toolchain
+
+Use these defaults for greenfield work when the project has no established choices. Existing manifests, lockfiles, and conventions win; migrate toolchains only when the user requests it.
 
 | Tool category | Python | Rust | TypeScript | Go |
 |---|---|---|---|---|
@@ -188,7 +190,6 @@ A bare default constructor for any of these (no timeouts, no pool tuning, no sch
 | Test runner | **pytest** | **cargo-nextest** | `bun test` / `vitest` | stdlib `go test -race -shuffle=on -count=1` + `goleak` |
 | UB / soundness gate | (n/a) | **nightly miri** with strict provenance + Tree Borrows pass | (n/a) | **`nilaway`** + `-race` detector + `goleak` are the equivalent gate |
 | Disposable scripts | **PEP 723** inline metadata + `uv run script.py` | **rust-script** with inline `Cargo.toml` block | `bun run script.ts` | `//go:build ignore` + `go run script.go` |
-| Bootstrap a new project | `scripts/python/new-project.py` | `scripts/rust/new-project.py` | `scripts/typescript/new-project.ts` | `scripts/go/new-project.py` |
 | Pre-commit / CI gate | `ruff check . && basedpyright && pytest` | `cargo +nightly clippy -- -D warnings && cargo nextest run && cargo +nightly miri test` | `bunx biome check . && bunx tsc --noEmit && bun test` | `gofumpt -l . && golangci-lint run ./... && nilaway ./... && go test -race -shuffle=on -count=1 ./...` |
 
 A `tsconfig.json` with `"strict": true` alone is **not** strict. The reference enumerates the additional flags. Same for `pyproject.toml` and `Cargo.toml` - the references contain the canonical full configuration.
@@ -364,7 +365,6 @@ These two skills are not optional cosmetics. They are the recovery path for the 
 | Type patterns (branded types, `as const`, `satisfies`, narrowing, `assertNever`) | `references/typescript/type-patterns.md` |
 | Data modeling (type vs interface vs Zod, readonly, parse-don't-validate) | `references/typescript/data-modeling.md` |
 | Error handling (Result, typed errors, union vs throw, AbortSignal timeouts) | `references/typescript/error-handling.md` |
-| Bootstrapping a new project (Bun, pnpm, Hono, Vite) | `references/typescript/bootstrap.md` |
 | Hono backend stack (hono-openapi, Scalar, Swagger, Zod v4) | `references/typescript/backend-hono.md` |
 
 ### Go (`.go`, `go.mod`, `go.sum`, `.golangci.yml`, `*.proto`)
@@ -375,7 +375,6 @@ These two skills are not optional cosmetics. They are the recovery path for the 
 |---|---|
 | Library defaults (gin vs chi, sqlc, slog, the 2026 stack reasoning) | `references/go/libraries.md` |
 | Canonical strict `.golangci.yml` (v2) with per-linter rationale | `references/go/golangci-strict.md` |
-| Project layout, Taskfile, CI, `go.mod` template | `references/go/bootstrap.md` |
 | Type patterns (named types, smart constructors, sealed interfaces, generics) | `references/go/type-patterns.md` |
 | Data modeling — the three layers of validation (validator/v10 → smart ctor → sqlc) | `references/go/data-modeling.md` |
 | Error handling (`errors.Is/As`, typed errors, `%w` wrapping, no panic) | `references/go/error-handling.md` |
