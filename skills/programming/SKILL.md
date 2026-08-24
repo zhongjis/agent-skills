@@ -1,6 +1,6 @@
 ---
 name: programming
-description: "Use for writing, editing, reviewing, testing, debugging, or upgrading dependencies in Python, Rust, TypeScript, or Go projects; for logging or code-smell review in those projects; and for unsafe Rust, FFI, Miri, gin, sqlc, *.sql beside sqlc.yaml, openapi.yaml beside oapi-codegen.yaml, pgx, Connect-Go, Bubble Tea, CJK IME, exhaustive matching, arenas, allocators, const evaluation, zero-allocation, bitfields, packed layouts, or deterministic cleanup. Covers .py, .pyi, .rs, .ts, .tsx, .mts, .cts, .go, and their project manifests."
+description: "MUST Use for writing, editing, reviewing, testing, debugging, or upgrading dependencies in Python, Rust, TypeScript, or Go projects; for logging or code-smell review in those projects; and for unsafe Rust, FFI, Miri, gin, sqlc, *.sql beside sqlc.yaml, openapi.yaml beside oapi-codegen.yaml, pgx, Connect-Go, Bubble Tea, CJK IME, exhaustive matching, arenas, allocators, const evaluation, zero-allocation, bitfields, packed layouts, or deterministic cleanup. Covers .py, .pyi, .rs, .ts, .tsx, .mts, .cts, .go, and their project manifests."
 ---
 
 # Programming
