@@ -4,22 +4,23 @@ Canonical, public-safe agent skills for Nix and non-Nix consumers.
 
 ## Layout
 
-Authored and adapted skills live in root `skills/`; vendored common skills remain in `.agents/skills/`. Harness-specific physical skills use their agent folders. `skill-harnesses.nix` logically routes sparse root exceptions.
+Authored and adapted skills live in root `skills/`; vendored common skills remain in `.agents/skills/`. Relative `.agents/skills/` symlinks project centrally excluded authored skills to local agents. Harness-specific physical skills use their agent folders. `skill-harnesses.nix` logically routes sparse root exceptions.
 
 | Folder | Role | Skills |
 | --- | --- | ---: |
 | `skills/` | Authored/adapted (logical common unless routed) | 18 |
-| `.agents/skills/` | Vendored common | 62 |
+| `.agents/skills/` | Vendored common plus project-local projections | 62 + 2 links |
 | `.claude/skills/` | Physical Claude Code | 0 |
 | `.pi/skills/` | Physical Pi | 0 |
 Profile membership lives in `profiles.nix` at the repo root. Skills not listed there are `general`.
+Global selection exclusions live in `skill-selection.nix`; excluded authored skills remain available only through project-local projections.
 
 | Profile | Skills |
 | --- | --- |
 | `personal` | _(none)_ |
 | `work` | github-pr-management, mysql-best-practices, splunk |
 
-The source contains 80 unique selectable leaves. Seventeen root skills are logical common; `pi-jsonl-logs` is routed only to Pi. `mcp-builder` is shared.
+The source contains 80 unique leaves; `lib.skillsFor` exposes 78. Fifteen root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills` plus `skill-maintainer` are centrally excluded and projected locally. `mcp-builder` is shared.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
@@ -92,7 +93,7 @@ Pack membership:
 
 ## Nix selection
 
-The flake exports a pure `lib.skillsFor` function. It returns `{ skill-name = skill-directory-path; }`; it does not install Home Manager configuration.
+The flake exports a pure `lib.skillsFor` function. It returns `{ skill-name = skill-directory-path; }`; it does not install Home Manager configuration. Names in `skill-selection.nix.exclude` are removed from every result.
 
 ```nix
 inputs.agent-skills.url = "github:zhongjis/agent-skills";

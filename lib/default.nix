@@ -22,6 +22,7 @@ let
   profiles = import ../profiles.nix;
   personalNames = profiles.personal;
   workNames = profiles.work;
+  selection = import ../skill-selection.nix;
 
   splitByProfile = skillAttrs: let
     isPersonal = name: builtins.elem name personalNames;
@@ -60,8 +61,12 @@ let
   };
 
   physicalHarnessSkills = builtins.mapAttrs (_: discoverSkillsIf) agentFolders;
-  assembled = import ./assemble-skills.nix {
+  rootSkills = import ./exclude-skills.nix {
     rootSkills = discoverSkillsIf ../skills;
+    exclude = selection.exclude;
+  };
+  assembled = import ./assemble-skills.nix {
+    inherit rootSkills;
     vendoredCommonSkills = discoverSkillsIf ../.agents/skills;
     inherit physicalHarnessSkills;
     skillHarnesses = import ../skill-harnesses.nix;

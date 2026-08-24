@@ -2,7 +2,9 @@ let
   lib = import ../lib;
   profiles = import ../profiles.nix;
   selectSkills = import ../lib/select-skills.nix;
-  assembleSkills = import ../lib/assemble-skills.nix;
+  excludedRootNames = (import ../skill-selection.nix).exclude;
+  assemblyTests = import ./assembly.nix;
+  exclusionTests = import ./exclusion.nix;
 
   supportedHarnessRoots = {
     "claude-code" = ../.claude/skills;
@@ -48,14 +50,19 @@ let
   ];
   routedRootNames = ["pi-jsonl-logs"];
   rootNames = discoverNames ../skills;
+  selectableRootNames = builtins.filter
+    (name: !(builtins.elem name excludedRootNames))
+    rootNames;
   vendoredCommonNames = discoverNames ../.agents/skills;
   commonNames = vendoredCommonNames ++ builtins.filter
     (name: !(builtins.elem name routedRootNames))
-    rootNames;
+    selectableRootNames;
   harnessNames = builtins.mapAttrs
     (harness: root:
       discoverNames root
-      ++ builtins.filter (name: (import ../skill-harnesses.nix).${name} or null == harness) rootNames)
+      ++ builtins.filter
+      (name: (import ../skill-harnesses.nix).${name} or null == harness)
+      selectableRootNames)
     supportedHarnessRoots;
   allCatalogNames = builtins.attrNames (
     builtins.listToAttrs (map (name: {
@@ -174,34 +181,10 @@ let
       piPersonal = {duplicate = ./.;};
     };
   };
-  fixturePhysicalHarnesses = builtins.mapAttrs (_: _: {}) supportedHarnessRoots;
-  assembleFixture = args: assembleSkills ({
-      rootSkills = {};
-      vendoredCommonSkills = {};
-      physicalHarnessSkills = fixturePhysicalHarnesses;
-      skillHarnesses = {};
-      supportedHarnesses = builtins.attrNames supportedHarnessRoots;
-    } // args);
-  sameLayerCollision = assembleFixture {
-    rootSkills = {collision = ../.;};
-    vendoredCommonSkills = {collision = ./.;};
-  };
-  routedPhysicalCollision = assembleFixture {
-    rootSkills = {collision = ../.;};
-    physicalHarnessSkills = fixturePhysicalHarnesses // {
-      pi = {collision = ./.;};
-    };
-    skillHarnesses = {collision = "pi";};
-  };
-  staleRoute = assembleFixture {
-    skillHarnesses = {missing = "pi";};
-  };
-  unsupportedRoute = assembleFixture {
-    rootSkills = {routed = ../.;};
-    skillHarnesses = {routed = "unsupported";};
-  };
 in
   assert rootNames == movedRootNames;
+  assert assemblyTests;
+  assert exclusionTests;
   assert !(builtins.elem "pi-jsonl-logs" commonNames);
   assert builtins.elem "pi-jsonl-logs" harnessNames.pi;
   assert builtins.all
@@ -258,8 +241,4 @@ in
     profile = "personal";
     harness = "pi";
   });
-  assert fails sameLayerCollision;
-  assert fails routedPhysicalCollision;
-  assert fails staleRoute;
-  assert fails unsupportedRoute;
   true

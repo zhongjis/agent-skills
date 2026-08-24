@@ -8,6 +8,7 @@
 
 - Each direct child directory is one complete skill leaf.
 - Root `skill-harnesses.nix` owns sparse logical harness routing.
+- Root `skill-selection.nix` owns global selection exclusions.
 
 ## Local Contracts
 
@@ -15,11 +16,12 @@
 - Skills absent from `skill-harnesses.nix` are logical common.
 - Routed skills belong only to their named logical harness, not common.
 - Authored/adapted leaves have no `skills-lock.json` entry.
+- Excluded authored leaves remain canonical here and may have one matching relative project projection at `.agents/skills/<name>` → `../../skills/<name>`.
 
 ## Work Guidance
 
-- Move whole directories; do not create compatibility copies or symlinks in old roots.
-- Keep skill names, profile membership, and logical routing aligned.
+- Move whole directories; keep only the explicit project projections owned by `skill-selection.nix`; do not create compatibility copies or symlinks in old roots.
+- Keep skill names, profile membership, global exclusion, logical routing, and project projections aligned.
 
 ## Verification
 

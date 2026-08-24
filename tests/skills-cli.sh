@@ -25,6 +25,18 @@ assert_excludes_line() {
   fi
 }
 
+assert_project_projection() {
+  local name="$1"
+  local linkPath="$repoRoot/.agents/skills/$name"
+  local expected="../../skills/$name"
+
+  [[ -L "$linkPath" ]] || fail "project projection is not a symlink: $name"
+  [[ "$(readlink "$linkPath")" == "$expected" ]] \
+    || fail "project projection target mismatch: $name"
+  [[ -f "$linkPath/SKILL.md" ]] || fail "project projection target is invalid: $name"
+  printf 'project projection: %s -> %s\n' "$name" "$expected"
+}
+
 cleanup() {
   if [[ -n "${tempDir:-}" && -d "$tempDir" && "$tempDir" == /*/tmp.* ]]; then
     if [[ "${usingNpxFallback:-false}" == true ]]; then
@@ -62,6 +74,8 @@ run_cli() {
 scriptDir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repoRoot="$(cd -- "$scriptDir/.." && pwd -P)"
 sourceStatusBefore="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"
+assert_project_projection find-skills
+assert_project_projection skill-maintainer
 
 tempDir="$(mktemp -d)"
 [[ -n "$tempDir" && -d "$tempDir" && "$tempDir" == /*/tmp.* ]] \
