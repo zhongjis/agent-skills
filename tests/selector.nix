@@ -39,6 +39,7 @@ let
     "flue-framework"
     "gh"
     "github-pr-management"
+    "herdr-bulk-review"
     "pi-jsonl-logs"
     "programming"
     "rg"
