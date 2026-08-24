@@ -5,7 +5,6 @@ description: >-
   performance", "design a prompt template", "write better prompts", "debug prompt issues", "use
   chain-of-thought", "structured prompting", "few-shot prompting", or wants to apply advanced
   prompt engineering patterns for production LLM applications.
-upstream: "https://github.com/wshobson/agents/tree/main/plugins/llm-application-dev/skills/prompt-engineering-patterns"
 ---
 
 # Prompt Engineering Patterns

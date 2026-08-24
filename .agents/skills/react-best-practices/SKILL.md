@@ -1,117 +1,64 @@
 ---
 name: react-best-practices
-description: Provides React patterns for hooks, effects, refs, and component design. Covers escape hatches, anti-patterns, and correct effect usage. Use when reading or writing React components (.tsx, .jsx files with React imports).
-upstream: https://github.com/0xBigBoss/claude-code/blob/main/.claude/skills/react-best-practices/SKILL.md
+description: Use when reading or writing React components (.tsx, .jsx files with React imports).
 ---
 
 # React Best Practices
 
-Use this skill for React component architecture, effects, refs, and hook-level decisions. Load `typescript` alongside it for type modeling, runtime validation, and stricter component contracts.
+## Pair with TypeScript
+
+When working with React, always load both this skill and `typescript-best-practices` together. TypeScript patterns (type-first development, discriminated unions, Zod validation) apply to React code.
 
 ## Core Principle: Effects Are Escape Hatches
 
-Effects are for synchronizing React with external systems. Most component logic should stay in render logic, memoization, or event handlers.
+Effects let you "step outside" React to synchronize with external systems. **Most component logic should NOT use Effects.** Before writing an Effect, ask: "Is there a way to do this without an Effect?"
 
-## Use Effects Only For External Synchronization
+## Decision Tree
 
-- Browser APIs such as WebSocket, IntersectionObserver, and resize listeners
-- Third-party libraries that manage state outside React
-- Window or document event listeners
-- Non-React DOM control such as media players or maps
-- Data fetching when framework-level or query-layer solutions are not available
+1. **Need to respond to user interaction?** Use event handler
+2. **Need computed value from props/state?** Calculate during render
+3. **Need cached expensive calculation?** Use `useMemo`
+4. **Need to reset state on prop change?** Use `key` prop
+5. **Need to synchronize with external system?** Use Effect with cleanup
+6. **Need non-reactive code in Effect?** Use `useEffectEvent`
+7. **Need mutable value that doesn't trigger render?** Use ref
 
-## Do Not Use Effects For Internal Data Flow
+## When to Use Effects
 
-### Derived state belongs in render
+Synchronizing with **external systems**: browser APIs (WebSocket, IntersectionObserver), third-party non-React libraries, window/document event listeners, non-React DOM elements (video, maps).
 
-```tsx
-const fullName = `${firstName} ${lastName}`;
-```
+## When NOT to Use Effects
 
-### Expensive calculations belong in `useMemo`
-
-```tsx
-const visibleTodos = useMemo(() => getFilteredTodos(todos, filter), [todos, filter]);
-```
-
-### User interactions belong in event handlers
-
-```tsx
-function handleBuy() {
-  addToCart(product);
-  showNotification(`Added ${product.name} to cart`);
-}
-```
-
-### Reset component state with `key`, not an effect
-
-```tsx
-function ProfilePage({ userId }: { userId: string }) {
-  return <Profile key={userId} userId={userId} />;
-}
-```
-
-## Effect Dependency Rules
-
-- Never suppress the hooks linter. Fix the dependency problem instead.
-- Use updater functions to remove state dependencies where appropriate.
-- Move objects and helper functions inside the effect when they only exist for that effect.
-- Wrap non-reactive callbacks with `useEffectEvent` when you need fresh values without reconnecting subscriptions.
-
-```tsx
-useEffect(() => {
-  const connection = createConnection(serverUrl, roomId);
-  connection.connect();
-  return () => connection.disconnect();
-}, [roomId, serverUrl]);
-```
-
-## Cleanup Is Part of the Effect
-
-Every subscription, listener, timer, or connection created in an effect should be cleaned up in the returned function.
-
-```tsx
-useEffect(() => {
-  function handleScroll() {
-    console.log(window.scrollY);
-  }
-
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
-}, []);
-```
+- Derived state — calculate during render
+- Expensive calculations — use `useMemo`
+- Resetting state on prop change — use `key` prop
+- Responding to user events — use event handlers
+- Notifying parent of state changes — update both in the same event handler
+- Chains of effects — calculate derived state and update in one event handler
 
 ## Refs
 
-- Use refs for mutable values that do not affect rendering.
-- Do not read from or write to `ref.current` during render.
-- Use callback refs for dynamic lists.
-- Use `useImperativeHandle` when exposing a limited imperative API to parents.
+- Use for values that don't affect rendering (timer IDs, DOM node references)
+- Never read or write `ref.current` during render; only in event handlers and effects
+- Use ref callbacks (not `useRef` in loops) for dynamic lists
+- Use `useImperativeHandle` to limit what parent can access
 
 ## Custom Hooks
 
-- Hooks share logic, not state.
-- Name a function `useXxx` only if it actually calls hooks.
-- Keep hooks focused on concrete use cases.
-- Avoid lifecycle-wrapper hooks that hide dependencies and cleanup.
+- Share logic, not state — each call gets an independent state instance
+- Name `useXxx` only if it actually calls other hooks; otherwise use a regular function
+- Avoid lifecycle hooks (`useMount`, `useEffectOnce`) — use `useEffect` directly so the linter catches missing deps
+- Keep focused on a single concrete use case
 
-## Component Design
+## Component Patterns
 
-- Prefer controlled components when parent state needs to drive behavior.
-- Prefer composition over prop drilling when children can be passed directly.
-- Reach for context only for genuinely shared global state.
-- Keep business logic outside JSX-heavy components where possible.
+- Controlled: parent owns state; uncontrolled: component owns state
+- Prefer composition with `children` over prop drilling
+- Treat boolean props that switch large component trees (`isEditing`, `isThread`, `hideAttachments`) as a composition smell; prefer separate composed components for distinct use cases
+- For complex reusable UI, prefer compound components with provider-scoped state/actions over monolithic components with many optional props
+- Use Context for scoped component families as well as truly global state, when it defines a local interface consumed by descendants
+- Render JSX directly for UI variation; avoid config-array mini-frameworks unless the config is real domain data
+- Lift the provider boundary when sibling or external controls need access to the same state/actions
+- Use `flushSync` when you need to read the DOM synchronously after a state update
 
-## Decision Guide
-
-1. User interaction: event handler
-2. Computed value from props or state: render
-3. Expensive derived value: `useMemo`
-4. Mutable value without re-render: `useRef`
-5. External synchronization: `useEffect` with cleanup
-
-## Related Skills
-
-- **typescript**: Type modeling, exhaustive handling, and boundary validation
-- **vitest**: Testing React logic and hooks
-- **webapp-testing**: Browser-level verification
+See `react-patterns.md` for code examples and detailed patterns.

@@ -1,7 +1,6 @@
 ---
 name: refactor-method-complexity-reduce
 description: 'Refactor given method `${input:methodName}` to reduce its cognitive complexity to `${input:complexityThreshold}` or below, by extracting helper methods.'
-upstream: "https://github.com/github/awesome-copilot/tree/main/skills/refactor-method-complexity-reduce"
 ---
 
 # Refactor Method to Reduce Cognitive Complexity

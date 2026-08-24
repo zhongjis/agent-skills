@@ -1,12 +1,11 @@
 ---
+created: 2025-12-16
+modified: 2026-05-09
+reviewed: 2026-04-25
 name: shell-expert
-description: |
-  Shell scripting expertise, command-line tools, automation, and cross-platform
-  scripting best practices. Covers shell script development, CLI tool usage,
-  and system automation with bash, zsh, and POSIX shell.
-  Use when user mentions shell scripts, bash, zsh, CLI commands, pipes, command-line
-  automation, or writing portable shell code.
-upstream: "https://github.com/laurigates/claude-plugins/tree/main/tools-plugin/skills/shell-expert"
+description: "Shell scripting: bash, zsh, POSIX, CLI tools, cross-platform automation. Use when writing shell scripts, pipes, command-line automation, or portable shell code."
+user-invocable: false
+allowed-tools: Bash, BashOutput, KillShell, Grep, Glob, Read, Write, Edit, TodoWrite
 ---
 
 # Shell Expert
@@ -15,13 +14,13 @@ Expert knowledge for shell scripting, command-line tools, and automation with fo
 
 ## When to Use This Skill
 
-| Use this skill when... | Use task-runner config guidance instead when... |
+| Use this skill when... | Use justfile-expert instead when... |
 |---|---|
 | Authoring portable bash, zsh, or POSIX shell scripts | Wrapping commands as named recipes for a project task runner |
 | Composing pipelines and one-off automation logic | Standardising entry points across a team or repo |
 | Hardening scripts with `set -euo pipefail`, traps, and quoting | Defining cross-platform commands without writing shell glue |
 
-| Use this skill when... | Use jq instead when... |
+| Use this skill when... | Use jq-json-processing instead when... |
 |---|---|
 | Glue logic that wires together CLI tools | The work is purely transforming JSON input |
 | Writing reusable functions, argument parsing, or signal handling | A single jq expression can replace a chain of shell commands |

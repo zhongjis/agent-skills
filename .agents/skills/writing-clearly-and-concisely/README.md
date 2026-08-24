@@ -141,13 +141,13 @@ writing-clearly-and-concisely/
 
 ## Installation
 
-**Manual install:**
+**Claude Code:**
 ```bash
-cp -r skills/writing-clearly-and-concisely ~/.config/opencode/skills/
+cp -r skills/writing-clearly-and-concisely ~/.claude/skills/
 ```
 
-**Other agent tools:**
-Add the skill to the tool's configured skill directory or project knowledge, then load `SKILL.md` in the relevant workflow.
+**Claude.ai:**
+Add the skill to project knowledge or paste SKILL.md contents into your conversation.
 
 ## Attribution
 
