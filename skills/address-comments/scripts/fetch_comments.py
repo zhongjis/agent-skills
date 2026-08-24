@@ -16,11 +16,15 @@ Usage:
 from __future__ import annotations
 # pyright: reportAny=false, reportExplicitAny=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnusedCallResult=false
 
+import argparse
 import json
 import subprocess
 import sys
 from typing import Any
 from urllib.parse import urlparse
+
+PREVIEW_CHARS = 200
+DEFAULT_BODIES_FILE = "pr-comments-bodies.json"
 
 QUERY = """\
 query(
@@ -315,10 +319,77 @@ def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
     }
 
 
-def main() -> None:
+def make_preview(body: str, limit: int = PREVIEW_CHARS) -> str:
+    """First `limit` chars, trimmed to a word boundary, with an omitted-char marker."""
+    if len(body) <= limit:
+        return body
+    cut = body[:limit]
+    space = cut.rfind(" ")
+    if space > 0:
+        cut = cut[:space]
+    cut = cut.rstrip()
+    omitted = len(body) - len(cut)
+    return f"{cut}… (+{omitted} chars)"
+
+
+def _preview_node(node: dict[str, Any], bodies: dict[str, str], limit: int) -> None:
+    body = node.get("body")
+    node["body_chars"] = len(body) if isinstance(body, str) else 0
+    if isinstance(body, str) and len(body) > limit:
+        node["body_preview"] = make_preview(body, limit)
+        node["truncated"] = True
+        node["body"] = None
+        node_id = node.get("id")
+        if node_id is not None:
+            bodies[node_id] = body
+    else:
+        node["truncated"] = False
+
+
+def split_bodies(result: dict[str, Any], limit: int = PREVIEW_CHARS) -> dict[str, str]:
+    """Move long review-submission and conversation-comment bodies into a sidecar.
+
+    The sidecar maps node id to full body. Short bodies stay inline. Truncated
+    nodes keep body_preview + truncated and store their full text for on-demand
+    fetch. Review-thread comments are never truncated: threads are the core
+    deliverable and their full text is always needed, so previewing them would
+    only add an indirection with no token saving.
+    """
+    bodies: dict[str, str] = {}
+    for comment in result.get("conversation_comments") or []:
+        _preview_node(comment, bodies, limit)
+    for review in result.get("reviews") or []:
+        _preview_node(review, bodies, limit)
+    return bodies
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Fetch PR comments as a triage view plus a full-body sidecar.",
+    )
+    parser.add_argument(
+        "--bodies-out",
+        default=DEFAULT_BODIES_FILE,
+        help=f"Path for the full-body sidecar JSON (default: {DEFAULT_BODIES_FILE}).",
+    )
+    parser.add_argument(
+        "--preview-chars",
+        type=int,
+        default=PREVIEW_CHARS,
+        help=f"Truncate bodies longer than this many characters (default: {PREVIEW_CHARS}).",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(sys.argv[1:] if argv is None else argv)
     _ensure_gh_authenticated()
     owner, repo, number = get_current_pr_ref()
     result = fetch_all(owner, repo, number)
+    bodies = split_bodies(result, args.preview_chars)
+    with open(args.bodies_out, "w", encoding="utf-8") as handle:
+        json.dump(bodies, handle, indent=2)
+    result["bodies_file"] = args.bodies_out
     print(json.dumps(result, indent=2))
 
 

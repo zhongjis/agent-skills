@@ -125,6 +125,51 @@ class FetchAllTests(unittest.TestCase):
         )
 
 
+class PreviewTests(unittest.TestCase):
+    def test_make_preview_returns_short_body_unchanged(self):
+        self.assertEqual("hi there", fetch_comments.make_preview("hi there", limit=200))
+
+    def test_make_preview_truncates_on_word_boundary_with_marker(self):
+        body = "alpha beta gamma delta epsilon zeta"
+        preview = fetch_comments.make_preview(body, limit=12)
+        self.assertTrue(preview.endswith(" chars)"))
+        head = preview.split("…", 1)[0]
+        self.assertLessEqual(len(head), 12)
+        self.assertFalse(head.endswith(" "))
+
+    def test_split_bodies_moves_long_bodies_to_sidecar_and_keeps_short_inline(self):
+        long_body = "x" * 300
+        result = {
+            "conversation_comments": [
+                {"id": "c1", "body": long_body},
+                {"id": "c2", "body": "short"},
+            ],
+            "reviews": [{"id": "r1", "state": "APPROVED", "body": ""}],
+            "review_threads": [
+                {"comments": {"nodes": [{"id": "t1", "body": long_body}]}},
+            ],
+        }
+
+        bodies = fetch_comments.split_bodies(result, limit=200)
+
+        c1 = result["conversation_comments"][0]
+        self.assertTrue(c1["truncated"])
+        self.assertIsNone(c1["body"])
+        self.assertIn("body_preview", c1)
+        self.assertEqual(300, c1["body_chars"])
+        self.assertEqual(long_body, bodies["c1"])
+
+        c2 = result["conversation_comments"][1]
+        self.assertFalse(c2["truncated"])
+        self.assertEqual("short", c2["body"])
+        self.assertNotIn("c2", bodies)
+
+        thread_comment = result["review_threads"][0]["comments"]["nodes"][0]
+        self.assertEqual(long_body, thread_comment["body"])
+        self.assertNotIn("t1", bodies)
+        self.assertEqual({"c1"}, set(bodies))
+
+
 class SkillTextTests(unittest.TestCase):
     def test_skill_text_invariants(self):
         text = SKILL_MD.read_text()
