@@ -22,5 +22,8 @@ Follow each README's on-demand pointers. Existing project manifests, lockfiles, 
 ## Shared references
 
 - Always apply [`references/shared-policy.md`](references/shared-policy.md): universal type, boundary, TDD, review, and dependency-upgrade rules.
+- For TDD depth — the test pyramid, the mocking ladder, test anti-patterns, and the prompt-test rule — read [`references/testing.md`](references/testing.md). `shared-policy.md` owns TDD policy; `testing.md` owns its depth.
 - When adding or changing logs, logger setup, service entrypoints, or boundary error handling, read [`references/logging.md`](references/logging.md). It alone owns cross-language logging policy.
 - During design and post-write review, apply [`references/code-smells.md`](references/code-smells.md). It alone owns smell definitions, thresholds, exceptions, and remedies.
+- To systematically strip AI-generated slop from a diff or file list as a bounded, test-locked cleanup, use the [`remove-ai-slops`](../remove-ai-slops/SKILL.md) skill. `code-smells.md` owns the smell definitions; `remove-ai-slops` owns the removal workflow.
+- To restructure code safely — understand intent, map the blast radius, plan atomic steps, and verify after every change — use the [`refactor`](../refactor/SKILL.md) skill. `code-smells.md` owns the smell definitions; `refactor` owns the restructuring workflow.

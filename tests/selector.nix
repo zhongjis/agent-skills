@@ -42,6 +42,8 @@ let
     "herdr-bulk-review"
     "pi-jsonl-logs"
     "programming"
+    "refactor"
+    "remove-ai-slops"
     "rg"
     "setup-repo-docs"
     "skill-maintainer"

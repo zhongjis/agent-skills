@@ -7,7 +7,7 @@
 ## Ownership
 
 - `SKILL.md` owns model invocation and top-level routing.
-- `references/shared-policy.md`, `references/logging.md`, and `references/code-smells.md` own cross-language rules.
+- `references/shared-policy.md`, `references/testing.md`, `references/logging.md`, and `references/code-smells.md` own cross-language rules; `shared-policy.md` is the policy summary and `testing.md` owns TDD depth (pyramid, mocking ladder, test anti-patterns, prompt-test).
 - Each language `README.md` owns its local index; focused sibling references own branch-specific recipes.
 - `scripts/<language>/` owns one canonical no-excuse checker per language and its focused tests.
 

@@ -273,13 +273,6 @@
       "skillPath": ".claude/skills/react-best-practices/SKILL.md",
       "computedHash": "aee15f49f1782b4602ece026533564db85d7c20a1efb1f79b028aa21da3f177a"
     },
-    "refactor-method-complexity-reduce": {
-      "source": "github/awesome-copilot",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/refactor-method-complexity-reduce/SKILL.md",
-      "computedHash": "a09a18f7b370e105c20480f9c772169948262fa07fdf5fbd4c5d45b2def958e0"
-    },
     "remove-deadcode": {
       "source": "code-yeongyu/oh-my-openagent",
       "sourceType": "github",

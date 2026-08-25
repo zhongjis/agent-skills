@@ -2,6 +2,10 @@
 
 When any of these smells is detected, **STOP and re-examine your design.** A code smell is not a syntax error — it signals that the current structure deserves a second look. Fix the smell or document a SPECIFIC justification for carrying it. "It's fine" is not a justification.
 
+To remove AI-generated slop across an entire diff or file list as a bounded, test-locked cleanup — rather than judging one smell in place — use the [`remove-ai-slops`](../../remove-ai-slops/SKILL.md) skill. This reference owns the smell definitions; that skill owns the removal workflow.
+
+To execute a restructuring safely — map the blast radius, plan atomic steps, and verify after every change — use the [`refactor`](../../refactor/SKILL.md) skill. This reference owns the smell definitions; that skill owns the restructuring workflow.
+
 ---
 
 ## Smell 1 — File exceeds 250 pure LOC

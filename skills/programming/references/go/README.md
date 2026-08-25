@@ -78,6 +78,35 @@ Same rule as Python/Rust/TS: a `.go` file whose pure LOC (non-blank, non-comment
 
 The `cmd/server/main.go` is the most common violator. Refactor it: `main.go` only wires `os.Args` → `cmd.Execute()`. Anything else lives in `internal/`.
 
+## Canonical project layout
+
+A new Go service follows this tree. The value is the boundaries, not the exact names:
+
+```
+myservice/
+├── go.mod / go.sum
+├── Taskfile.yml            # task runner (fmt / lint / test / gen / migrate)
+├── .golangci.yml           # see golangci-strict.md
+├── cmd/<binary>/main.go    # ONLY parse flags + call cmd.Execute(); ≤ 50 LOC
+├── internal/               # the business code; other modules cannot import it
+│   ├── api/                # transport: routers, middleware, handlers
+│   ├── domain/             # parse-don't-validate types, smart constructors, no I/O
+│   ├── service/            # business logic, depends on domain only
+│   ├── store/              # persistence: sqlc/ (generated), queries/, migrations/
+│   ├── config/             # env-driven config
+│   └── obs/                # observability: slog setup, health
+├── pkg/                    # exportable libraries — only if you publish; empty until proven
+├── proto/ + gen/           # *.proto + generated code (Connect/gRPC projects)
+└── .github/workflows/      # CI order: fmt → lint → nilaway → test → build (fail fast on cheap checks)
+```
+
+Rules:
+
+- `cmd/<binary>/main.go` is ≤ 50 pure LOC — wiring only; anything more lives in `internal/cmd/`.
+- `internal/` is the business code; the Go compiler forbids other modules from importing it.
+- `pkg/` is only for code you genuinely want third parties to import. Empty until proven otherwise.
+- No `utils/`, `helpers/`, `common/`, `shared/`. **REJECT.** Name every package after the concept it owns; one package per directory, one responsibility per package.
+
 ## Existing codebases — non-strict project
 
 When editing an existing `.go` file that doesn't follow these rules: **write new code in strict style, don't refactor existing code in the same change.**

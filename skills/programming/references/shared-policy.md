@@ -22,19 +22,11 @@ Every behavior change follows **red → green → refactor**:
 
 A production behavior change does not ship without a test that would fail if the change were reverted. Use one `When` and one observable outcome per test. Derive expectations independently from test inputs, and make precedence fixtures differ from their fallbacks.
 
-Choose the narrowest truthful test:
-
-- Unit tests cover pure behavior, boundaries, edge classes, and error paths.
-- Integration tests use real adapters or realistic wire-level fakes; a mocked unit test is not integration coverage.
-- E2E tests drive the real user-visible surface for each new user-visible outcome, including a representative error path.
-
-Prefer real objects, then tested in-memory fakes, sandboxes or testcontainers, wire-level fakes, and only then a mock at the narrowest infeasible seam. Assert contracts, not implementation details. Tests must be deterministic, isolated across tests and concurrent processes, free of sleeps and wall-clock dependence, and fast enough for their intended feedback loop.
+For the suite's shape (the test pyramid), the mocking ladder, the test anti-patterns, and prompt-test detail, see [`testing.md`](testing.md). Policy: prefer real objects over fakes over mocks; assert contracts, not implementation details; keep tests deterministic and isolated across concurrent processes.
 
 Budgets: `< 10 ms` per unit test, `< 30 seconds` for the unit suite, and `< 5 minutes` for the integration suite.
 
-Never assert natural-language prompt prose, sentence fragments, or prose snapshots. Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test.
-
-When delegating test writing, hand off the behavior the test must distinguish, never assertion prose, prompt fragments, or markers.
+Never assert natural-language prompt prose, sentence fragments, or prose snapshots. Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test. See [`testing.md`](testing.md) for examples, severity, and the test-writing delegation rule.
 
 **Exemption:** documentation-only, comment-only, formatting-only, metadata-only, and other demonstrably non-behavioral changes do not require a red test. Run applicable validation, link checks, formatting, or static checks instead. If runtime behavior, generated output, routing, parsing, packaging, or a machine-consumed contract can change, the exemption does not apply.
 
@@ -64,8 +56,11 @@ Paths are relative to this skill directory. Also run the project's focused tests
 4. Confirm boundary inputs become typed values before entering domain logic.
 5. Confirm tagged variants are matched exhaustively.
 6. Remove type escape hatches, warning suppressions, unjustified broad catches, redundant defensive layers, and single-use abstractions introduced by the change.
-7. Confirm changed behavior has a test that fails when reverted, unless the non-behavior exemption applies.
-8. If logging was touched, apply [`logging.md`](logging.md).
+7. Confirm no function the change adds or edits exceeds 3 parameters or smuggles them through a dict/kwargs/options bag (see [`code-smells.md`](code-smells.md) Smell 2).
+8. Confirm no destructive action is followed by a redundant verifying re-query, setter-then-getter, or write-then-read-back (see [`code-smells.md`](code-smells.md) Smell 3).
+9. Confirm names state the presence of a quality, not its absence (`isValid`, not `isNotInvalid`); see [`code-smells.md`](code-smells.md) Smell 4.
+10. Confirm changed behavior has a test that fails when reverted, unless the non-behavior exemption applies.
+11. If logging was touched, apply [`logging.md`](logging.md).
 
 Any failed item blocks completion until fixed or covered by an explicit exception allowed by the owning reference.
 
