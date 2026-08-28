@@ -38,7 +38,7 @@ Useful scripts:
 }
 ```
 
-Use these defaults for new Bun projects. Preserve an existing project's runtime, `packageManager`, scripts, and lockfile.
+Use these runtime and script defaults for new Bun-runtime projects. Select the package manager independently; preserve an existing project's manifest, lockfile, and scripts.
 
 ## OpenAPI compatibility
 
@@ -86,7 +86,7 @@ For an existing project on another Zod major, keep its supported integration unt
 6. **Unchecked brands** — create branded IDs with schema parsing; never assert a raw primitive into a brand.
 7. **Outbound HTTP policy** — use the configured `ky` client from application infrastructure. Hono's `app.fetch` is server adaptation, not an outbound client.
 
-## Quick start
+## Bun runtime + Bun package manager quick start
 
 ```bash
 mkdir my-api

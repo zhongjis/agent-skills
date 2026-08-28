@@ -1,0 +1,70 @@
+{
+  "skill_name": "programming",
+  "evals": [
+    {
+      "id": 1,
+      "name": "existing-pnpm-node-vitest",
+      "prompt": "Add a TypeScript feature to an existing Node.js monorepo with packageManager set to pnpm, pnpm-lock.yaml, and Vitest scripts. Keep the current toolchain and state the commands you would run.",
+      "expected_output": "Preserves Node, pnpm, existing scripts, and Vitest without introducing Bun or another lockfile.",
+      "files": [],
+      "expectations": [
+        "Selects Node as runtime from existing project evidence.",
+        "Selects pnpm as package manager and command runner from packageManager and pnpm-lock.yaml.",
+        "Selects the existing Vitest test runner.",
+        "Does not introduce Bun commands or a Bun lockfile."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "bun-runtime-bun-package-manager",
+      "prompt": "Create a new Hono API explicitly targeting Bun runtime. Use Bun as the package manager too, and use Bun's test runner. Show setup and verification choices.",
+      "expected_output": "Routes to the explicit Bun/Hono branch and uses Bun independently for runtime, package manager, command runner, and tests.",
+      "files": [],
+      "expectations": [
+        "Selects Bun runtime because the user explicitly requires it.",
+        "Selects Bun package manager because the user explicitly requires it.",
+        "Uses Bun-scoped Hono setup and @types/bun with compiler types set to bun.",
+        "Selects bun test because the user explicitly requires Bun's test runner."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "bun-package-manager-node-runtime",
+      "prompt": "Start a TypeScript CLI that must run on Node.js 22, but use Bun only as the package manager. Keep the runtime and tests Node-compatible; explain the selected tools and commands.",
+      "expected_output": "Keeps Node runtime while using Bun package management, without routing to Bun-runtime recipes or assuming bun test.",
+      "files": [],
+      "expectations": [
+        "Selects Node.js 22 as runtime from the explicit requirement.",
+        "Selects Bun only for package management and package command execution.",
+        "Does not add Bun runtime types or Bun Hono runtime recipes.",
+        "Does not assume bun test; selects a Node-compatible test runner independently."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "npm-workspace-no-migration",
+      "prompt": "Fix a TypeScript bug in an npm workspace with package-lock.json, Node scripts, and an existing test command. I did not ask for any tooling migration. Give the focused workflow.",
+      "expected_output": "Preserves npm workspace tooling and existing scripts; no pnpm or Bun migration is proposed.",
+      "files": [],
+      "expectations": [
+        "Selects npm from the existing package-lock.json and workspace manifest.",
+        "Uses existing Node scripts and test command.",
+        "Does not apply the pnpm fallback to an existing project.",
+        "Does not introduce Bun or another lockfile."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "runtime-neutral-greenfield-pnpm-fallback",
+      "prompt": "Create a new runtime-neutral TypeScript library. There is no manifest, lockfile, deployment runtime, package-manager preference, test runner, or script convention yet. Choose a minimal toolchain and verification commands.",
+      "expected_output": "Uses pnpm as package-manager fallback while choosing runtime and test runner as separate axes.",
+      "files": [],
+      "expectations": [
+        "Selects pnpm as the package-manager fallback because no stronger signal exists.",
+        "Keeps runtime selection independent from package-manager selection.",
+        "Selects a runtime-neutral test runner such as Vitest rather than assuming bun test.",
+        "Derives package execution commands from pnpm and does not introduce Bun-only runtime configuration."
+      ]
+    }
+  ]
+}

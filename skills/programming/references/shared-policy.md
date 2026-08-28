@@ -2,6 +2,7 @@
 
 Apply this policy to Python, Rust, TypeScript, and Go. Language references may strengthen it. Existing project choices win where this policy offers defaults; they do not excuse weaker correctness.
 
+
 ## Core rules
 
 1. **Write the least code that solves the real problem.** Understand the end-to-end flow, fix root causes at the shared seam, reuse existing code, then prefer the standard library, platform features, and installed dependencies before adding code or packages. Do not create a one-use abstraction.
@@ -44,7 +45,7 @@ uv run scripts/python/check-no-excuse-rules.py <changed paths>
 # Rust
 bash scripts/rust/check-no-excuse-rules.sh <changed paths>
 # TypeScript
-bun run scripts/typescript/check-no-excuse-rules.ts <changed paths>
+node scripts/typescript/check-no-excuse-rules.mjs <changed paths>
 # Go
 bash scripts/go/check-no-excuse-rules.sh <changed paths>
 ```

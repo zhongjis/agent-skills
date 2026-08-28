@@ -88,7 +88,7 @@ TypeScript 6.x deprecates `target: "es5"` and `moduleResolution: "node"` / `"nod
 For Bun projects, add to `compilerOptions`:
 ```jsonc
 {
-  "types": ["bun-types"],
+  "types": ["bun"],
   "moduleDetection": "force"
 }
 ```
@@ -100,8 +100,12 @@ For Bun projects, add to `compilerOptions`:
 ```jsonc
 {
   "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
@@ -141,7 +145,7 @@ For Bun projects, add to `compilerOptions`:
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", "build", ".next", ".nuxt", "coverage"]
+    "includes": ["**", "!**/dist", "!**/build", "!**/.next", "!**/.nuxt", "!**/coverage"]
   }
 }
 ```
@@ -160,10 +164,12 @@ For Bun projects, add to `compilerOptions`:
 
 ## CI gate
 
+Prefer existing project scripts. Otherwise run Biome and TypeScript through the selected package manager, then run the selected test runner. For the runtime-neutral pnpm fallback:
+
 ```bash
-bunx biome check .
-bunx tsc --noEmit
-bun test
+pnpm exec biome check .
+pnpm exec tsc --noEmit
+pnpm exec vitest run
 ```
 
 ---

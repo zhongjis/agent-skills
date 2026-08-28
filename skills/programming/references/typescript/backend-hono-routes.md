@@ -4,14 +4,14 @@ Route validation, response documentation, and OpenAPI generation with `hono-open
 
 ## Install
 
-For a new Bun project:
+For a new project that selects both Bun runtime and Bun package manager:
 
 ```bash
 bun add hono hono-openapi @scalar/hono-api-reference @hono/swagger-ui zod
 bun add -d typescript @types/bun
 ```
 
-For an existing project, use its declared package manager and lockfile. Resolve compatible dependency versions from the package manager instead of copying pinned versions from documentation.
+Bun runtime does not require Bun package manager. For an existing project, use its declared package manager and lockfile. Resolve compatible dependency versions from that package manager instead of copying pinned versions from documentation.
 
 ## Complete app
 

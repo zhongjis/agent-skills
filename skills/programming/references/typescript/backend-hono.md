@@ -2,7 +2,7 @@
 
 Canonical stack for Bun services: `hono`, `hono-openapi`, `@scalar/hono-api-reference`, `@hono/swagger-ui`, and Zod.
 
-Use Bun for new projects. In an existing project, preserve its declared runtime, `packageManager`, and lockfile rather than introducing a second toolchain.
+Use this branch when Bun is the selected runtime. Select the package manager independently; preserve an existing project's manifest, lockfile, and scripts.
 
 ## References
 

@@ -9,21 +9,24 @@ For React components (`.tsx`, `.jsx`, or React API imports), also load `react-be
 
 The compiler is your proof system. Make illegal states unrepresentable. Parse at boundaries. Every function has a contract; the type system enforces it.
 
-## Hard rules
+## Repository defaults and strict policy
 
-These are deliberate project choices. Violations are always wrong, not "style preferences".
+Tooling and stack selections are fallback defaults. The iron list is strict repository policy. Neither is a universal TypeScript or tool guarantee; existing project conventions and explicit requirements win where defaults apply.
 
-### Tooling
+### Tooling axes
+
+Select runtime, package manager, test runner, and command runner independently: preserve existing project evidence first, apply explicit user or deployment requirements second, then use pnpm only as the package-manager fallback for a runtime-neutral greenfield project with no stronger signal.
 
 | Category | Use | Never |
 |---|---|---|
-| Runtime | Bun for new projects; existing project runtime wins | introducing a second runtime without a requirement |
-| Package manager | Bun for new projects; existing `packageManager` field or lockfile wins | mixing package managers or lockfiles |
+| Runtime | Existing project runtime; otherwise explicit user/deployment requirement | introducing a second runtime without a requirement |
+| Package manager | Existing manifest/lockfile; otherwise explicit requirement; runtime-neutral greenfield fallback: pnpm | mixing package managers or lockfiles |
+| Test runner | Existing project runner; otherwise runner selected for the runtime/project | changing runners without a requirement |
+| Command runner | Existing scripts through the selected package manager | assuming runtime, package manager, and test runner are the same tool |
 | Linter + formatter | Biome | ESLint, Prettier |
 | Type checker | `tsc --noEmit` with strict config | skip type checking |
 | Web framework | Hono | Express |
 | Validation | Zod | joi, yup, class-validator |
-| Testing | `bun test` or vitest | jest |
 | ORM | Drizzle | TypeORM, Prisma (unless already in project) |
 
 ### The iron list
@@ -112,7 +115,7 @@ async function main(): Promise<void> {  // no-excuse-ok: catch
 | ORM | Drizzle | Type-safe SQL, no codegen |
 | HTTP client | `ky` | Auto-throw on non-2xx, retry, timeout, hooks, prefix URL; browser and server runtimes |
 | HTTP client (perf) | `undici` (direct API) | When a Node backend needs connection pooling, HTTP/2, or pipelining |
-| Testing | `bun test` / vitest | Fast, ESM-native |
+| Testing | Existing project runner; Vitest for runtime-neutral greenfield, `bun test` when Bun's test runner is selected | Match the selected runtime and project |
 | Logging | `pino` | Structured JSON, fast |
 | CLI | `@clack/prompts` + `commander` | Interactive + parsing |
 
@@ -120,7 +123,7 @@ async function main(): Promise<void> {  // no-excuse-ok: catch
 
 ## tsconfig — the one true config
 
-For manual setup: `bunx tsc --init`, then load `tsconfig-strict.md` for the full strict config.
+For manual setup, use the selected package manager's package-exec command to run `tsc --init` (pnpm fallback: `pnpm exec tsc --init`), then load `tsconfig-strict.md` for the full strict config.
 
 Key flags beyond `"strict": true`:
 
@@ -150,7 +153,7 @@ Load on demand — not all at once.
 
 ## No-excuse audit
 
-Violations caught by `../../scripts/typescript/check-no-excuse-rules.ts`. Run after every edit session.
+Violations caught by `../../scripts/typescript/check-no-excuse-rules.mjs`. Run with `node ../../scripts/typescript/check-no-excuse-rules.mjs <changed paths>` after every edit session.
 
 | Rule ID | Catches | Opt-out |
 |---|---|---|
