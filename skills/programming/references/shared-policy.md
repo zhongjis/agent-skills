@@ -2,16 +2,23 @@
 
 Apply this policy to Python, Rust, TypeScript, and Go. Language references may strengthen it. Existing project choices win where this policy offers defaults; they do not excuse weaker correctness.
 
+## Shared philosophy (all three languages)
 
-## Core rules
+These are not style preferences. They are the seven axioms every recipe in `references/` derives from.
 
-1. **Write the least code that solves the real problem.** Understand the end-to-end flow, fix root causes at the shared seam, reuse existing code, then prefer the standard library, platform features, and installed dependencies before adding code or packages. Do not create a one-use abstraction.
-2. **Use the type system as proof.** Make illegal states unrepresentable. No untyped escape hatch may replace a contract the type system can express.
-3. **Parse, do not repeatedly validate.** Parse untrusted input once at its boundary into a typed value. Interior logic accepts typed values and trusts their guarantees.
-4. **Give each concept its own type.** Distinct IDs, units, and semantic primitives must not be interchangeable.
-5. **Match variants exhaustively.** Tagged unions and enums require the language's exhaustive-match pattern; a fallback that silently accepts future variants is forbidden.
-6. **Trust proven contracts.** Validate only at boundaries. Remove defensive null checks, catches, assertions, and post-action checks for states already excluded by types or operation contracts.
-7. **Keep resources and concurrency structured.** Use language-native deterministic cleanup, cancellation, and task ownership. No detached work or leaked resources.
+0. **The best code is the code never written.** Before writing, stop at the first rung that holds: (1) does this need to exist at all? (YAGNI) (2) does this codebase already have it? — reuse the helper or pattern, do not re-implement. (3) does the standard library do it? (4) does a native platform feature cover it? (5) does an installed dependency solve it? (6) can it be one line? (7) only then, write the minimum that works. Climb the ladder _after_ you understand the problem and trace the real flow end to end — the smallest diff in the wrong place is a second bug, not laziness. The ladder is a fast decision, not a written essay: pick the rung and move. **Bug fix = root cause, not symptom.** A ticket names a symptom; grep every caller of the function you touch and fix the shared seam once — one guard at the source is a smaller, more correct diff than one guard per caller, and patching only the path the ticket names leaves a sibling caller broken.
+
+1. **The type system is your proof system.** Make illegal states unrepresentable. The compiler / type checker is the cheapest test you will ever run. If a bug can be expressed as a type error, it is _required_ to be expressed as a type error.
+
+2. **Parse, don't validate.** Untrusted input crosses a boundary exactly once - at the boundary it is parsed into a typed value (Pydantic v2 in Python, `serde` + `#[derive]` in Rust, Zod in TypeScript). Inside the boundary, code receives typed values and never re-validates. The boundary owns trust; the interior owns logic.
+
+3. **One name = one concept.** A `UserId` is not a `string`. A `Seconds` is not a `Milliseconds`. Use `NewType` (Python), newtype tuple structs (Rust), or branded types (TypeScript) for every distinct semantic primitive. The compiler refuses to let two semantic units mix.
+
+4. **Exhaustive variant matching, always.** Discriminated unions and enums are matched exhaustively. Python: `match` + `case unreachable: assert_never(unreachable)`. Rust: `match` (the compiler enforces). TypeScript: `switch` + `assertNever`. **`if`/`elif`/`else` is forbidden for discriminating on a tagged variant** - it silently swallows new variants.
+
+5. **Trust framework guarantees. Validate only at boundaries.** No null checks for values the type system already proves non-null. No `try/except` around code that cannot raise. No `unwrap`/`!`/`as` to paper over a contract you should have encoded in types. No defensive layer for a scenario you cannot name.
+
+6. **Test-driven, with the right shape of test.** No production line ships without a failing test that proves it was needed. Behavior is locked by tests, not by hope. See the TDD discipline below.
 
 ## TDD
 
@@ -27,7 +34,9 @@ For the suite's shape (the test pyramid), the mocking ladder, the test anti-patt
 
 Budgets: `< 10 ms` per unit test, `< 30 seconds` for the unit suite, and `< 5 minutes` for the integration suite.
 
-Never assert natural-language prompt prose, sentence fragments, or prose snapshots. Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test. See [`testing.md`](testing.md) for examples, severity, and the test-writing delegation rule.
+**FORBIDDEN — NO EXCEPTIONS: a test MUST NOT assert natural-language prompt text.** `expect(prompt).toContain("based on GPT-5.6")`, `not.toContain("old wording")`, `toMatchSnapshot()` on prose, grepping a sentence fragment — every one of these is pretend-coverage. It stays green while the behavior it claims to guard breaks, then blocks every legitimate rewording until someone bumps the pinned string. A reviewer MUST block it as HIGH; deleting such a test is a fix, not a coverage loss. "A nearby test already does it" is not a defense — that test is the disease, not the convention.
+
+Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test. See [`testing.md`](testing.md) for examples, severity, and the test-writing delegation rule.
 
 **Exemption:** documentation-only, comment-only, formatting-only, metadata-only, and other demonstrably non-behavioral changes do not require a red test. Run applicable validation, link checks, formatting, or static checks instead. If runtime behavior, generated output, routing, parsing, packaging, or a machine-consumed contract can change, the exemption does not apply.
 
