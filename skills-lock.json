@@ -8,26 +8,12 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "computedHash": "dd491d53824ad9286ec950aee667098446332429a6d41fe28b4ba11f1959264c"
     },
-    "agent-readiness": {
-      "source": "uinaf/agents",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/agent-readiness/SKILL.md",
-      "computedHash": "3c2c85a91518e1202ca8465733fd66461fb820b8ae88f3c45d8eec14b49b54e3"
-    },
     "agentation": {
       "source": "benjitaylor/agentation",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skills/agentation/SKILL.md",
       "computedHash": "6ba2c955bee6ab3e9c7781b2553e3574b4c9ec35e539437d0831bfe368de8550"
-    },
-    "agents-md": {
-      "source": "mblode/agent-skills",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/agents-md/SKILL.md",
-      "computedHash": "d24a737fe434ec2db3829e775e010bb55ec8d8636cd939fa5abb513291286e46"
     },
     "api-design-principles": {
       "source": "wshobson/agents",
@@ -46,14 +32,14 @@
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skill/SKILL.md",
-      "computedHash": "64034c2524068151d089e7d74fa744d1dbc73befa20d2d8b22eb261c2fba2fe5"
+      "computedHash": "554384eec6d2b42fd51cfa200e61a1b9a5c3a164c5334682eb5a307af0e601ad"
     },
     "caveman": {
       "source": "JuliusBrussee/caveman",
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skills/caveman/SKILL.md",
-      "computedHash": "2bc96f7c5d3c82f76714d9ec5027ef72518ede527b009a4cab6afd6db339ada9"
+      "computedHash": "1a41e7f3543c4a969c040c34a96925f8a3f82a6179a3f1002692b37957f7140b"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
@@ -132,32 +118,18 @@
       "skillPath": "skills/productivity/handoff/SKILL.md",
       "computedHash": "20e5f4afdef502637510bc5c64d27645d3c85c88df9cb006824bbb0980166319"
     },
-    "html-diagram": {
-      "source": "plannotator/effective-html",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "skills/html-diagram/SKILL.md",
-      "computedHash": "b2bc1642ecf9bea473fd92993c87a1d05a1b53cc20192a8c04e78d86b47691db"
-    },
     "huashu-design": {
       "source": "alchaincyf/huashu-design",
       "ref": "master",
       "sourceType": "github",
       "skillPath": "SKILL.md",
-      "computedHash": "c8af65db8f5ae99fcbf76698d9fc4cff755cea45e7d9cd5028a2cebf0cc62a2f"
-    },
-    "huashu-nuwa": {
-      "source": "alchaincyf/nuwa-skill",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "SKILL.md",
-      "computedHash": "c94e41117b316be8bdad482a2ef9f57d3ea2f9d6285758899149c2bfafa97c90"
+      "computedHash": "78397b5fe0856385bb268ee2f881de46e94fa09e516b0b9983e898b91762a61f"
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "655e90deaf8ba3028ad6bbc417d021c27bd3d34377bde750b6181d754914f101"
+      "computedHash": "3203556b54ff0750270e891908c0c445a6fd7bb6e1afba411209a5bb0c3ae7f6"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -183,19 +155,19 @@
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-base/SKILL.md",
-      "computedHash": "25ce7a93c0ce8fd6aba57ceae742da75925d8989e1d6ccc4f213f724189399ba"
+      "computedHash": "daa5a7fc0710591db4d0c3f9709d7cda89f6cfec6ea2ccf87fd11284205c681c"
     },
     "lark-doc": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-doc/SKILL.md",
-      "computedHash": "3dc6f592cc26a04f160dcd2aec23401e677dc8d0e5d0969de4acd0254d9993d5"
+      "computedHash": "a24d4aecc9eaedced808b3addf4b7e93c694c2869d262beb7717e1259edacabb"
     },
     "lark-drive": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-drive/SKILL.md",
-      "computedHash": "bdf97ef90f72099675de5abeda96d59af341d362f496538a9006402b12c45f0c"
+      "computedHash": "d1a476f6dbb3d48a642f3c7d2505c1669949c5f915417b0db6f5edd463ad21f0"
     },
     "lark-shared": {
       "source": "larksuite/cli",
@@ -214,7 +186,7 @@
       "ref": "main",
       "sourceType": "github",
       "skillPath": "skills/last30days/SKILL.md",
-      "computedHash": "0fa1adf30cd437a5ff4f6b79ad0dd887520a19f69d46b0dc63776dc72d46ca29"
+      "computedHash": "a441a90ac2e64063bf3e0aa4ffa2d61de8c70aef36dc1c9a4e84533de6665c7d"
     },
     "linear": {
       "source": "openai/skills",
