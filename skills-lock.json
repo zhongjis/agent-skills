@@ -188,6 +188,13 @@
       "skillPath": "skills/last30days/SKILL.md",
       "computedHash": "a441a90ac2e64063bf3e0aa4ffa2d61de8c70aef36dc1c9a4e84533de6665c7d"
     },
+    "likec4-dsl": {
+      "source": "likec4.dev",
+      "sourceUrl": "https://likec4.dev/",
+      "sourceType": "well-known",
+      "computedHash": "36172ada5f58598a5ddca61dc2e8c28995453b88673a73f99eadd283ff59507b",
+      "wellKnownDigest": "sha256:6104361d9b1966a1f0ba193460574e0b4f10bd4766483dbd2c2b3c41647e3174"
+    },
     "linear": {
       "source": "openai/skills",
       "sourceType": "github",
