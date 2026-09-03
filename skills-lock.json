@@ -208,20 +208,6 @@
       "skillPath": "skills/mcp-builder/SKILL.md",
       "computedHash": "826e46adf81e1372282e205c34e1a2ee876e72148007726e4a2512599d2fef7b"
     },
-    "mysql-best-practices": {
-      "source": "mindrally/skills",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "mysql-best-practices/SKILL.md",
-      "computedHash": "02283efa91864ce6f56f542415bd69d9855be1ea33847987b15040394e828c23"
-    },
-    "neat-freak": {
-      "source": "KKKKhazix/khazix-skills",
-      "ref": "main",
-      "sourceType": "github",
-      "skillPath": "neat-freak/SKILL.md",
-      "computedHash": "e30772f296f23b31a7168c974c6e89505f4c7139dbea5a7c9175552d03ee908e"
-    },
     "nix": {
       "source": "knoopx/pi",
       "sourceType": "github",
