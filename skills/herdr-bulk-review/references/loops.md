@@ -34,7 +34,7 @@ for n in $PRS; do
     echo "PR $n START_ERR: $(echo "$OUT" | head -c 160)"; break
   done
   sleep 1
-  herdr agent prompt review-$n "\$skill:code-review-v2 $URL/$n ulw" >/dev/null 2>&1
+  herdr agent prompt review-$n "\$skill:code-review $URL/$n ulw" >/dev/null 2>&1
   sleep 3
   ST=$(herdr agent get review-$n 2>&1 | python3 -c "import json,sys;print(json.load(sys.stdin)['result']['agent']['agent_status'])" 2>/dev/null)
   echo "PR $n pane=$PANE agent=review-$n head=${H:0:8} status=$ST"
@@ -109,7 +109,7 @@ print(('yes' if latest>rat else 'no'), d.get('headRefName',''))")
   WT=$(git worktree list --porcelain | awk -v b="refs/heads/$B" '/^worktree /{p=$2} $0=="branch "b{print p}')
   [ -z "$WT" ] && { echo "PR $n needs re-review but has no worktree"; continue; }
   git -C "$WT" reset --hard "origin/$B" >/dev/null 2>&1
-  herdr agent prompt review-$n "\$skill:code-review-v2 $URL/$n ulw" >/dev/null 2>&1
+  herdr agent prompt review-$n "\$skill:code-review $URL/$n ulw" >/dev/null 2>&1
   echo "PR $n re-review dispatched head=$(git -C "$WT" rev-parse --short HEAD)"
 done
 ```

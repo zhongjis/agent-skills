@@ -32,7 +32,6 @@ let
     "address-comments"
     "ast-grep"
     "code-review"
-    "code-review-v2"
     "codebase-search"
     "fd"
     "find-skills"

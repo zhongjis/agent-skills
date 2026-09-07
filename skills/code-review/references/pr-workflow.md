@@ -52,7 +52,7 @@ Treat issues other reviewers already raised as prior art — your findings must 
 
 ## 2b. Scope a re-review to new commits
 
-If a prior code-review-v2 review already exists on this PR, scope this pass to what changed since it. Find that review in the `gh api repos/{owner}/{repo}/pulls/{number}/reviews` output by matching **both** the `<!-- code-review-v2 -->` marker in its `body` **and** an author login equal to the current `gh` user (`gh api user -q .login`) — match both, or you may grab another tool's review. Read that review's `commit_id`, enumerate the new commits (`git log <sha>..HEAD --oneline`) and their files (`git diff --stat <sha>...HEAD`), and review only that diff (`git diff <sha>...HEAD`) — the scope is those new commits, not a re-scan of the whole PR. Open the new summary body with the exact opener line "Incremental review since `<sha>` — prior findings not repeated." so the author knows what was and wasn't re-read.
+If a prior code-review review already exists on this PR, scope this pass to what changed since it. Find that review in the `gh api repos/{owner}/{repo}/pulls/{number}/reviews` output by matching **both** the (`<!-- code-review -->` or the historical `<!-- code-review-v2 -->`) marker in its `body` **and** an author login equal to the current `gh` user (`gh api user -q .login`) — match both, or you may grab another tool's review. Read that review's `commit_id`, enumerate the new commits (`git log <sha>..HEAD --oneline`) and their files (`git diff --stat <sha>...HEAD`), and review only that diff (`git diff <sha>...HEAD`) — the scope is those new commits, not a re-scan of the whole PR. Open the new summary body with the exact opener line "Incremental review since `<sha>` — prior findings not repeated." so the author knows what was and wasn't re-read.
 
 "Prior findings not repeated" governs *findings*, not unresolved *risk*: any earlier `[BLOCKER]` or `[MAJOR]` still unfixed at the new head must be re-surfaced (reference it by its ID), never silently dropped. A missed marker only costs a safe full re-review; a false match mis-scopes, which is why the author-login match is mandatory.
 
@@ -116,12 +116,12 @@ The review posts under the human's own GitHub identity and carries a verdict in 
 
 1. **Visible credit line** (non-suppressible) — names the skill and its multi-axis method, so the review reads as a rigorous pass rather than ad-hoc AI. One line, e.g.:
 
-   > 🔍 Reviewed with **[code-review-v2](https://github.com/zhongjis/agent-skills/tree/main/skills/code-review-v2)** — multi-axis AI review (correctness · standards · regression · security), each axis run in isolation so none masks another. Sharp eyes, no ego; a human still owns the merge.
+   > 🔍 Reviewed with **[code-review](https://github.com/zhongjis/agent-skills/tree/main/skills/code-review)** — multi-axis AI review (correctness · standards · regression · security), each axis run in isolation so none masks another. Sharp eyes, no ego; a human still owns the merge.
 
 2. **Invisible self-ID marker** — an HTML comment on its own line, so a later run can recognize this review as its own (see §2b):
 
    ```
-   <!-- code-review-v2 -->
+   <!-- code-review -->
    ```
 
 Keep the visible line even on a clean `APPROVE`: undisclosed AI authorship under a human identity is exactly what this footer prevents. The marker is not load-bearing — if it is ever missing or altered, re-review just falls back to a full pass.

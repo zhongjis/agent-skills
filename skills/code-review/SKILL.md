@@ -1,346 +1,176 @@
 ---
 name: code-review
-description: "Comprehensive code review for local diffs (git/jj) and GitHub PRs — severity-ranked, confidence-scored findings with structured PR feedback via the gh CLI."
+description: "Multi-axis code review for local diffs (git/jj) and GitHub PRs — independent review axes reported as isolated passes so no axis masks another."
 disable-model-invocation: true
 adaptedFrom:
   - "https://github.com/wshobson/agents/blob/main/plugins/developer-essentials/skills/code-review-excellence/SKILL.md"
+  - "https://github.com/mattpocock/skills/blob/main/skills/engineering/code-review/SKILL.md"
 ---
 
 # Code Review
 
-A systematic framework for evaluating code changes that ensures consistency, security, and maintainability while fostering professional growth.
+A review runs as a set of independent **axes** — each a single lens (correctness, standards, regression, security, and conditional spec / performance / tests / observability) that produces its own findings. Axes run as **isolated passes** and are reported side by side, so a pass on one axis never masks a fail on another.
 
-**Modes**: Local Review (git/jj diff) | PR Review (gh CLI)
-
----
+**Modes**: Local Review (git/jj diff) | PR Review (gh CLI). PR review prefers a local checkout — see `references/pr-workflow.md` § 0.
 
 ## Principles
 
-- **Critique the code, not the person.** No sarcasm, condescension, or personal attacks — every line represents effort.
-- **Every finding leads to a better solution.** Reference exact lines, include a code example, and explain *why* it matters (rationale, not just the what). Vague feedback is useless.
-- **Differentiate severity.** Tag every finding so the author can tell a blocker from a preference (see Severity System).
-- **Code health over perfection (Google).** Approve changes that improve overall code health even when imperfect. Never `REQUEST_CHANGES` over style, naming, or other non-correctness preferences — that is preference-blocking.
-- **Keep human review focused (Microsoft).** Under 400 LOC per session; let automated tooling catch formatting so review targets architecture and business logic.
-- **Acknowledge good work.** Use `[KUDOS]` for well-written sections — it reinforces standards and builds trust.
-- **Land on a stable set of required changes.** Ask when intent is unclear, but don't rubber-stamp with "LGTM" without inspection, and don't move the goalposts by introducing new requirements late or demanding a rewrite of an otherwise-valid approach.
-- **Keep review scope to the actual changes.** Raise unrelated issues or feature ideas elsewhere, not in this review.
+- **Critique the code, not the person.** No sarcasm or condescension — every line represents effort.
+- **Every finding leads to a better solution.** Cite the exact line, include a fix example, and explain *why* it matters. Vague feedback is useless.
+- **Code health over perfection.** Approve changes that improve overall health even when imperfect; never block on style or personal preference.
+- **Keep review focused.** Under 400 LOC per session — defect detection collapses past that. Let tooling catch formatting; spend human attention on architecture and behavior. Split larger changes.
+- **Acknowledge good work.** Use `[KUDOS]` for exemplary sections — it reinforces standards.
+- **Scope to the actual change.** Raise unrelated issues or feature ideas elsewhere, not in this review.
+- Keep required changes grounded in the agreed scope and demonstrated defects. Do not introduce late preferences or demand rewrites of valid approaches. Newly discovered defects remain reportable.
 
----
+## Review process
 
-## Review Modes
+Run these steps in order. Steps 1-3 run once, inline, in the main reviewing context and build the shared **foundation brief** — a fixed-field record every axis reads verbatim:
 
-### Local Review
+> **Mode** · **Risk** · **Behavior delta** · **Security depth** · **Active axes**
 
-For uncommitted or recently committed changes in the current workspace.
+1. **Pin scope, mode + risk.** Select the requested comparison, note the mode, and classify the change's **Risk** — Trivial / Standard / Risky (see Risk dial; use the selected diff's stat and touched paths).
+   - Local Git: unstaged `git diff` / `git diff --stat`; staged `git diff --cached` / `git diff --cached --stat`; combined tracked uncommitted `git diff HEAD` / `git diff HEAD --stat`; committed `git diff <base>...HEAD` / `git diff <base>...HEAD --stat` (against the merge-base). Preserve any requested path filters in both commands.
+   - For a committed Git comparison only, confirm the base resolves (`git rev-parse --verify <base>^{commit}`) and a merge-base exists (`git merge-base <base> HEAD`); gather commits with `git log <base>..HEAD --oneline`.
+   - Local jj: `jj diff` / `jj diff --stat`, preserving requested revision and path selectors; no Git base checks.
+   - Git diffs omit untracked files; identify them with `git ls-files --others --exclude-standard` and inspect those in the requested scope.
+   - PR: follow `references/pr-workflow.md` — prefer a local checkout (§ 0), then gather PR metadata and pin scope.
+   - Confirm the selected diff command succeeds and the selected scope is non-empty, including any in-scope untracked files, before going further — an invalid comparison or empty scope fails here, not inside an axis.
+2. **Gather context + fetch links.** Read each changed file in full, not just the hunks. For every changed symbol, find its callers. Follow any links you encounter — the PR description, commit messages, linked issues or tickets, a path the user passed — and fetch the ones your environment can reach, so behavior and intent rest on real context. Follow `references/context-gathering.md` for dependency contracts and caller / history / churn gathering, scaled to the Risk you pinned.
+3. **Build the foundation brief.** Fill the record once:
+   - **Behavior delta** — what observable behavior the change adds, removes, or alters. Descriptive, not a finding; it feeds every axis.
+   - **Security depth** — whether the diff touches a **security surface** (input boundary, auth/authz, secrets, deserialization, SQL / shell / HTML sinks, network, file paths). This sets Security's depth and may **upgrade** the Risk you pinned in step 1.
+   - **Active axes** — from the Axis registry, every always-on axis plus each conditional axis whose trigger the triage hit.
+4. **Run each active axis in isolation.** Run the axes as isolated passes per the Execution rule. Each axis reads the foundation brief and its section in `references/axis-checklists.md`, then reports findings under its own heading — stating "no findings" when it finds nothing.
+5. **Aggregate + verdict + post.** Combine per the Aggregation rules, render the verdict, and post (PR: via `references/pr-workflow.md`).
 
-```bash
-# Git
-git diff --stat
-git diff
-git log --oneline -10
+## Axis registry
 
-# Jujutsu
-jj diff --stat
-jj diff
-jj log -r 'all()' --limit 10
-```
+| Axis | Runs when | Looks for | Checklist |
+| --- | --- | --- | --- |
+| Correctness | always | logic, edge cases, null/undefined, boundaries, concurrency, error handling — inward: is the new code right? | `axis-checklists.md` |
+| Standards | always | conventions, naming, structure, Fowler code smells, non-behavioral quality | `axis-checklists.md` |
+| Regression | always | callers, contracts, migrations, backward compatibility — outward: what could this break? | `axis-checklists.md` |
+| Security | always (triage); deep pass only when a security surface is touched | injection, auth/authz, secrets, sensitive data, OWASP / STRIDE | `axis-checklists.md` |
+| Spec | a spec source exists — PR description, commits, linked issue/ticket, or a path provided | missing or partial requirements, scope creep, a requirement implemented wrong | `axis-checklists.md` |
+| Performance | diff touches hot paths, loops, queries, or allocations | N+1 queries, algorithmic complexity, resource leaks, missing pagination | `axis-checklists.md` |
+| Tests | tests are present or expected for the change | coverage of new logic, edge-case tests, assertion quality | `axis-checklists.md` |
+| Observability | change is operationally significant — services, error paths, external calls | logging, metrics, tracing | `axis-checklists.md` |
 
-1. Run `diff --stat` to understand the scope and distribution of changes.
-2. Examine the full diff to identify logic and structural changes.
-3. Check recent history to understand the context of current work.
-4. Gather codebase context using Phase 1.5 below (at minimum Layers 1-2).
-5. Proceed to the Review Process below.
+Every axis is a cheap triage first — does it apply, and how deep? — then a gated deep pass. Security is the most visible case of that rule, not an exception to it.
 
-### PR Review (gh CLI)
+## Risk dial
 
-Full GitHub pull request workflow with structured feedback.
+Scale which axes fire and how deep the context work goes to the change's risk.
 
-**Pipeline:**
+| Risk | Examples | Axes | Context depth |
+| --- | --- | --- | --- |
+| Trivial | docs, config, formatting, typo fixes | always-on axes at triage depth (Standards carries it) + Spec if a source exists | full file read only |
+| Standard | feature work, refactors, test additions | all always-on + triggered conditionals | changed files + callers + key dependency contracts (`references/context-gathering.md`) |
+| Risky | auth, payments, DB schema, public API, concurrency | all applicable, deep passes | full data-flow tracing, history, convention sampling |
 
-1. **Gather context**: `gh pr view <number>` — read title, body, author, labels, linked issues.
-2. **Fetch diff**: `gh pr diff <number>` — get the full changeset.
-3. **Collect existing feedback first**: before drafting anything, read the full PR discussion.
+## Execution
 
-```bash
-# General PR conversation
-gh pr view <number> --comments
+An **isolated pass** runs one axis in its own fresh context, sharing nothing with the others — so no axis can color another. When your environment offers an isolation mechanism (a sub-agent or task tool is the usual one) and the risk is not Trivial, running the axes as isolated passes is **required, not a preference**: dispatch per `references/parallel-axes.md`, which bundles them into a few passes scaled to risk so isolation doesn't cost eight diff re-feeds. The foundation brief feeds each pass; it never replaces them — you remain the aggregator who re-checks every pass (§ Aggregation).
 
-# Line-specific review comments
-gh api repos/{owner}/{repo}/pulls/{number}/comments --paginate
+**Capability floor.** Give each pass enough capability and budget for its risk. Security, Correctness, and Regression are judgment axes — never run them as a reduced or recon-only pass; a Risky review needs your strongest reasoning throughout.
 
-# Review summaries / states
-gh api repos/{owner}/{repo}/pulls/{number}/reviews --paginate
-```
+**Fallback.** Only when no isolation mechanism is available, or the risk is Trivial, fall back to **sequential inline** passes in one shared context. This fallback is weaker — one shared context is exactly where masking happens — so run each axis as its own deliberate pass: reset to that axis's brief, write its findings under its heading, and finish it before the next.
 
-Treat issues other reviewers already raised as **prior art** — your findings must be **net-new**. Reply in the existing thread rather than reposting, and add a fresh comment only when you have materially new information: a different root cause, a higher-severity impact, a more precise file/line, or a concrete fix the thread lacks. When in doubt, collapse the duplicate — the goal is signal, not vote-counting.
+If an isolated pass fails, stalls, or returns empty, re-run it per `references/parallel-axes.md` — a silent drop must never read as "no findings".
 
-4. **Gather codebase context**: Expand understanding outward from the diff using the structured protocol in Phase 1.5 below. Depth depends on PR risk — at minimum, read full files and find callers of changed functions.
-5. **Systematic review**: Follow the Review Process below.
-6. **Submit review to GitHub** — always post the review. Never just show it in conversation.
+## Severity
 
-Build a temporary JSON file containing the summary body, verdict event, and any inline comments, then submit it as a single atomic review. This ensures the summary appears in the Conversation tab and inline comments appear in the Files Changed tab, all grouped as one review.
-
-```bash
-# 1. Determine owner/repo and head commit
-OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
-HEAD_OID=$(gh pr view <number> --json headRefOid -q .headRefOid)
-
-# 2. Build the review payload as a JSON file
-cat > /tmp/review.json << 'REVIEW_EOF'
-{
-  "body": "## Code Review Summary\n\n...",
-  "event": "COMMENT",
-  "comments": [
-    {
-      "path": "src/file.ts",
-      "line": 42,
-      "side": "RIGHT",
-      "body": "**[BLOCKER]** Brief title\n\n**Issue**: ...\n**Why it matters**: ...\n**Suggestion**:\n```lang\n// fix\n```"
-    }
-  ]
-}
-REVIEW_EOF
-
-# 3. Submit the review (inline comments + summary in one call)
-gh api repos/${OWNER_REPO}/pulls/<number>/reviews --input /tmp/review.json
-```
-
-Set `event` based on verdict:
-
-| Verdict | `event` value |
-| --- | --- |
-| Approve | `APPROVE` |
-| Request changes | `REQUEST_CHANGES` |
-| Comment only | `COMMENT` |
-
-The `comments` array contains inline comments that appear in the Files Changed tab. Each entry needs `path`, `line`, `side` (always `"RIGHT"` for new code), and `body`. Omit the `comments` array if no line-specific findings — the summary body still posts as a review comment.
-
-If the review has no inline findings at all (e.g., a simple approval), you can use the simpler CLI form instead:
-
-```bash
-gh pr review <number> --approve --body "..."
-gh pr review <number> --request-changes --body "..."
-```
-
----
-
-## Review Process
-
-### Phase 1: Context and Scope
-
-- Read the PR description and commit messages carefully.
-- Understand the problem being solved and the proposed approach.
-- Map out which files changed and how they interact with the broader system.
-- Check for linked issues, related PRs, or migration dependencies.
-
-### Phase 1.5: Codebase Context Gathering
-
-Before evaluating architecture or correctness, build a working model of how the changed code fits into the system. Work outward from the diff in layers. Scale depth to PR risk.
-
-**Layer 1 — Full file read** (always)
-
-Read the COMPLETE file for every changed file, not just diff hunks. The diff alone hides surrounding invariants, sibling functions, and class structure that affect whether the change is correct.
-
-**Layer 2 — Direct dependents and dependencies** (always)
-
-For each changed file, identify:
-- What it imports (dependencies) — read key imported modules to understand the contracts the changed code relies on.
-- What imports it (dependents) — find with `rg "import.*from.*<module>"` or `rg "require.*<module>"` across the repo. These are the files that may break.
-
-For each changed function, class, type, or exported symbol:
-- Find all callers: `rg "<symbol>\b" --type <lang>` across the repo.
-- Check whether signature, return type, or behavioral changes break any caller.
-
-**Layer 3 — Data flow tracing** (when changes touch I/O, APIs, or user input)
-
-Trace data through the change end-to-end:
-- Where does input originate? (API endpoint, UI form, message queue, cron job)
-- What transformations or validations does it pass through?
-- Where does it end up? (DB write, rendered output, external API call, log)
-
-Read each file along the path, not just the changed ones. This catches missing validation, auth gaps, and injection points that live outside the diff.
-
-**Layer 4 — Convention sampling** (when changes introduce new patterns or touch unfamiliar areas)
-
-Find 2-3 existing files that do something similar:
-- `rg -l "<pattern>" --type <lang>` or browse sibling files in the same directory.
-- Compare error handling, naming, structure, logging, and test patterns.
-- Flag deviations from the dominant codebase convention.
-
-**Layer 5 — History and churn** (when changes touch complex or bug-prone areas)
-
-```bash
-# Recent change velocity — high churn = higher scrutiny
-git log --oneline -10 -- <changed_file>
-
-# When was this symbol last modified and why?
-git log --oneline --all -S "<changed_function>" -- <changed_file>
-
-# Who owns this area? (for context, not blame)
-git shortlog -sn --no-merges -- <changed_file>
-```
-
-**Depth control** — scale to risk:
-
-| PR Risk Level | Examples | Layers |
+| Tag | Meaning | Action |
 | --- | --- | --- |
-| Trivial | Docs, config, formatting, typo fixes | 1 only |
-| Standard | Feature work, refactors, test additions | 1-2 |
-| Risky | Auth, payments, DB schema, public API, concurrency | 1-5 |
+| `[BLOCKER]` | security hole, data-loss risk, crash, correctness bug | blocking — fix before merge |
+| `[MAJOR]` | logic error, missing edge case, architectural violation, missing tests | blocking — fix or justify |
+| `[SUGGESTION]` | refactor, readability, optimization | non-blocking — recommended |
+| `[NIT]` | style, naming preference, formatting | non-blocking — author's call |
+| `[KUDOS]` | exemplary code, good pattern | recognition |
 
-When in doubt, do at least Layers 1-2. A review without caller analysis misses breaking changes.
+Assign severity **within each axis**. `[BLOCKER]` and `[MAJOR]` are blocking; the rest are non-blocking.
 
-### Phase 2: High-Level Architecture
+## Aggregation
 
-- Does the change fit the existing architecture and conventions?
-- Are there design concerns: tight coupling, missing abstractions, separation of concerns violations?
-- Is this the simplest reasonable approach for the problem?
-- Does this introduce technical debt that should be addressed now?
-- Are there simpler alternatives worth proposing?
+**Re-check dispatched findings first.** Independently verify each dispatched finding against the code and its contract and re-severitize before assembling — dispatched severities are inputs, not final. This is within-axis validation against ground truth, not cross-axis re-judging: keep each axis's grouping intact, and a severity you overturn is also reason to lower that axis's confidence. Tighten each finding's prose in the same pass — active voice, no filler, no puffery (§ Feedback craft); a finding that reads loose isn't done.
 
-### Phase 3: Line-by-Line Analysis
+Copy the re-checked findings into the report unchanged, under that axis's heading. Build the findings table by grouping stably on (axis, severity), keeping every axis's rows distinct.
 
-| Dimension      | What to Look For                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------------- |
-| Correctness    | Logic errors, off-by-one, null/undefined handling, edge cases, boundary conditions                      |
-| Security       | Input validation, injection points (SQL, XSS, command), auth/authz gaps, secrets exposure, OWASP top 10 |
-| Performance    | N+1 queries, heavy allocations in loops, algorithm complexity, resource leaks, missing pagination       |
-| Concurrency    | Race conditions, deadlocks, unsafe shared mutable state, missing locks/atomic operations                |
-| Error Handling | Swallowed exceptions, missing error context, improper error propagation, empty catch blocks             |
-| Testing        | Coverage of new logic, edge case tests, test quality (meaningful assertions, not just existence)        |
-| Observability  | Logging for debugging, metrics for monitoring, tracing for distributed systems                          |
-| Code Quality   | Naming clarity, function length/complexity, DRY violations, single responsibility                       |
+- **Completion criteria** — two gates, both required to keep one axis from masking another:
+  1. Each active axis ran in its own isolated pass whenever an isolation mechanism was available; only the Trivial or no-isolation fallback runs axes inline in one shared context.
+  2. Every active axis is accounted for — it ran and its result is recorded, so none is silently dropped. A first/full review renders each axis as its own labeled group, including those that found nothing (which state "no findings"); an incremental re-review follows the § 2c contract — it MUST open with the § 2c opener line and index only new findings (no empty axes, no Strengths), never re-rendering this first-review skeleton (`references/pr-workflow.md` § 2c).
+- **Verdict** is the only value computed across axes: `REQUEST_CHANGES` if any axis produced a `[BLOCKER]` or `[MAJOR]`, otherwise `COMMENT` or `APPROVE`. Compute it last, from the assembled findings; it never changes an individual finding.
+- **Confidence** — each axis scores itself 1-5, lowering its own score for the risk multipliers it owns (see Confidence adjustments); the overall confidence is the **minimum** across active axes. Name the axis that set it and why.
 
-### Phase 4: Summary and Verdict
+### Confidence adjustments
 
-- Compile findings into the structured output template.
-- Assign a confidence score.
-- Render verdict: APPROVE, REQUEST_CHANGES, or COMMENT.
+Each axis drops its own score by 1 (floor 1) for every multiplier it carries. Two axes dropping for the same broad multiplier is two independent reasons to distrust two reads, not double-counting:
 
----
+- **Security** — auth / authz or otherwise security-sensitive logic.
+- **Regression** — database migrations or schema changes.
+- **Correctness** — complex concurrency or lock management.
+- **Tests** — missing or inadequate coverage for the change.
+- **Every active axis** — a large cross-cutting refactor, or an unfamiliar language / domain.
+- **Any axis folded inline after a failed isolated pass** — drop 1 and flag the fallback in that axis's output group, so a degraded read never passes as a clean one. (The Trivial / no-isolation baseline, where every axis runs inline by design, carries no such penalty.)
 
-## Severity System
+## Output
 
-| Tag            | Meaning                                                                | Action Required           |
-| -------------- | ---------------------------------------------------------------------- | ------------------------- |
-| `[BLOCKER]`    | Security vulnerability, data loss risk, crash, correctness bug         | Must fix before merge     |
-| `[MAJOR]`      | Logic error, missing edge case, architectural violation, missing tests | Must fix or justify       |
-| `[SUGGESTION]` | Refactoring opportunity, readability improvement, optimization         | Recommended, not blocking |
-| `[NIT]`        | Style, naming preference, trivial formatting                           | Optional, author's call   |
-| `[KUDOS]`      | Exemplary code, clever solution, good pattern usage                    | No action — recognition   |
-
----
-
-## Feedback Techniques
-
-Phrasing craft — how to word findings so they land:
-
-- **Write it clearly.** Run the `/writing-clearly-and-concisely` skill and apply it to every finding, the summary body, and PR comments — plain, tight, no filler.
-- **Ask, don't assert.** "What happens if this input is empty?" invites reflection more than "This fails on empty input."
-- **Suggest, don't command.** "Consider a Map here for O(1) lookups" over "Use a Map." Offer alternatives as possibilities.
-
----
-
-## Confidence Scoring
-
-Rate overall review confidence on a 1-5 scale.
-
-| Score | Meaning                                                         |
-| ----- | --------------------------------------------------------------- |
-| 5/5   | Trivial or perfectly understood change, full context            |
-| 4/5   | Well-understood change, minor areas of uncertainty              |
-| 3/5   | Moderate complexity, some logic paths or side effects unclear   |
-| 2/5   | Complex change, significant uncertainty or domain unfamiliarity |
-| 1/5   | Very complex, likely issues missed                              |
-
-**Adjustment rules** — subtract 1 for each that applies:
-
-- Database migrations or schema changes
-- Authentication or security-sensitive logic
-- Complex concurrency or lock management
-- Large-scale cross-cutting refactors
-- Missing or inadequate test coverage
-- Unfamiliar language or domain
-
-For PRs touching multiple files with varying complexity, include a per-file confidence table in the review summary (see the File-Level Confidence table in Output Templates).
-
----
-
-## Language-Specific Patterns
-
-When the diff includes Python or TypeScript, consult `references/language-patterns.md` for language-specific bad/good examples and checklists (type hints, resource management, typed errors) plus cross-language patterns (N+1 queries, XSS, SQL injection, auth). Apply them alongside the Phase 3 dimensions.
-
----
-
-## Output Templates
-
-### Inline vs Summary Strategy
-
-The atomic review API (see PR Review pipeline step 6) handles both inline and summary comments in one call. The summary body and inline comments serve different purposes — when used well they compose; when confused they duplicate.
-
-**Core rule: the summary is an index, the inlines are the content.**
-
-If a finding has a file and line, its full detail (issue, why it matters, suggested fix, test to add) lives in the inline comment. The summary references it by severity ID (B1, M1, S1) in the findings table — one row, one sentence. A reader should see severity distribution at a glance in the summary, then click through to the inline for the actual patch.
-
-Why this matters: GitHub renders the summary in the Conversation tab and inlines in the Files Changed tab. Restating the same finding in both tabs forces the author to read it twice, visually inflates the PR page, and creates drift risk if one copy is updated and the other isn't. Keep the summary lean — resist the urge to "helpfully" restate inline content in a collapsible block.
-
-| Finding type | Where it goes | Summary mention |
-| --- | --- | --- |
-| BLOCKER / MAJOR with a clear file:line | `comments` array entry (full detail) | One row in findings table |
-| SUGGESTION / NIT on a specific line | `comments` array entry (keep brief) | One row in findings table |
-| Architectural / cross-cutting concern spanning files | `body` summary (full detail) | Written out — no inline exists |
-| Overall verdict, confidence, strengths (KUDOS) | `body` summary | N/A — can't live inline |
-
-Avoid 20+ inline comments — group related nits into one inline on a representative line, or roll them into the summary only if they're truly cross-cutting. Each inline comment should stand alone and be actionable without reading the summary.
-
-### Review Summary
-
-Use this template for both local and PR reviews. Keep it lean — the summary is the index into inline comments, not a restatement of them.
+Use this skeleton for a first/full review in both modes. It is an index into the findings, not a restatement of them. Keep the verdict and findings table above the fold; blockers and majors are never collapsed. The **verification / methodology note is always collapsed** in `<details>`, whatever the review size; the per-file confidence table and strengths collapse on large reviews. A PR **incremental re-review** uses the lean output contract in `references/pr-workflow.md` § 2c instead of re-rendering this skeleton.
 
 ````markdown
 ## Code Review Summary
 
-**Scope**: [Brief description of the changes]
-**Files Changed**: [N files, +X/-Y lines]
-**Confidence**: [N/5] — [Brief justification]
+**Scope**: [what changed] · **Files**: [N files, +X/-Y] · **Confidence**: [min N/5 — the axis that set it, and why]
 
 ### Findings
 
-| Sev | Severity     | File                | Description       |
-| --- | ------------ | ------------------- | ----------------- |
-| B1  | [BLOCKER]    | path/to/file.ts:42  | One-line summary — full detail inline |
-| M1  | [MAJOR]      | path/to/other.py:15 | One-line summary — full detail inline |
-| S1  | [SUGGESTION] | path/to/lib.rs:88   | One-line summary — full detail inline |
+| ID | Axis | Sev | Location | Summary |
+| --- | --- | --- | --- | --- |
+| B1 | Security | [BLOCKER] | path/to/file:42 | one line — full detail inline |
+| M1 | Regression | [MAJOR] | path/to/other:15 | one line — full detail inline |
 
-Each row is a pointer to the matching inline comment. Do not expand findings here — the inline carries the issue, why it matters, suggested fix, and test to add. Include a `### Cross-cutting Concerns` section below *only* for findings that span multiple files or have no single line to attach to.
+On a first/full review, axes with no findings are listed explicitly, e.g. "Correctness — no findings". An incremental re-review omits them and indexes only new findings (`references/pr-workflow.md` § 2c).
 
-### File-Level Confidence
+<details><summary>Per-file confidence</summary>
 
-| File             | Confidence | Notes                 |
-| ---------------- | ---------- | --------------------- |
-| path/to/file.ts  | 3/5        | Complex auth logic    |
-| path/to/other.py | 5/5        | Simple utility change |
+Only files whose confidence deviates from the overall — omit files that match it.
 
-### Strengths
+| File | Confidence | Notes |
+| --- | --- | --- |
+| path/to/file:42 | 2/5 | complex auth path |
 
-- [Thing done well]
-- [Another positive observation]
+</details>
+
+<details><summary>Strengths</summary>
+
+- `[KUDOS]` — exemplary section worth reinforcing.
+
+</details>
+
+<details><summary>Verification</summary>
+
+Commands, suites, and live checks run to ground the review, with results. Always collapsed, whatever the review size.
+
+</details>
 
 ### Verdict: APPROVE | REQUEST_CHANGES | COMMENT
 
-[Brief justification for the verdict]
+[one-line justification]
 ````
 
-### Progressive Disclosure in the Summary
+For PR reviews, the inline-vs-summary strategy, GitHub comment formatting rules, the atomic-review pipeline, the AI attribution footer, and incremental re-review scoping and output live in `references/pr-workflow.md`.
 
-For large reviews, keep the verdict and findings table above the fold -- that is the reviewer's need-to-know. Genuinely secondary, *summary-only* sections can go in `<details>` blocks so they don't push the verdict down: a File-Level Confidence table with many rows, Strengths/KUDOS, or a long context/methodology note.
+## Feedback craft
 
-This is distinct from the anti-pattern in "Inline vs Summary Strategy": collapse summary-only material that is truly secondary -- never a restatement of inline findings (those live in the Files Changed tab). Blockers and majors are never collapsed; they are the whole point of the review.
+- **Write it tight.** Apply to every finding, the summary, and PR comments: active voice; positive form (say what *is*, not what isn't); cut needless words; concrete and specific over vague; no AI puffery (`delve`, `leverage`, `seamless`, `robust`, `crucial`, `testament`). See `writing-clearly-and-concisely` for depth.
+- **Ask, don't assert.** "What happens when this input is empty?" invites reflection more than a flat claim.
+- **Suggest, don't command.** "Consider a Map here for O(1) lookups" over "Use a Map." Offer alternatives as possibilities.
 
-### GitHub Comment Formatting Rules
+## References
 
-When posting comments to GitHub (both inline and summary):
-
-- **Never use `#N` notation** (e.g., `#1`, `#2`, `#3`) — GitHub auto-links these to issues/PRs, creating broken references. Use severity-prefixed IDs instead: `B1`, `M1`, `S1`, `N1` (for Blocker, Major, Suggestion, Nit).
-- **Never reference findings as "issue #1"** — write "finding B1" or just use the severity tag.
-- Keep inline comment bodies self-contained — the author reads them in the diff without needing context from the summary.
+- `references/axis-checklists.md` — per-axis deep checklists; load the sections for the active axes.
+- `references/parallel-axes.md` — isolated-pass dispatch, the self-contained brief template, bundling, and aggregation mechanics.
+- `references/context-gathering.md` — dependency contracts and concrete caller / history / churn commands for the Gather-context step, scaled to the Risk dial.
+- `references/pr-workflow.md` — GitHub PR pipeline: collect prior feedback, incremental re-review scoping and output, atomic review API, AI attribution footer, comment formatting.
+- `references/language-patterns.md` — Python / TypeScript bad/good examples, applied within Correctness, Standards, and Security.
