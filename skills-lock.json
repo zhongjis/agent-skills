@@ -25,7 +25,7 @@
       "source": "tt-a1i/archify",
       "sourceType": "github",
       "skillPath": "archify/SKILL.md",
-      "computedHash": "d0e068907ed35e66a1250171c0d3faf5a23c809bbf21cb68e4aa1e56b79e05c8"
+      "computedHash": "bcc011f30cb670f58b08c567437ae2aeffe15414d5687941445b4105bba693ce"
     },
     "before-and-after": {
       "source": "vercel-labs/before-and-after",
