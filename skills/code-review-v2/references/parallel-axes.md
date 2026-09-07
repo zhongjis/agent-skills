@@ -16,8 +16,8 @@ The pass count follows the diff, not a fixed number: give the judgment-heavy axe
 
 An isolated pass shares none of the main reviewing context, so its brief must stand alone. Include, verbatim:
 
-1. **Diff access** — the exact diff command (`git diff <base>...HEAD`) and the commit list, or the diff contents.
-2. **Foundation brief** — the behavior delta and the axis triage from step 3 of the process.
+1. **Diff access** — the exact selected diff command with its revision and path selectors, or the diff contents, plus any in-scope untracked file contents. Include the commit list only for a committed comparison.
+2. **Foundation brief** — the behavior delta and the axis triage from step 3 of the process, plus the agreed scope, SKILL.md § Principles, and gathered contract evidence needed by the assigned axes.
 3. **Axis assignment** — which axis or axes this pass owns, with the matching section(s) of `axis-checklists.md` pasted in full; the pass cannot open files the main reviewing context read.
 4. **Report contract** — "Report findings for your assigned axis only. Tag each with the axis name, a severity (`[BLOCKER]` / `[MAJOR]` / `[SUGGESTION]` / `[NIT]` / `[KUDOS]`), and a file:line. Quote the code or spec line for each. Write each finding tight — a one-sentence issue plus a fix, active voice, no filler or puffery. Score this axis's confidence 1-5, dropping it by 1 for each risk multiplier this axis owns (SKILL.md § Confidence adjustments). If you find nothing, say so explicitly. Under 400 words per axis."
 5. **Budget** — a tool-call ceiling scaled to risk: roughly ~8 for a Standard read, ~15 for a Risky deep pass. Read and reason from the diff and the files it touches; don't run builds or the full test suite unless your axis (Tests, sometimes Correctness) needs execution to judge. A pass that reasons tightly from the code beats one that stalls exploring.

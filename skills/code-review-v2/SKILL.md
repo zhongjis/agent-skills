@@ -21,6 +21,7 @@ A review runs as a set of independent **axes** — each a single lens (correctne
 - **Keep review focused.** Under 400 LOC per session — defect detection collapses past that. Let tooling catch formatting; spend human attention on architecture and behavior. Split larger changes.
 - **Acknowledge good work.** Use `[KUDOS]` for exemplary sections — it reinforces standards.
 - **Scope to the actual change.** Raise unrelated issues or feature ideas elsewhere, not in this review.
+- Keep required changes grounded in the agreed scope and demonstrated defects. Do not introduce late preferences or demand rewrites of valid approaches. Newly discovered defects remain reportable.
 
 ## Review process
 
@@ -28,11 +29,14 @@ Run these steps in order. Steps 1-3 run once, inline, in the main reviewing cont
 
 > **Mode** · **Risk** · **Behavior delta** · **Security depth** · **Active axes**
 
-1. **Pin scope, mode + risk.** Fix the comparison point, note the mode, and classify the change's **Risk** — Trivial / Standard / Risky (see Risk dial; it is scope-level, readable from `git diff --stat` and the touched paths).
-   - Local: `git diff <base>...HEAD` (three-dot, so the comparison is against the merge-base) or `jj diff`; `git diff --stat` for scope; `git log <base>..HEAD --oneline` for commits.
+1. **Pin scope, mode + risk.** Select the requested comparison, note the mode, and classify the change's **Risk** — Trivial / Standard / Risky (see Risk dial; use the selected diff's stat and touched paths).
+   - Local Git: unstaged `git diff` / `git diff --stat`; staged `git diff --cached` / `git diff --cached --stat`; combined tracked uncommitted `git diff HEAD` / `git diff HEAD --stat`; committed `git diff <base>...HEAD` / `git diff <base>...HEAD --stat` (against the merge-base). Preserve any requested path filters in both commands.
+   - For a committed Git comparison only, confirm the base resolves (`git rev-parse --verify <base>^{commit}`) and a merge-base exists (`git merge-base <base> HEAD`); gather commits with `git log <base>..HEAD --oneline`.
+   - Local jj: `jj diff` / `jj diff --stat`, preserving requested revision and path selectors; no Git base checks.
+   - Git diffs omit untracked files; identify them with `git ls-files --others --exclude-standard` and inspect those in the requested scope.
    - PR: follow `references/pr-workflow.md` — prefer a local checkout (§ 0), then gather PR metadata and pin scope.
-   - Confirm the base resolves (`git rev-parse <base>`) and the diff is non-empty before going further — a bad ref or empty diff fails here, not inside an axis.
-2. **Gather context + fetch links.** Read each changed file in full, not just the hunks. For every changed symbol, find its callers. Follow any links you encounter — the PR description, commit messages, linked issues or tickets, a path the user passed — and fetch the ones your environment can reach, so behavior and intent rest on real context. Scale depth to the Risk you pinned; `references/context-gathering.md` has the concrete caller / history / churn commands.
+   - Confirm the selected diff command succeeds and the selected scope is non-empty, including any in-scope untracked files, before going further — an invalid comparison or empty scope fails here, not inside an axis.
+2. **Gather context + fetch links.** Read each changed file in full, not just the hunks. For every changed symbol, find its callers. Follow any links you encounter — the PR description, commit messages, linked issues or tickets, a path the user passed — and fetch the ones your environment can reach, so behavior and intent rest on real context. Follow `references/context-gathering.md` for dependency contracts and caller / history / churn gathering, scaled to the Risk you pinned.
 3. **Build the foundation brief.** Fill the record once:
    - **Behavior delta** — what observable behavior the change adds, removes, or alters. Descriptive, not a finding; it feeds every axis.
    - **Security depth** — whether the diff touches a **security surface** (input boundary, auth/authz, secrets, deserialization, SQL / shell / HTML sinks, network, file paths). This sets Security's depth and may **upgrade** the Risk you pinned in step 1.
@@ -62,7 +66,7 @@ Scale which axes fire and how deep the context work goes to the change's risk.
 | Risk | Examples | Axes | Context depth |
 | --- | --- | --- | --- |
 | Trivial | docs, config, formatting, typo fixes | always-on axes at triage depth (Standards carries it) + Spec if a source exists | full file read only |
-| Standard | feature work, refactors, test additions | all always-on + triggered conditionals | changed files + callers |
+| Standard | feature work, refactors, test additions | all always-on + triggered conditionals | changed files + callers + key dependency contracts (`references/context-gathering.md`) |
 | Risky | auth, payments, DB schema, public API, concurrency | all applicable, deep passes | full data-flow tracing, history, convention sampling |
 
 ## Execution
@@ -167,6 +171,6 @@ For PR reviews, the inline-vs-summary strategy, GitHub comment formatting rules,
 
 - `references/axis-checklists.md` — per-axis deep checklists; load the sections for the active axes.
 - `references/parallel-axes.md` — isolated-pass dispatch, the self-contained brief template, bundling, and aggregation mechanics.
-- `references/context-gathering.md` — the concrete caller / history / churn commands for the Gather-context step, scaled to the Risk dial.
+- `references/context-gathering.md` — dependency contracts and concrete caller / history / churn commands for the Gather-context step, scaled to the Risk dial.
 - `references/pr-workflow.md` — GitHub PR pipeline: collect prior feedback, incremental re-review scoping and output, atomic review API, AI attribution footer, comment formatting.
 - `references/language-patterns.md` — Python / TypeScript bad/good examples, applied within Correctness, Standards, and Security.
