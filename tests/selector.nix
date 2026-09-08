@@ -48,6 +48,7 @@ let
     "setup-repo-docs"
     "skill-maintainer"
     "splunk"
+    "to-arch-design"
     "use-open-design-canvas"
     "zoom-out"
   ];
