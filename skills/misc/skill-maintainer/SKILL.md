@@ -44,8 +44,8 @@ evidence:
 For a new vendored import, confirm source, name, path, and ref before mutation. Determine harness and profile from user intent plus existing repository patterns. If harness or profile remains ambiguous in a behavior-changing way, stop and ask one precise question; never guess.
 
 Repository model:
-- Authored/adapted skills live in root `skills/`; vendored common skills live in `.agents/skills/`; physical harness skills live in `<agent-folder>/skills/`.
-- `skill-selection.nix.exclude` removes named root skills from global selection. Each excluded skill may have one relative project projection at `.agents/skills/<name>` targeting `../../skills/<name>`.
+- Authored/adapted skills live in category subdirectories under root `skills/` (e.g. `skills/engineering/<name>`); vendored common skills live in `.agents/skills/`; physical harness skills live in `<agent-folder>/skills/`.
+- `skill-selection.nix.exclude` removes named root skills from global selection. Each excluded skill may have one relative project projection at `.agents/skills/<name>` targeting `../../skills/<category>/<name>`.
 - `skill-harnesses.nix` sparsely routes globally selectable root skills to logical harnesses; unlisted selected root skills are logical common.
 - `profiles.nix` lists `personal` and `work` membership; unlisted skills are `general`.
 - Same-name common and harness-specific skills are allowed only as an intentional final override; same-layer duplicates are invalid.
@@ -57,7 +57,7 @@ Repository model:
 Classify each skill before changing it:
 - Root `skills/` leaf with no lock entry → authored/adapted; `adaptedFrom` is informational lineage.
 - `.agents/skills/` directory with a tracked CLI-generated lock entry → vendored.
-- `.agents/skills/<name>` symlink named by `skill-selection.nix.exclude` and targeting `../../skills/<name>` → project-local projection.
+- `.agents/skills/<name>` symlink named by `skill-selection.nix.exclude` and targeting `../../skills/<category>/<name>` → project-local projection.
 - Singular `upstream`, when present, must agree with the lock source.
 - `.agents/skills/` directory without lock, mismatched projection, root leaf with lock, orphan lock, or conflicting `upstream`/lock source → provenance drift.
 

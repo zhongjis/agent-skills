@@ -15,19 +15,25 @@ let
     pi = ../.pi/skills;
   };
 
-  discoverNames = root:
-    if builtins.pathExists root
-    then
-      let
-        entries = builtins.readDir root;
-      in
-        builtins.filter
-        (name:
-          entries.${name}
-          == "directory"
-          && builtins.pathExists (root + "/${name}/SKILL.md"))
-        (builtins.attrNames entries)
-    else [];
+  discoverNames = root: let
+    collect = r:
+      if builtins.pathExists r
+      then
+        let
+          entries = builtins.readDir r;
+          dirs = builtins.filter (name: entries.${name} == "directory") (builtins.attrNames entries);
+          namesFor = name:
+            if builtins.pathExists (r + "/${name}/SKILL.md")
+            then [name]
+            else collect (r + "/${name}");
+        in
+          builtins.concatLists (map namesFor dirs)
+      else [];
+  in
+    builtins.attrNames (builtins.listToAttrs (map (name: {
+        inherit name;
+        value = true;
+      }) (collect root)));
   movedRootNames = [
     "address-comments"
     "ast-grep"

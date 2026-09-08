@@ -27,8 +27,8 @@ assert_excludes_line() {
 
 assert_project_projection() {
   local name="$1"
+  local expected="$2"
   local linkPath="$repoRoot/.agents/skills/$name"
-  local expected="../../skills/$name"
 
   [[ -L "$linkPath" ]] || fail "project projection is not a symlink: $name"
   [[ "$(readlink "$linkPath")" == "$expected" ]] \
@@ -74,8 +74,8 @@ run_cli() {
 scriptDir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repoRoot="$(cd -- "$scriptDir/.." && pwd -P)"
 sourceStatusBefore="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"
-assert_project_projection find-skills
-assert_project_projection skill-maintainer
+assert_project_projection find-skills ../../skills/misc/find-skills
+assert_project_projection skill-maintainer ../../skills/misc/skill-maintainer
 
 tempDir="$(mktemp -d)"
 [[ -n "$tempDir" && -d "$tempDir" && "$tempDir" == /*/tmp.* ]] \

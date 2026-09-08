@@ -82,11 +82,11 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Skill catalog
 
-- **Layout**: authored/adapted skills live in root `skills/`; vendored common skills live in `.agents/skills/`; relative `.agents/skills/<name>` symlinks may project centrally excluded root skills from `../../skills/<name>`; physical harness skills live in `<agent-folder>/skills/`; absent harness folders yield empty groups
+- **Layout**: authored/adapted skills live in category subdirectories under root `skills/` (e.g. `skills/engineering/<name>`); vendored common skills live in `.agents/skills/`; relative `.agents/skills/<name>` symlinks may project centrally excluded root skills from `../../skills/<category>/<name>`; physical harness skills live in `<agent-folder>/skills/`; absent harness folders yield empty groups
 - **Profile axis**: `profiles.nix` at repo root lists skills by profile (`personal`, `work`); unlisted skills are `general`
-- **Global exclusion**: `skill-selection.nix.exclude` removes named root skills from every `lib.skillsFor` result; every name must exist in root `skills/`
+- **Global exclusion**: `skill-selection.nix.exclude` removes named root skills from every `lib.skillsFor` result; every name must exist as a leaf under root `skills/` (in any category subdirectory)
 - **Authored vs vendored**: root `skills/` leaves without lock entries are authored/adapted; `.agents/skills/` directories with lock entries are vendored; matching relative symlinks named by `skill-selection.nix.exclude` are project-local projections; `adaptedFrom` is informational lineage
-- **Provenance drift**: `.agents/skills/` directory without lock, root leaf with lock, orphan lock, conflicting `upstream`/lock source, or a projection not matching `../../skills/<name>` is drift; singular `upstream`, when present, must agree with lock source
+- **Provenance drift**: `.agents/skills/` directory without lock, root leaf with lock, orphan lock, conflicting `upstream`/lock source, or a projection not matching `../../skills/<category>/<name>` is drift; singular `upstream`, when present, must agree with lock source
 - **Logical routing**: `skill-harnesses.nix` sparsely maps globally selectable root skill names to supported harnesses; unlisted selected root skills are logical common
 - **Precedence/collisions**: physical harness skills override logical common at final selection; same-layer root/vendored or routed/physical duplicates are invalid
 - **Whole-dir/source fidelity**: preserve complete skill directories and instructional content; only repository-owned provenance metadata may differ; reject unsuitable sources rather than rewriting them

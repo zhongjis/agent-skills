@@ -6,7 +6,7 @@
 
 ## Ownership
 
-- Each direct child directory is one complete skill leaf.
+- Each direct child directory is a category grouping (`engineering/`, `tools/`, `productivity/`, `misc/`, `in-progress/`); each skill leaf is one complete directory nested one level under its category.
 - Root `skill-harnesses.nix` owns sparse logical harness routing.
 - Root `skill-selection.nix` owns global selection exclusions.
 
@@ -16,7 +16,7 @@
 - Skills absent from `skill-harnesses.nix` are logical common.
 - Routed skills belong only to their named logical harness, not common.
 - Authored/adapted leaves have no `skills-lock.json` entry.
-- Excluded authored leaves remain canonical here and may have one matching relative project projection at `.agents/skills/<name>` → `../../skills/<name>`.
+- Excluded authored leaves remain canonical here and may have one matching relative project projection at `.agents/skills/<name>` → `../../skills/<category>/<name>`.
 
 ## Work Guidance
 
@@ -31,5 +31,5 @@
 
 ## Child DOX Index
 
-- `programming/AGENTS.md` — programming skill routing, reference ownership, checker consistency, and local verification.
+- `engineering/programming/AGENTS.md` — programming skill routing, reference ownership, checker consistency, and local verification.
 - Other nested AGENTS.md files under skill fixtures are test material unless indexed here.

@@ -29,7 +29,7 @@
 ## Verification
 
 - Run focused checker tests and syntax checks for touched scripts.
-- Validate Markdown fences and relative links under `skills/programming/`.
+- Validate Markdown fences and relative links under `skills/engineering/programming/`.
 - Validate `evals/evals.json` syntax and preserve routing coverage when changing language or tooling defaults.
 - Run `nix eval --file tests/selector.nix` and the full checks listed in `tests/AGENTS.md`.
 

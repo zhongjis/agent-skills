@@ -2,17 +2,17 @@ let
   discoverSkills = root: let
     entries = builtins.readDir root;
     directories = builtins.filter (name: entries.${name} == "directory") (builtins.attrNames entries);
-    skillEntry = name: let
+    # A child directory with a SKILL.md is one skill leaf; otherwise it is a
+    # category directory whose leaves are discovered recursively. The leaf name
+    # (not the category path) stays the skill identity used everywhere downstream.
+    skillAttrsFor = name: let
       directory = root + "/${name}";
     in
       if builtins.pathExists (directory + "/SKILL.md")
-      then {
-        inherit name;
-        value = directory;
-      }
-      else throw "agent-skills: missing SKILL.md in ${toString directory}";
+      then {${name} = directory;}
+      else discoverSkills directory;
   in
-    builtins.listToAttrs (map skillEntry directories);
+    builtins.foldl' (acc: name: acc // skillAttrsFor name) {} directories;
 
   discoverSkillsIf = folder:
     if builtins.pathExists folder
