@@ -1,0 +1,38 @@
+{
+  "skill_name": "herdr-bulk-action",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use herdr-bulk-action to review Jira issues OPS-41, OPS-42 and OPS-43 in our staging rollout. Same instructions for all: focus on rollout risk and missing acceptance criteria. I haven't decided whether I want ticket feedback or reviews of the linked code. What would you do?",
+      "expected_output": "Stops before task work or dispatch. Clarifies ticket review versus linked-code review and only other unresolved choices, then proposes or completes a plan covering targets/acting identity, side effects, outputs/evidence, worker kind, concurrency, isolation and dependencies/lifecycle. Requests explicit plan confirmation without requiring a preliminary inspection, assuming PR/worktree behavior, or selecting a draft-only policy on the user's behalf.",
+      "expectations": [
+        "Clarifies ticket feedback versus linked-code review and waits for confirmation before dispatch.",
+        "Proposes per-item Herdr fan-out with concurrency, isolation, shared rubric and bounded lifecycle.",
+        "Asks intended output/write scope rather than imposing an extra draft-approval policy."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Use herdr-bulk-action for https://github.com/example/payments/pull/81 and /82 with the code-review skill, using the authenticated GitHub account release-bot. Propose two pi workers, isolated worktrees at each PR head, one pass, keep the worktrees, no watching. Preserve code-review's posting workflow for #81; explicit override for #82: draft only, never post. Neither depends on the other. For this offline exercise the supplied code-review contract is: inspect the PR, return a verdict with evidence, and post one review to GitHub. Give me the fan-out plan and the two worker packets for approval; do not dispatch yet.",
+      "expected_output": "Proposes the requested task-specific isolation/concurrency and bounded plan, with explicit confirmation still pending. Worker #81 follows the referenced posting contract; worker #82 receives the draft-only override. Specifies outputs and completion evidence appropriate to each (verified posted review versus draft findings). Adds neither a review-only default nor a second blanket posting gate, while preserving runtime Herdr approval requirements. Performs no dispatch or external writes.",
+      "expectations": [
+        "Preserves posting for PR 81 while giving PR 82 an explicit no-post override.",
+        "Proposes two isolated workers with per-item completion evidence and waits for approval.",
+        "Does not require a second blanket approval for the confirmed PR 81 post."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Offline simulation only: use herdr-bulk-action, with no live tool actions. Prior plan explicitly confirmed: task = publish a release note per item to the Docs staging project as release-bot using the supplied shared template; items A, B, C, D, E, F; three pi workers concurrently, one isolated sibling pane each in the current cwd, no new workspaces/worktrees; D depends on A, E on B, F independent. One pass; retries only after inspection proves no write occurred; no watching, reruns or cleanup. Required output: published note URL verified at the destination, or failure/blocker evidence. Assume HERDR_ENV=1 and Herdr startup checks passed. A, B, C were dispatched; A returned a verified note URL https://docs.example/staging/A. B failed template validation before writing. C timed out after submitting a publish request, so its write outcome is unknown. On the next destination read, shared authentication expired; D, E, F are still queued. Herdr shows C as done. Explain your next coordination actions and produce the bounded per-item report from these facts, without inventing evidence or invoking tools.",
+      "expected_output": "Records A succeeded with supplied evidence, B isolated failure, C uncertain despite done, E blocked on B, and D/F blocked by shared authentication although otherwise eligible. Pauses dispatch and affected work for the shared blocker and asks for resolution; unaffected active work could finish. Does not retry C before authenticated destination inspection proves whether the note exists, nor infer success from CLI state. Describes dependency-aware release and confirmed concurrency if resuming, accounts for all six items with available evidence, and stops with a blocked report rather than automatically watching, rerunning or cleaning up.",
+      "expectations": [
+        "Accounts for A succeeded, B failed, C uncertain, and D/E/F blocked with correct dependencies.",
+        "Pauses for shared authentication and inspects uncertain write outcomes before retrying.",
+        "Ends the bounded run without inventing evidence, watching, rerunning or cleaning up."
+      ],
+      "files": []
+    }
+  ]
+}
