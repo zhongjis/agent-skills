@@ -55,6 +55,7 @@ let
     "skill-maintainer"
     "splunk"
     "to-arch-design"
+    "to-tickets"
     "use-open-design-canvas"
     "zoom-out"
   ];
