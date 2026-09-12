@@ -155,31 +155,31 @@
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-base/SKILL.md",
-      "computedHash": "daa5a7fc0710591db4d0c3f9709d7cda89f6cfec6ea2ccf87fd11284205c681c"
+      "computedHash": "77334e9717eda3da46fea8be96d2325ffc801650acdd42c96245a07a52811df5"
     },
     "lark-doc": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-doc/SKILL.md",
-      "computedHash": "a24d4aecc9eaedced808b3addf4b7e93c694c2869d262beb7717e1259edacabb"
+      "computedHash": "44df2bedf442033c543f19f1dbea6163ee92a9cd1286abd1e1326b09370d54ec"
     },
     "lark-drive": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-drive/SKILL.md",
-      "computedHash": "d1a476f6dbb3d48a642f3c7d2505c1669949c5f915417b0db6f5edd463ad21f0"
+      "computedHash": "ff74fbfdc00cda7af00bb91d8db330b392e9ecf7b0f6ac4fedb1bf0e25515bf0"
     },
     "lark-shared": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-shared/SKILL.md",
-      "computedHash": "842b7ecf191f71305ac17b4386ab230141709c70f6cf3bcbbb2b98795be6db3f"
+      "computedHash": "058cbbbd01c37b136c01f03562ad67e02c81dfe83b724b461a3d9717303245d0"
     },
     "lark-wiki": {
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-wiki/SKILL.md",
-      "computedHash": "e93d76303d4fa541e4472327997b82be005fa079e2ebe54caa6d646e1ce684fe"
+      "computedHash": "5fb8102a9f575b2a1c6cb929ca443bb8f446a01cd68df9b8fc3b673609687b7c"
     },
     "last30days": {
       "source": "mvanhorn/last30days-skill",
