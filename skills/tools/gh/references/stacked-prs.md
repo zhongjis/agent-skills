@@ -1,10 +1,10 @@
 # Stacked Pull Requests
 
-Use a stack when each reviewable change depends on the layer below it. Prefer GitHub's official `github/gh-stack` extension for same-repository linear stacks. Stacked pull requests and the extension are public preview, so inspect current help before automation.
+Use a stack when each reviewable change depends on the layer below it. GitHub stacks are native objects, but CLI management uses the separate official `github/gh-stack` extension, not core `gh pr stack`. Stacked pull requests and the extension are public preview; inspect current help before automation. [1][2][3]
 
 ## Setup
 
-Current GitHub quickstart requires GitHub CLI 2.90.0 or later and Git 2.20 or later.
+Current GitHub quickstart requires GitHub CLI 2.90.0 or later and Git 2.20 or later. [1]
 
 ```bash
 gh --version
@@ -14,7 +14,9 @@ gh extension install github/gh-stack
 gh stack --help
 ```
 
-## Native workflow
+## Extension workflow
+
+The following creates draft PRs with `--auto`; interactive `gh stack submit` creates new PRs ready for review by default. [2]
 
 ```bash
 # Start first layer from main
@@ -32,8 +34,7 @@ gh stack submit --auto
 gh stack view
 ```
 
-To adopt existing branches or PRs, list branches from bottom to top. Missing PRs are created as drafts; `--open` makes them ready for review.
-Pass `--open` to `gh stack submit` only when every new PR should be ready for review.
+To adopt existing branches or PRs, list branches from bottom to top. `gh stack link` creates missing PRs as drafts by default. On either `submit` or `link`, `--open` marks both new and existing PRs ready for review; use it only when all affected PRs should be ready. [2]
 
 ```bash
 gh stack link --base main layer-1 layer-2
@@ -48,24 +49,24 @@ gh pr list --json number,title,baseRefName,headRefName,state
 
 ## Update and merge
 
-After changing a lower layer, rebase dependent layers, then push the stack:
+After changing a lower layer, rebase dependent layers, then push the stack: [2]
 
 ```bash
 gh stack rebase --upstack
 gh stack push
 ```
 
-After layers merge, synchronize local metadata and remove merged branches:
+After layers merge, synchronize local metadata and remove merged branches: [2]
 
 ```bash
 gh stack sync --prune
 ```
 
-Merge bottom-up. `gh stack merge <PR>` atomically merges through the selected layer; selecting the top PR merges the whole stack. Merge queues preserve stack order.
+Merge bottom-up. `gh stack merge [stack-number|pr-number]` resolves a numeric argument as a stack first, then as a PR. A selected PR atomically merges through that layer; selecting the top PR or the whole stack merges all layers. Confirm the resolved target before proceeding. Merge queues preserve stack order. [2][3]
 
 ## Core `gh pr` fallback
 
-Use chained bases when the preview extension is unavailable:
+Use chained bases when the preview extension is unavailable: [5]
 
 ```bash
 git switch -c layer-1 main
@@ -79,7 +80,7 @@ git push -u origin layer-2
 gh pr create --base layer-1 --head layer-2
 ```
 
-After a lower PR merges, inspect the next PR, retarget it if needed, then update it from its new base:
+After a lower PR merges, inspect the next PR, retarget it if needed, then update it from its new base: [6][7]
 
 ```bash
 UPPER_PR=456
@@ -90,18 +91,18 @@ gh pr update-branch "$UPPER_PR" --rebase
 
 ## Guardrails
 
-- Native stacks require linear history and branches in one repository; cross-fork stacks and GitHub Desktop are unsupported.
-- Changing a PR base can remove commits from the timeline and make review comments outdated. Verify the diff after retargeting.
-- Server-side stack rebases create unsigned commits. Use local `gh stack rebase` when commit signatures must remain valid.
-- Preview commands may change. Re-check `gh stack --help` and the official command reference before scripting them.
-- In a non-interactive session, a diverged `gh stack sync` exits successfully without updating anything. Verify with `gh stack view` after sync.
+- Native stacks require linear history and branches in one repository; cross-fork stacks and GitHub Desktop are unsupported. [3]
+- Changing a PR base can remove commits from the timeline and make review comments outdated. Verify the diff after retargeting. [6]
+- Server-side stack rebases create unsigned commits. Use local `gh stack rebase` when commit signatures must remain valid. [4]
+- Preview commands may change. Re-check `gh stack --help` and the official command reference before scripting them. [2]
+- In a non-interactive session, a diverged `gh stack sync` exits successfully without updating anything. Verify with `gh stack view` after sync. [2]
 
-## Official documentation
+## Sources:
 
-- https://docs.github.com/en/pull-requests/get-started/stacked-prs-quickstart
-- https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands
-- https://docs.github.com/en/pull-requests/reference/stacked-pull-requests
-- https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/managing-stacked-pull-requests
-- https://cli.github.com/manual/gh_pr_create
-- https://cli.github.com/manual/gh_pr_edit
-- https://cli.github.com/manual/gh_pr_update-branch
+[1] Stacked PRs quickstart (https://docs.github.com/en/pull-requests/get-started/stacked-prs-quickstart)
+[2] Stacked PRs CLI commands (https://docs.github.com/en/pull-requests/reference/stacked-prs-cli-commands)
+[3] Stacked pull requests (https://docs.github.com/en/pull-requests/reference/stacked-pull-requests)
+[4] Managing stacked pull requests (https://docs.github.com/en/pull-requests/how-tos/create-pull-requests/managing-stacked-pull-requests)
+[5] gh pr create manual (https://cli.github.com/manual/gh_pr_create)
+[6] gh pr edit manual (https://cli.github.com/manual/gh_pr_edit)
+[7] gh pr update-branch manual (https://cli.github.com/manual/gh_pr_update-branch)

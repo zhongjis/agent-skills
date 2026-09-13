@@ -1,5 +1,7 @@
 # Pull Requests (gh pr)
 
+For PR body or comment images/videos, read [Attachments](attachments.md) before uploading: prerequisites, layout-preserving recipes, and partial-upload recovery.
+
 ## Create Pull Request
 
 ```bash

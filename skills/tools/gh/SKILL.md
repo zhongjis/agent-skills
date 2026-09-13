@@ -1,6 +1,6 @@
 ---
 name: gh
-description: GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. Use when creating or stacking PRs, managing issues, running workflows, checking CI status, managing releases, making GitHub API calls, or handling operational issue workflows such as bulk issue creation, sub-issues, blocked-by links, labels, and GitHub API/GraphQL issue relationships. Triggers on "create PR", "stacked PR", "list issues", "gh command", "merge PR", "run workflow", "check status", "create release", "download artifacts", "set secret", "create issues", "sub-issues", "blocked by", and "GitHub API".
+description: GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. Use when creating or stacking PRs, attaching images or videos to PRs or comments, managing issues, running workflows, checking CI status, managing releases, making GitHub API calls, or handling operational issue workflows such as bulk issue creation, sub-issues, blocked-by links, labels, and GitHub API/GraphQL issue relationships. Triggers on "create PR", "stacked PR", "attach screenshot", "list issues", "gh command", "merge PR", "run workflow", "check status", "create release", "download artifacts", "set secret", "create issues", "sub-issues", "blocked by", and "GitHub API".
 adaptedFrom:
   - "https://github.com/github/awesome-copilot/blob/main/skills/gh-cli/SKILL.md"
 ---
@@ -14,6 +14,7 @@ Work seamlessly with GitHub from the command line.
 | Task                    | Command                                           |
 | ----------------------- | ------------------------------------------------- |
 | Create PR               | `gh pr create --title "..." --body "..."`         |
+| Attach PR image         | `gh pr edit 123 --attach 'after.png#Updated UI'` ([requirements](references/attachments.md)) [1] |
 | List open PRs           | `gh pr list`                                      |
 | View PR                 | `gh pr view 123`                                  |
 | Merge PR                | `gh pr merge 123 --squash --delete-branch`        |
@@ -77,6 +78,7 @@ For comprehensive command documentation:
 - [Issues](references/issues.md) - Create, list, edit, close, comment, labels
 - [Pull Requests](references/prs.md) - Create, review, merge, checkout, diff
 - [Stacked Pull Requests](references/stacked-prs.md) - Create, submit, update, and merge dependent PRs
+- [Attachments](references/attachments.md) - Read before uploading PR/comment images or videos: access, body layout, and partial-upload recovery
 - [Actions](references/actions.md) - Workflows, runs, caches, secrets, variables
 - [Releases](references/releases.md) - Create, upload, download, verify
 - [Projects](references/projects.md) - Create, manage items, fields
@@ -269,3 +271,7 @@ gh help environment
 - GitHub Docs: https://docs.github.com/en/github-cli
 - REST API: https://docs.github.com/en/rest
 - GraphQL API: https://docs.github.com/en/graphql
+
+## Sources:
+
+[1] gh pr edit manual (https://cli.github.com/manual/gh_pr_edit)
