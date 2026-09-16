@@ -22,6 +22,7 @@
 
 - Move whole directories; keep only the explicit project projections owned by `skill-selection.nix`; do not create compatibility copies or symlinks in old roots.
 - Keep skill names, profile membership, global exclusion, logical routing, and project projections aligned.
+- `engineering/research/` owns ordinary primary-source research and explicitly opted-in deep workflow routing; research and workflow execution do not authorize persistence, rendering, or publication.
 - `code-review/SKILL.md` and its context-gathering / parallel-axes references own scope-matched local reviews, shared dependency-contract evidence, and scope-grounded requirements; preserve these contracts across review passes.
 - `herdr-bulk-action/SKILL.md` owns user-invoked, explicitly confirmed generic Herdr batches: referenced task behavior with user overrides, task-needed isolation, and a bounded lifecycle; its `evals/evals.json` owns focused scenarios. Keep `herdr-bulk-review` separate.
 - `tools/gh/` owns GitHub CLI execution guidance, including extension-based stacks and native PR/comment media attachments; keep upload prerequisites, body preservation, and partial-failure recovery in its attachment reference.

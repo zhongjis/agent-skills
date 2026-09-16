@@ -50,6 +50,7 @@ let
     "programming"
     "refactor"
     "remove-ai-slops"
+    "research"
     "rg"
     "setup-repo-docs"
     "skill-maintainer"
@@ -194,6 +195,11 @@ let
   };
 in
   assert rootNames == movedRootNames;
+  assert builtins.elem "research" rootNames;
+  assert !(builtins.elem "research" vendoredCommonNames);
+  assert !(builtins.elem "research" excludedRootNames);
+  assert !(builtins.hasAttr "research" (import ../skill-harnesses.nix));
+  assert builtins.elem "research" commonNames;
   assert assemblyTests;
   assert exclusionTests;
   assert !(builtins.elem "pi-jsonl-logs" commonNames);
