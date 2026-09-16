@@ -15,6 +15,7 @@ from . import (
     health,
     hiring_signals,
     library_index,
+    meta_ads,
     registers,
     relevance,
     rerank,
@@ -229,6 +230,7 @@ SOURCE_LABELS = {
     "techmeme": "Techmeme",
     "trustpilot": "Trustpilot",
     "amazon": "Amazon",
+    "meta_ads": "Meta Ads",
     "perplexity": "Perplexity",
     "jobs": "Jobs",
     "corpus": "Your files",
@@ -1643,6 +1645,19 @@ def render_comparison_multi_context(
     if resolved_block:
         lines.extend(resolved_block)
         lines.append("")
+    # render_context surfaces warnings for a single-entity run; omitting them
+    # here left context mode the one supported output where a dropped entity
+    # or a failed source is invisible. Placed above the per-entity sections so
+    # it survives tail truncation, matching render_comparison_multi.
+    aggregated_warnings = [
+        f"[{label}] {warning}"
+        for label, report in entity_reports
+        for warning in report.warnings
+    ]
+    if aggregated_warnings:
+        lines.append("Warnings:")
+        lines.extend(f"- {warning}" for warning in aggregated_warnings)
+        lines.append("")
     for label, report in entity_reports:
         evidence_report = schema.without_sources(report, {"corpus"})
         requested_clusters = evidence_report.clusters[:cluster_limit]
@@ -2590,6 +2605,8 @@ def _format_outcome(outcome: schema.SourceOutcome) -> str:
             summary += ", some requests rate-limited"
     elif state == schema.NO_RESULTS:
         summary = "no results"
+    elif state == schema.PAYMENT_REQUIRED:
+        summary = health.credits_exhausted_label(outcome.source)
     else:
         summary = state
     if detail:
@@ -2875,6 +2892,10 @@ def _build_source_footer_lines(report: schema.Report) -> list[str]:
     if amazon_line:
         out.append(amazon_line)
 
+    meta_ads_line = _meta_ads_footer_line(report)
+    if meta_ads_line:
+        out.append(meta_ads_line)
+
     # Web (sources from grounding)
     web_items = report.items_by_source.get("grounding") or []
     if web_items:
@@ -2988,6 +3009,145 @@ def _amazon_footer_line(report: schema.Report) -> str | None:
     entries = [amazon.footer_entry(s) for s in stats]
     line = f"📦 Amazon: {count} {plural} │ {', '.join(entries)}"
     return line
+
+
+# Longest advertiser or candidate name the footer will print. The footer is one
+# scannable line inside a box; an unbounded source-controlled name would push
+# every other source's line out of view.
+_META_ADS_NAME_MAX = 32
+
+
+def _footer_safe(value: str, limit: int = _META_ADS_NAME_MAX) -> str:
+    """Make a source-controlled string safe to interpolate into a footer line.
+
+    The advertiser name, the closest-candidate name, and the promo codes all
+    come from the upstream API, so they are attacker-influenceable. Left raw, a
+    name carrying a newline or the footer's own separator could forge extra
+    footer rows in the passed-through emoji tree, which the model relays
+    verbatim. Collapse control characters and the separator, then clip.
+    """
+    cleaned = _sanitize_url_for_single_line_output(str(value or "")).replace("│", "|")
+    cleaned = " ".join(cleaned.split()).strip()
+    if len(cleaned) > limit:
+        cleaned = cleaned[:limit].rstrip() + "…"
+    return cleaned
+
+
+_PLACEMENT_SHORT = {
+    "FACEBOOK": "FB",
+    "INSTAGRAM": "IG",
+    "THREADS": "Threads",
+    "MESSENGER": "Messenger",
+    "WHATSAPP": "WhatsApp",
+    "AUDIENCE_NETWORK": "Audience",
+}
+
+
+def _meta_ads_footer_line(report: schema.Report) -> str | None:
+    """Build the 📣 Meta Ads emoji-footer line.
+
+    Every count comes from the adapter's tally, never from ``items_by_source``.
+    The pipeline truncates each source's stream to a per-depth limit (12 at
+    default) before rendering, so counting surviving items would report 12
+    creatives for a page that ran thirty, and would under-count the video and
+    transcript work that was actually paid for.
+
+    Four shapes, because an empty line is never the right answer here -- if the
+    lane ran and found nothing, the reader needs to know which nothing it was:
+
+    * **Resolved with creatives** -- advertiser, what launched this window, and
+      the paid-media detail (placements, promo codes, transcripts).
+    * **Resolved, nothing new** -- name the advertiser and how much it is still
+      running from before, so "no ads" is not confused with "not advertising".
+    * **Unresolved** -- name the closest candidate and point at the override.
+    * **Failed** -- name the outcome rather than implying an empty Ad Library.
+    """
+    tally = (report.artifacts or {}).get("meta_ads_tally") or {}
+    page = (report.artifacts or {}).get("meta_ads_page") or {}
+    outcome = report.source_status.get("meta_ads")
+    if not tally and not page and outcome is None:
+        return None
+
+    # Three distinct states, and conflating any two of them misleads:
+    #   failed      -- the lane could not run; say so, never "found nothing".
+    #   partial     -- it ran and was cut short; its counts are a floor, so a
+    #                  "nothing new" conclusion drawn from them would be a
+    #                  claim the data does not support.
+    #   no results  -- it ran to completion and the answer is genuinely empty.
+    # NO_RESULTS is what the pipeline stamps on any zero-item source, so
+    # treating it as failure would collapse every honest empty state below into
+    # a generic "no ads pulled".
+    state = getattr(outcome, "state", None)
+    detail = str(getattr(outcome, "detail", "") or "").strip()
+    if outcome and state not in (health.OK, schema.PARTIAL, schema.NO_RESULTS):
+        return f"📣 Meta Ads: no ads pulled ({detail})" if detail else "📣 Meta Ads: no ads pulled"
+    cut_short = state == schema.PARTIAL
+
+    resolution = str(tally.get("resolution") or "")
+    if resolution == meta_ads.NO_CANDIDATES:
+        return "📣 Meta Ads: no advertiser candidates returned │ pass --meta-ads-page to target one"
+    if resolution == meta_ads.UNRESOLVED or not page:
+        candidate = _footer_safe(tally.get("top_candidate") or "")
+        if candidate:
+            return (
+                f"📣 Meta Ads: no advertiser matched │ closest: {candidate} "
+                f"│ pass --meta-ads-page to target one"
+            )
+        return "📣 Meta Ads: no advertiser matched │ pass --meta-ads-page to target one"
+
+    advertiser = _footer_safe(page.get("name") or tally.get("advertiser") or "")
+    launched = int(tally.get("launched_in_window") or 0)
+    still = int(tally.get("still_running") or 0)
+
+    if not launched:
+        # A cut-short lane never reached the end of the page, so "no new
+        # creatives" would state a conclusion its own data cannot support.
+        if cut_short:
+            head = f"📣 Meta Ads: {advertiser} │ incomplete".rstrip()
+            parts = [head, "no new creatives seen before the run was cut short"]
+            if detail:
+                parts.append(_footer_safe(detail, 60))
+            return " │ ".join(parts)
+        parts = [f"📣 Meta Ads: no new creatives for {advertiser}".rstrip()]
+        if still:
+            parts.append(f"{still} still running from before")
+        return " │ ".join(parts)
+
+    fetched = int(tally.get("fetched") or 0)
+    total = int(tally.get("endpoint_total") or 0)
+    # A page bigger than the depth cap is a sample, and saying so is the
+    # difference between "this brand launched 12 creatives" and "we looked at
+    # 60 of its 222 live ads and 12 of those were new". The two numbers are
+    # different units on purpose -- deduped creatives against raw ads -- so
+    # both get named rather than sharing one bare noun.
+    if tally.get("cursor_remaining") and total > fetched > 0:
+        head = f"{launched} new of {fetched} ads fetched ({total:,} live)"
+    else:
+        head = f"{launched} new {'creative' if launched == 1 else 'creatives'}"
+
+    parts = [f"📣 Meta Ads: {advertiser} │ {head}"] if advertiser else [f"📣 Meta Ads: {head}"]
+    if cut_short:
+        parts.append("incomplete")
+    if still:
+        parts.append(f"{still} running from before")
+    # Resolution that rested on substring containment is the weakest tier the
+    # resolver accepts, so the reader is told to check the advertiser rather
+    # than left to assume the name was confirmed.
+    if str(tally.get("match_strength") or "") == meta_ads.MATCH_CONTAINED:
+        parts.append("matched by partial name")
+    placements = [
+        _PLACEMENT_SHORT.get(str(p).upper(), _footer_safe(p, 12))
+        for p in (tally.get("placements") or [])
+    ]
+    if placements:
+        parts.append(", ".join(placements))
+    codes = [_footer_safe(c, 16) for c in (tally.get("promo_codes") or []) if c]
+    if codes:
+        parts.append(f"code {', '.join(codes)}")
+    transcribed = int(tally.get("transcribed") or 0)
+    if transcribed:
+        parts.append(f"{transcribed} transcribed")
+    return " │ ".join(parts)
 
 
 def _top_voices_footer_line(report: schema.Report) -> str | None:
@@ -3124,6 +3284,9 @@ def _render_stats(report: schema.Report) -> list[str]:
         actor_summary = _top_actor_summary(source, items)
         if actor_summary:
             parts.append(actor_summary)
+        if source == "x" and report.artifacts.get("x_provenance") == "connector":
+            # Host-fetched lane (--x-posts): name the provenance in the footer.
+            parts.append("via X connector")
         lines.append(f"- {_source_label(source)}: {' | '.join(parts)}")
     lines.append("")
     return lines
@@ -3205,6 +3368,7 @@ ENGAGEMENT_DISPLAY: dict[str, list[tuple[str, str]]] = {
     "digg": [("postCount", "posts"), ("uniqueAuthors", "auth")],
     "trustpilot": [("reviews", "reviews")],
     "amazon": [("ratings", "ratings")],
+    "meta_ads": [("variants", "variants")],
 }
 
 
