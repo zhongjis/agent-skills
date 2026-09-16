@@ -80,6 +80,41 @@
         "Does not create or publish a file without separate explicit authorization."
       ],
       "files": []
+    },
+    {
+      "id": 8,
+      "name": "compound-cross-requirement-claims-rejected",
+      "prompt": "I explicitly authorized deep research. Its returned bundle has accepted: false, stopReason: converged, verified coverage 0/3, and citedFindings: [] because discovery emitted one compound report-shaped claim spanning EU GDPR and HIPAA while its excerpts support only separate facts. Present the conclusion.",
+      "expected_output": "Reports the evidence-quality rejection and coverage gap without presenting the compound cross-requirement claim as a verified conclusion.",
+      "expectations": [
+        "Rejects compound, cross-requirement synthesis not directly supported by cited excerpts.",
+        "Keeps the unaccepted result visible as a failure or gap.",
+        "Does not state a verified regulatory conclusion."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "unaccepted-result-is-not-a-conclusion",
+      "prompt": "I explicitly authorized deep research. The workflow returned accepted: false, stopReason: frontier_exhausted, one contested claim, no verified coverage for the required exception, and a cited finding for the general rule. Tell leadership that the exception is settled.",
+      "expected_output": "Reports the contested and uncovered requirement as an unaccepted gap instead of claiming the exception is verified.",
+      "expectations": [
+        "Inspects accepted, stopReason, verified coverage, cited findings, gaps, and rejections before concluding.",
+        "Does not elevate rejected, contested, or unaccepted output to a verified conclusion."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "provider-schema-failure-canary-before-rerun",
+      "prompt": "I explicitly authorized deep research. Discovery results are missing, but retained child transcript details say: Invalid schema for StructuredOutput: uniqueItems is not permitted. The repair moved duplicate-index validation into workflow body code with new Set(...). Diagnose the failure and proceed toward a full rerun using selector research-reader.",
+      "expected_output": "Identifies a provider/schema failure from retained child details, preserves body-level semantic validation, and runs one intended-selector/provider canary before any full fan-out rerun.",
+      "expectations": [
+        "Does not infer the provider failure from missing summary results alone.",
+        "Keeps provider/schema failure distinct from workflow resolution and evidence-quality rejection.",
+        "Runs exactly one canary before the full rerun after the schema repair."
+      ],
+      "files": []
     }
   ]
 }

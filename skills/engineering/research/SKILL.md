@@ -24,10 +24,12 @@ Offer this path when the question is broad, contradictory, high-stakes, or needs
 After explicit opt-in, collect these inputs before launch:
 
 - A nonblank question.
-- One to six distinct coverage requirements.
+- One to six distinct, disjoint, independently verifiable coverage requirements; decompose broad input before launch.
 - Nonblank evidence context, including known sources, constraints, and uncertainties.
 - A live read-only agent selector. Check the current Agent roster and its configured permissions; it must permit only read-only work. No suitable selector is a blocker.
 - Bounds: `maxRounds` from 1 through 3.
+
+For deep discovery, prompts MUST request atomic, one-fact claims scoped to one assigned requirement and directly supported by cited excerpts. NEVER request compound/report-shaped claims, embedded citation numbering, cross-requirement leakage, or unsupported synthesis.
 
 Verify that `SubagentWorkflow`, the saved `deep-research` workflow, and the permission-checked selector are available. Then invoke:
 
@@ -44,6 +46,8 @@ SubagentWorkflow({
 })
 ```
 
-For an explicit deep-workflow request, an unavailable tool, workflow, or selector MUST fail visibly with the specific blocker and stop. NEVER silently downgrade to ordinary research.
+For an explicit deep-workflow request, named workflow resolution failure, provider/schema failure, or evidence-quality rejection MUST fail visibly and remain distinct. NEVER silently downgrade to ordinary research. Diagnose asynchronous provider failures from retained child transcript/details, NEVER missing summary results alone.
+
+Before conclusions, inspect `accepted`, `stopReason`, verified coverage, `citedFindings`, gaps, and rejections. Only claims in `citedFindings` mapped to verified coverage MAY be presented as verified conclusions; `accepted: false`, rejected claims, and contested claims MUST remain visible as failures or gaps. When a rerun remains authorized after a provider/schema repair, run one canary on the intended selector/provider before the full rerun.
 
 Workflow execution authorizes neither writing nor publication. Treat its returned bundle as research evidence only; obtain separate explicit authorization before persisting, rendering, or publishing it.
