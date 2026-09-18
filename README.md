@@ -18,7 +18,7 @@ Global selection exclusions live in `skill-selection.nix`; excluded authored ski
 | Profile | Skills |
 | --- | --- |
 | `personal` | _(none)_ |
-| `work` | github-pr-management, mysql-best-practices, splunk |
+| `work` | pr, mysql-best-practices, splunk |
 
 The source contains 80 unique leaves; `lib.skillsFor` exposes 78. Fifteen root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills` plus `skill-maintainer` are centrally excluded and projected locally. `mcp-builder` is shared.
 

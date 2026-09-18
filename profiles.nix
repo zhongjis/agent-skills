@@ -8,7 +8,7 @@
     "lark-wiki"
   ];
   work = [
-    "github-pr-management"
+    "pr"
     "splunk"
   ];
 }
