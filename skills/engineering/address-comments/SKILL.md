@@ -23,13 +23,21 @@ gh auth status
 
 Complete when authentication succeeds, or stop with the auth error.
 
-2. Ensure the correct PR branch is checked out:
+2. Select the PR branch:
+
+- If the invocation specifies a PR number or URL, check out that PR:
 
 ```bash
-gh pr checkout <PR_NUMBER>
+gh pr checkout <PR_NUMBER_OR_URL>
 ```
 
-Complete when the current branch is the PR branch, or stop with the checkout error.
+- If the invocation does not specify a PR, use the open PR associated with the current branch:
+
+```bash
+gh pr view --json number,url
+```
+
+Complete when the specified PR branch is checked out, or the current branch has an associated open PR. If no PR was specified and the current branch has no associated open PR, stop and ask the user to specify one.
 
 3. Fetch structured PR context from the PR repository root:
 

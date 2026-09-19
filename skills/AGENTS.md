@@ -26,6 +26,7 @@
 - `code-review/SKILL.md` and its context-gathering / parallel-axes references own scope-matched local reviews, shared dependency-contract evidence, and scope-grounded requirements; preserve these contracts across review passes.
 - `herdr-bulk-action/SKILL.md` owns user-invoked, explicitly confirmed generic Herdr batches: referenced task behavior with user overrides, task-needed isolation, and a bounded lifecycle; its `evals/evals.json` owns focused scenarios. Keep `herdr-bulk-review` separate.
 - `engineering/pr/` owns evidence-backed PR-body drafting and revision, including template/body preservation, generic tracker references, disclosed visuals, and focused eval scenarios; `tools/gh/` owns generic GitHub CLI, authentication, PR creation, comment, and review operations; installed `before-and-after` owns specialized user-visible UI media attachment, using `agent-browser` for capture.
+- `engineering/address-comments/` defaults an invocation without a PR identifier to the open PR associated with the current branch; an explicit PR number or URL selects and checks out that PR first.
 
 ## Verification
 

@@ -182,6 +182,12 @@ class SkillTextTests(unittest.TestCase):
         self.assertNotIn("ask for user permission", text)
         self.assertEqual(1, text.count("approval"))
         self.assertIn("approval before", text.lower())
+        self.assertIn("If the invocation specifies a PR number or URL", text)
+        self.assertIn(
+            "If the invocation does not specify a PR, use the open PR associated with the current branch",
+            text,
+        )
+        self.assertIn("ask the user to specify one", text)
 
 
 if __name__ == "__main__":
