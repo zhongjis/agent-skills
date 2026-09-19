@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "Draft or revise pull-request body text from repository evidence, including an existing body or PR template. Use whenever asked for PR description text; use `gh` for generic GitHub operations."
+description: "Use when writing a PR body."
 adaptedFrom:
   - "https://github.com/mattpocock/skills/blob/main/skills/in-progress/pr/SKILL.md"
 ---
@@ -42,6 +42,7 @@ Discover references in this order: supplied or current body, task or conversatio
 
 ```markdown
 ## References
+
 - N/A
 ```
 
