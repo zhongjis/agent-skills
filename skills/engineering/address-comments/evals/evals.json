@@ -1,0 +1,90 @@
+{
+  "skill_name": "address-comments",
+  "evals": [
+    {
+      "id": 1,
+      "name": "truncated-actionable-comment",
+      "prompt": "Address PR #51. A conversation comment from a human has a truncated preview that only says 'One thought about the cache…'; its full sidecar body identifies an unhandled stale-cache bug. An unresolved review thread has full inline text. Required checks are green.",
+      "expected_output": "The full truncated human comment is loaded and included in comment classification rather than skipped from its preview.",
+      "expectations": [
+        "Loads the sidecar body for the truncated non-thread human comment before assigning a skip or action verdict.",
+        "Treats the full body as actionable when it identifies the stale-cache bug.",
+        "Keeps the review thread's inline full body in the normal thread workflow."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "approval-covers-specific-remote-actions",
+      "prompt": "Address PR #52. One thread needs a one-line validation fix; required checks show a known PR-introduced test failure needing a second local fix. The user has not approved any operations.",
+      "expected_output": "A single explicit plan requesting approval for both local repairs, their checks, and individually named commit, push, reply, and thread-resolution actions.",
+      "expectations": [
+        "Lists the comment repair and known required-check repair together with their files and local verification.",
+        "Names commit, push, reply, and thread resolution as separate proposed remote actions.",
+        "Does not commit, push, reply, or resolve before explicit approval."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "failure-present-at-start-but-pr-introduced",
+      "prompt": "Address PR #53. Before edits, required CI check `unit` is failing. Logs and a safe merge-base comparison show the PR changes the parser behavior that causes the failure; the base passes. The thread itself needs no code change.",
+      "expected_output": "The existing failure is classified as PR-introduced, planned for repair, and not treated as completed merely because it predated invocation.",
+      "expectations": [
+        "Classifies against the PR base rather than skill start time.",
+        "Includes the parser repair and affected local test in the approval plan.",
+        "Requires publishing the approved repair and green required checks before completion."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "failure-introduced-during-comment-fix",
+      "prompt": "Address PR #54. The initial required checks are green. After the approved comment fix is verified, committed, and pushed, required check `integration` fails. Logs and local reproduction show the comment fix introduced the failure.",
+      "expected_output": "The workflow leaves replies and resolution pending, amends the plan for the new PR-introduced repair, verifies and publishes it, then rechecks required CI.",
+      "expectations": [
+        "Classifies the new integration failure as PR-introduced.",
+        "Obtains confirmation for the material newly discovered repair and its publication actions before making it.",
+        "Loops through local verification, push, and required-check inspection before posting closing replies or resolving threads."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "base-preexisting-required-failure",
+      "prompt": "Address PR #55. A required lint job is failing before edits. Its logs show the same generated-file error on the base commit, and the PR diff does not touch generation. One review thread has an approved documentation fix.",
+      "expected_output": "The lint failure remains open as evidenced base/pre-existing work while the unrelated approved documentation fix follows its verification and publication path; completion and thread resolution remain blocked while the required check is non-green.",
+      "expectations": [
+        "Does not attempt to repair the base/pre-existing lint failure.",
+        "Reports the base evidence and leaves that failure open.",
+        "Does not misclassify the documented thread fix as a repair for the base failure.",
+        "Does not claim completion or resolve the handled thread while the required check remains non-green."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "confirmed-flaky-or-infrastructure-failure",
+      "prompt": "Address PR #56. Required check `browser` fails intermittently with repeat evidence from the provider, while required check `deploy` is blocked by a documented provider outage. A small approved code fix has passed local tests and been pushed.",
+      "expected_output": "Both required failures remain open with evidence as flaky and infrastructure respectively; neither receives speculative code changes or a false completion claim.",
+      "expectations": [
+        "Classifies browser as confirmed flaky and deploy as infrastructure from the supplied evidence.",
+        "Does not repair either failure with unrelated code changes.",
+        "Does not claim the PR-comment task completed or resolve handled threads while required checks remain non-green."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "completion-blocked-until-published-green-checks",
+      "prompt": "Address PR #57. A thread needs a code fix. The user approves the edit and local test but does not approve a commit or push. Required remote checks are currently pending.",
+      "expected_output": "The code may be locally verified, but no closing reply, resolution, or completion claim is made without approved publication and green required checks.",
+      "expectations": [
+        "Keeps commit and push pending because they were not approved.",
+        "Does not post the closing reply or resolve the thread.",
+        "States that publication and green required checks are still required for completion."
+      ],
+      "files": []
+    }
+  ]
+}

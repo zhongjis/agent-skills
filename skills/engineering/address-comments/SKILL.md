@@ -3,132 +3,118 @@ name: address-comments
 adaptedFrom:
   - "https://github.com/openai/skills/tree/main/skills/.curated/gh-address-comments"
   - "https://github.com/v1-io/v1tamins/tree/main/claude/skills/address-review"
-description: >
-  Address unresolved pull request review comments and threads to closure.
+description: Address unresolved pull request review comments and threads to closure.
 disable-model-invocation: true
 companions: [gh, writing-clearly-and-concisely]
 ---
 
 # Address PR Review Threads
 
-Work unresolved PR review threads and actionable review/conversation comments end-to-end: gather full context, triage from cheap previews which comments need addressing, decide fix or technical disagreement, make approved changes, reply, and resolve only review threads addressed in this pass.
+Work unresolved PR review threads and actionable review/conversation comments to closure with an explicit approved plan: gather context, classify comments and required checks, make approved repairs, publish them, wait for required checks, then close handled threads.
 
-## Prerequisites
+## Setup
 
-1. Verify GitHub CLI authentication:
+1. Select the PR branch:
 
-```bash
-gh auth status
-```
+   - If the invocation specifies a PR number or URL, check out that PR:
 
-Complete when authentication succeeds, or stop with the auth error.
+   ```bash
+   gh pr checkout <PR_NUMBER_OR_URL>
+   ```
 
-2. Select the PR branch:
+   - Otherwise use the open PR associated with the current branch:
 
-- If the invocation specifies a PR number or URL, check out that PR:
+   ```bash
+   gh pr view --json number,url
+   ```
 
-```bash
-gh pr checkout <PR_NUMBER_OR_URL>
-```
+   Stop and ask for a PR if no PR was specified and the current branch has no associated open PR.
 
-- If the invocation does not specify a PR, use the open PR associated with the current branch:
+2. From the PR repository root, create one temporary directory for both fetched files. The script verifies GitHub CLI authentication itself.
 
-```bash
-gh pr view --json number,url
-```
+   ```bash
+   WORK_DIR="$(mktemp -d)"
+   SKILL_DIR="<base directory for this skill>"
+   python3 "$SKILL_DIR/scripts/fetch_comments.py" \
+     --bodies-out "$WORK_DIR/pr-comments-bodies.json" \
+     > "$WORK_DIR/pr-comments.json"
+   printf 'WORK_DIR=%s\n' "$WORK_DIR"
+   ```
 
-Complete when the specified PR branch is checked out, or the current branch has an associated open PR. If no PR was specified and the current branch has no associated open PR, stop and ask the user to specify one.
+   Record the printed absolute `WORK_DIR` path. The JSON contains `pull_request`, `conversation_comments`, `reviews`, `review_threads`, and `bodies_file`; the named sidecar contains full bodies keyed by node `id`. Keep both files only for this pass. Before every final or blocked report, remove the recorded path with `rm -rf -- "<recorded absolute WORK_DIR path>"`; shell variables do not persist across tool calls.
 
-3. Fetch structured PR context from the PR repository root:
+## Ordered workflow
 
-```bash
-SKILL_DIR="<base directory for this skill>"
-python3 "$SKILL_DIR/scripts/fetch_comments.py" > pr-comments.json
-```
+### 1. Discover and triage comments
 
-Complete when `pr-comments.json` contains `pull_request`, `conversation_comments`, `reviews`, `review_threads`, and `bodies_file`, and the sidecar named by `bodies_file` (default `pr-comments-bodies.json`) exists. Long review-submission and conversation-comment bodies are truncated to `body_preview` with `truncated: true` and `body_chars`; their full text lives in the sidecar keyed by node `id`. Review-thread comments are never truncated and keep their full `body` inline. The script must run from the PR repository so `gh pr view` can resolve the current branch.
+Enumerate unresolved review threads, non-empty `CHANGES_REQUESTED` or `COMMENTED` review submissions, and conversation comments. Exclude bot/automation conversation authors. For each item record its id, source, author, and, for threads, path, line/range, full chain, and resolution state. If no actionable comments exist, continue through required-check classification; stop only when no actionable comments exist and every required check is green.
 
-## Workflow
+Review-thread comments always retain their inline full body. Use preview triage only for untruncated non-thread items. A `CHANGES_REQUESTED` review is addressable regardless of preview.
 
-### 1. Discover threads and comments
+For a truncated non-thread item, load its full body from the sidecar before assigning `skip`, `addressable`, or `unsure`. The only exceptions are metadata that proves the author is bot/automation or a full-text comparison that proves it is an exact duplicate; never infer either exception from a preview. Record skipped items (id, author, preview, and reason) for the plan.
 
-Use `pr-comments.json` to enumerate three tracks:
+### 2. Establish the required-check baseline
 
-- Unresolved review threads (`review_threads` where `isResolved` is false) — the core deliverable.
-- Review submissions (`reviews`) whose `state` is `CHANGES_REQUESTED` or `COMMENTED` with a non-empty body. Skip `APPROVED` reviews with an empty body.
-- Conversation comments (`conversation_comments`), excluding automation/bot authors.
+Before edits, inspect every required PR check and record its status and links/log evidence. For each failing required check, inspect its logs and reproduce locally when feasible. Attribution is relative to the PR base, not when this skill started:
 
-For each item record identifier, source track, and author; for threads also record file path, line or range, full comment chain, and resolved state. Read previews only — do not fetch truncated full bodies yet. If no items exist, report that and stop.
+- `PR-introduced`: the PR differs from its base in a way that causes the failure, including a failure already present at invocation and one introduced while addressing a comment.
+- `base/pre-existing`: evidence shows the failure occurs on the base or is unrelated to the PR diff.
+- `flaky`: repeat or provider evidence confirms nondeterministic failure.
+- `infrastructure`: provider evidence confirms an environmental outage.
 
-### 2. Triage comment intent
+When attribution is unclear, compare the PR against its merge base and test the base only through CI evidence or a separate temporary worktree. Never check out, reset, or otherwise mutate the working PR branch just to test the base. Leave an unclassified failure open with its evidence; do not speculate.
 
-Run an intent gate over each non-thread item (review submissions and conversation comments) using its `body`/`body_preview` plus metadata, and assign one of:
+### 3. Gather context and classify comments
 
-| Gate verdict | Meaning |
-| --- | --- |
-| `addressable` | Preview clearly raises a change or question for this PR. |
-| `skip` | Pleasantry, LGTM, off-topic, bot, or duplicate of a thread already listed. |
-| `unsure` | Preview is ambiguous, or `truncated: true` with any change signal. |
-
-Treat metadata as a hard prior: a `CHANGES_REQUESTED` review is `addressable` regardless of preview. For every `addressable` or `unsure` item, fetch the full body on demand from the sidecar by node id, e.g. `jq -r '."<id>"' pr-comments-bodies.json`. Unresolved review threads are never gated and always proceed. Complete when every non-thread item has a gate verdict and every `addressable`/`unsure` item has its full body loaded. Record the `skip` list (id, author, preview) to surface at plan time.
-
-### 3. Gather local context
-
-For each unresolved thread and each retained comment, read the referenced file around the location and the relevant PR diff or patch context. Complete when every item has current code context plus enough diff context to judge it.
-
-### 4. Classify each item
-
-Classify every unresolved thread and every retained comment as one of:
+For every unresolved thread and retained non-thread item, read local code around its location and relevant PR diff context. Classify each exactly once:
 
 | Verdict | Action |
 | --- | --- |
 | `fix` | Make the smallest code change that addresses the concern. |
-| `disagree` | Keep the code and reply with a concise technical reason. |
-| `left open` | Needs user input, broader scope, or cannot be resolved safely in this pass. |
+| `disagree` | Keep the code and give a concise technical reason. |
+| `left open` | Needs user input, broader scope, or cannot be resolved safely. |
 
-Complete when every retained item has exactly one verdict and a one-sentence rationale.
+Record a one-sentence rationale. Also identify each known `PR-introduced` required-check repair and its local verification.
 
-### 5. Present plan and get approval before side effects
+### 4. Present one plan and obtain explicit approval
 
-Present a per-item plan with identifier, source track, verdict, files to touch, intended change or reply, and items that will remain open. List the gate `skip` items separately so the user can pull any back in. Get user confirmation before commits, pushes, PR comments, thread replies, or thread resolution. Complete when the user explicitly confirms the plan, or stop without external side effects.
+Present one plan containing every comment action, every known required-check repair, files to edit, local tests, items left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each thread resolution. Approval covers only the listed local edits/tests and listed remote actions; it does not imply broad permission for side effects.
 
-### 6. Apply approved fixes
+Get explicit confirmation before applying the planned local edits or tests and before committing, pushing, posting GitHub replies, or resolving threads. If material new scope appears, present a plan amendment naming its edits, tests, and remote actions, then get confirmation before proceeding.
 
-For every approved `fix`, edit only the files needed, follow local patterns, and avoid unrelated refactors. Complete when every approved `fix` has either a code change that addresses it or a documented blocker.
+### 5. Apply and verify approved fixes
 
-### 7. Verify changes
+Make only approved local edits. Run the planned narrow local checks and fix failures. For every `PR-introduced` required-check failure, fix it, rerun affected local checks, and include its repair in the approved publication plan. Do not repair `base/pre-existing`, confirmed `flaky`, or `infrastructure` failures; retain their evidence and leave them open.
 
-Run the narrowest relevant tests, typechecks, or linters for changed files. Complete when checks pass, or report the failing command and affected items.
+### 6. Commit and publish approved code
 
-### 8. Publish code changes if needed
+After local verification passes, create the approved descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not approved or fails, leave handled review threads unresolved and do not claim completion.
 
-If code changed and the confirmed plan includes publishing, create one descriptive commit and push it using the repository's VCS. Complete when the pushed commit is visible on the PR branch, or report the failed command.
+### 7. Close the required-check loop
 
-### 9. Reply to addressed items
+After each approved publication, inspect all required remote checks again. For a failure, inspect logs, reproduce when feasible, and classify it using the PR base workflow above.
 
-Load writing-clearly-and-concisely skill first, then reply once for every `fix` or `disagree` handled in this pass. Keep replies brief: `Fixed` plus a note when the implementation differs, or `Not changing this - <technical reason>`.
+- Repair every `PR-introduced` failure. A repair first discovered here is a material scope change: amend the plan and obtain confirmation, then verify, commit, push, and inspect required checks again.
+- Leave evidenced `base/pre-existing`, confirmed `flaky`, `infrastructure`, and unclassified failures open with evidence.
+- Continue the approved repair loop until every required check is green. A reported `PR-introduced` failure is not completion.
 
-- Review threads: reply in the existing thread.
-- Review submissions and conversation comments: reply as a new PR conversation comment; they have no thread to resolve.
+Required checks must be green before closing replies or thread resolution. If approved code is not published or required checks are not green, do not claim done and do not resolve threads.
 
-Complete when every handled item has exactly one closing reply.
+### 8. Reply and resolve only after checks are green
 
-### 10. Resolve handled threads
+Load writing-clearly-and-concisely. Post one concise, outcome-based reply for each handled `fix` or `disagree`, using the approved action. For example, state what changed and any relevant verification, or state why the code remains unchanged. Do not use a mandatory reply template.
 
-Resolve only review threads handled in this pass, after their closing replies. Leave `left open` threads unresolved, and never attempt to resolve review submissions or conversation comments — they have no resolve state. Complete when every handled thread is resolved and every unhandled thread remains unresolved.
+Reply in existing review threads; post new PR conversation comments for review submissions and conversation comments. Resolve only handled review threads after their replies. Leave `left open` threads unresolved; submissions and conversation comments have no resolution state.
 
 ## Output
 
-Provide a final summary with:
+Before the final or blocked report, remove the recorded absolute temporary-directory path. Report:
 
-- Total unresolved review threads found
-- Review submissions and conversation comments surfaced, and how many the gate skipped
-- Count fixed with code changes
-- Count answered with technical disagreement
-- Count left open, with reasons
-- Files changed
-- Commit and push result, if applicable
-- Threads resolved and non-thread comments replied to
+- Unresolved threads and non-thread comments surfaced, including skipped count
+- Fixed, disagreed, and left-open counts with reasons
+- Required checks: green status, repairs made, and evidence for every open base/pre-existing, flaky, infrastructure, or unclassified failure
+- Files changed, local verification, and commit/push result
+- Replies posted and threads resolved
 
 Include a compact table:
 

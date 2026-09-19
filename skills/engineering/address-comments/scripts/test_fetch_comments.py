@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-# pyright: reportAny=false, reportExplicitAny=false, reportUnknownVariableType=false, reportUnknownMemberType=false
+# pyright: reportAny=false, reportExplicitAny=false, reportUnknownMemberType=false
 
 import importlib.util
 import sys
 import unittest
 from pathlib import Path
-from typing import Any, cast
+from types import ModuleType
+from typing import Any
 from unittest import mock
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("fetch_comments", SCRIPT_DIR / "fetch_comments.py")
 assert spec is not None
-fetch_comments = cast(Any, importlib.util.module_from_spec(spec))
+fetch_comments: ModuleType = importlib.util.module_from_spec(spec)
 sys.modules["fetch_comments"] = fetch_comments
 assert spec.loader is not None
 spec.loader.exec_module(fetch_comments)
@@ -51,6 +52,16 @@ def page(
                 }
             }
         }
+    }
+
+
+def frontmatter_fields(path: Path) -> dict[str, str]:
+    _, frontmatter, _ = path.read_text(encoding="utf-8").split("---", 2)
+    return {
+        key.strip(): value.strip()
+        for line in frontmatter.splitlines()
+        if ":" in line
+        for key, value in [line.split(":", 1)]
     }
 
 
@@ -139,15 +150,14 @@ class PreviewTests(unittest.TestCase):
 
     def test_split_bodies_moves_long_bodies_to_sidecar_and_keeps_short_inline(self):
         long_body = "x" * 300
+        thread_comment = {"id": "t1", "body": long_body}
         result = {
             "conversation_comments": [
                 {"id": "c1", "body": long_body},
                 {"id": "c2", "body": "short"},
             ],
             "reviews": [{"id": "r1", "state": "APPROVED", "body": ""}],
-            "review_threads": [
-                {"comments": {"nodes": [{"id": "t1", "body": long_body}]}},
-            ],
+            "review_threads": [{"comments": {"nodes": [thread_comment]}}],
         }
 
         bodies = fetch_comments.split_bodies(result, limit=200)
@@ -164,30 +174,19 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual("short", c2["body"])
         self.assertNotIn("c2", bodies)
 
-        thread_comment = result["review_threads"][0]["comments"]["nodes"][0]
         self.assertEqual(long_body, thread_comment["body"])
         self.assertNotIn("t1", bodies)
         self.assertEqual({"c1"}, set(bodies))
 
 
-class SkillTextTests(unittest.TestCase):
-    def test_skill_text_invariants(self):
-        text = SKILL_MD.read_text()
-        frontmatter = text.split("---", 2)[1]
+class SkillFrontmatterTests(unittest.TestCase):
+    def test_skill_frontmatter_machine_contract(self):
+        fields = frontmatter_fields(SKILL_MD)
 
-        self.assertIn("disable-model-invocation: true", frontmatter)
-        self.assertIn("description: >", frontmatter)
-        self.assertNotIn("Triggers on", frontmatter)
-        self.assertNotIn("gh pr view --json reviewThreads", text)
-        self.assertNotIn("ask for user permission", text)
-        self.assertEqual(1, text.count("approval"))
-        self.assertIn("approval before", text.lower())
-        self.assertIn("If the invocation specifies a PR number or URL", text)
-        self.assertIn(
-            "If the invocation does not specify a PR, use the open PR associated with the current branch",
-            text,
-        )
-        self.assertIn("ask the user to specify one", text)
+        self.assertEqual("address-comments", fields["name"])
+        self.assertEqual("true", fields["disable-model-invocation"])
+        self.assertTrue(fields["description"])
+        self.assertEqual("[gh, writing-clearly-and-concisely]", fields["companions"])
 
 
 if __name__ == "__main__":
