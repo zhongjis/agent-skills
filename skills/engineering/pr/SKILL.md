@@ -1,36 +1,53 @@
 ---
 name: pr
-description: "Write, draft, revise, or update a pull-request body or description from repository evidence. Use for the PR text itself, not for creating, managing, reviewing, or commenting on pull requests."
+description: "Draft or revise pull-request body text from repository evidence, including an existing body or PR template. Use whenever asked for PR description text; use `gh` for generic GitHub operations."
 adaptedFrom:
   - "https://github.com/mattpocock/skills/blob/main/skills/in-progress/pr/SKILL.md"
 ---
 
 # PR Body
 
-Produce the body only. Do not create a PR, authenticate, invoke GitHub tooling, post comments, or perform review operations; `gh` owns those operations.
+`pr` produces the body text. `gh` performs generic GitHub CLI, authentication, PR, comment, and review operations. For a combined request, draft the body here, then hand the requested GitHub operation and completed body to `gh`.
 
-## Gather the body
+## UI media routing
 
-1. Inspect a repository PR template first. Preserve every existing heading and its order. Append only missing required sections; do not rename, remove, or reorder template headings. Without a template, use the fallback sections below in order.
-2. Ground each claim in actual work evidence, in this order: the current conversation or task source, the committed branch diff against its base, commit messages, and completed verification evidence. Do not infer unobserved behavior.
-3. Discover tracker references in this order: conversation/task source, branch name, commit messages, then the PR template or repository metadata. Include every directly relevant reference once, with the primary first. Accept Jira, Linear, GitHub Issues, and other tracker references as presented; do not use tracker-specific parsing or network queries.
+For a user-visible UI change, route to `before-and-after` only when the user requests screenshot or recording evidence, or asks for a review-ready published PR. Draft or revise the body first; `before-and-after` coordinates the visual-evidence workflow and owns media attachment, while `agent-browser` owns capture mechanics.
 
-## Required content
+- New PR: draft the body → `gh` creates the PR → `before-and-after` adds the media.
+- Existing PR: revise the body if needed, then hand the PR to `before-and-after`; do not create another PR.
+- A body-only UI request does not authorize capture or publication. Preserve supplied media references without capturing or publishing media.
+- Backend or otherwise non-visible changes do not route to `before-and-after`.
 
-- **Summary:** Use a visual only when it makes the change easier to understand; otherwise write one or two sentences. Read [`references/visual-summary.md`](references/visual-summary.md) **only when a visual would help**.
-- **Changes:** Use concise, typed bullets: `[feature]`, `[bugfix]`, `[test]`, `[perf]`, `[docs]`, `[style]`, or `[refactor]`.
-- **Evidence:** State only completed, evidence-backed verification. When needed proof is unavailable, write `<MISSING_EVIDENCE>` rather than claiming success.
-- **Merge Danger:** Keep it concise: whether rollback is a one-way or two-way door and the blast radius, with the concrete risk when one exists.
-- **References:** List every directly relevant tracker reference, deduplicated with the primary first. For a key without a URL, use a linked placeholder that preserves it: `- [PROJ-123](<TRACKER_URL>)`. When none exists, emit exactly:
+Prefer real UI evidence to synthetic diagrams. [`references/visual-summary.md`](references/visual-summary.md) remains for structural or flow explanations.
 
-  ```markdown
-  ## References
-  - N/A
-  ```
+## Choose the structure
 
-## Structure
+1. If the user supplied an existing body to revise, revise that body. Preserve its meaningful headings and order.
+2. Otherwise inspect repository PR templates. Use the explicitly requested template, the sole template, or a clearly applicable template. If several templates fit and none is clearly selected, ask the user to choose; do not guess.
+3. With no applicable template, use the fallback structure below.
+4. Treat headings with equivalent meaning as present (for example, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate generic section. Preserve retained heading text and order; append only semantically absent fallback sections.
 
-Without a repository template, use:
+## Ground the body
+
+Keep the evidence roles separate:
+
+- The task or conversation establishes intent.
+- The branch diff establishes the actual change.
+- Commits provide supporting context, not proof.
+- Completed observed command, test, or review results establish verification.
+
+Write concise, ordinary change bullets unless a repository convention requires labels. State only completed verification; use `<MISSING_EVIDENCE>` exactly when required proof is unavailable. Keep merge risk brief: identify the door (one-way or two-way), blast radius, and concrete irreversible or rollout risk when one exists.
+
+Discover references in this order: supplied or current body, task or conversation, branch name, commits, then explicit companion-change evidence. Keep only directly relevant references, primary first; templates and placeholders are not references. Preserve supplied URLs exactly; render a plain supplied key without inventing a URL or placeholder (for example, `- ACME-42`). When no reference exists, place `- N/A` under the existing reference-equivalent heading, or add:
+
+```markdown
+## References
+- N/A
+```
+
+Preserve or include a footer only when the template, repository guidance or convention, or supplied evidence requires it; never invent one.
+
+## Fallback body
 
 ```markdown
 ## Summary
@@ -39,7 +56,7 @@ Without a repository template, use:
 
 ## Changes
 
-- [feature] <concise change>
+- <concise change>
 
 ## Evidence
 
@@ -57,10 +74,13 @@ Without a repository template, use:
 - <tracker reference, or N/A>
 ```
 
-With a template, retain its headings and order exactly, then append any semantically absent section from the fallback structure. Preserve evidence-backed release footers when relevant: `BREAKING_CHANGE`, `REBUILD_DOWNSTREAM`, `BUMP_DOWNSTREAM`, and `UNSTABLE_VERSIONS`. Use `BUMP_DOWNSTREAM` only for version-branch merges; never invent a footer.
+## Optional reviewer help
 
-## Reviewer help
+- Read [`references/visual-summary.md`](references/visual-summary.md) for an ownership, structural, or flow explanation; otherwise use concise prose.
+- Link one companion PR when work spans repositories; keep its details there.
+- For a large or mechanical diff, add a short Reviewer Guide: where to start, behavioral risk, one representative bulk file, then docs/tests.
+- Put secondary rationale, long enumerations, and extended verification in `<details>` only when they would bury essential content; keep merge-critical content visible.
 
-- Link a companion PR once when work spans repositories; do not duplicate its details.
-- For a large or mechanical diff, add a short Reviewer Guide: where to start, the behavioral risk, one representative bulk file to skim, then docs/tests.
-- Put secondary rationale, long enumerations, and extended verification in `<details>` only when they would bury the essential summary, changes, merge danger, or required footers. Keep merge-critical information visible.
+## Completion check
+
+Before returning the body, confirm its structure follows the selected existing body or template (or fallback), every change claim is supported by the diff, evidence contains only completed results or `<MISSING_EVIDENCE>`, references preserve supplied values, and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.

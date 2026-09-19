@@ -25,7 +25,7 @@
 - `engineering/research/` owns ordinary primary-source research and explicitly opted-in deep workflow routing; deep findings require atomic evidence and verified coverage, failures remain visible, and research or workflow execution does not authorize persistence, rendering, or publication.
 - `code-review/SKILL.md` and its context-gathering / parallel-axes references own scope-matched local reviews, shared dependency-contract evidence, and scope-grounded requirements; preserve these contracts across review passes.
 - `herdr-bulk-action/SKILL.md` owns user-invoked, explicitly confirmed generic Herdr batches: referenced task behavior with user overrides, task-needed isolation, and a bounded lifecycle; its `evals/evals.json` owns focused scenarios. Keep `herdr-bulk-review` separate.
-- `engineering/pr/` owns evidence-backed PR-body writing only: preserve repository template structure, use generic tracker references, and keep visual examples disclosed; `tools/gh/` owns all GitHub CLI, authentication, PR, comment, and review operations.
+- `engineering/pr/` owns evidence-backed PR-body drafting and revision, including template/body preservation, generic tracker references, disclosed visuals, and focused eval scenarios; `tools/gh/` owns generic GitHub CLI, authentication, PR creation, comment, and review operations; installed `before-and-after` owns specialized user-visible UI media attachment, using `agent-browser` for capture.
 
 ## Verification
 

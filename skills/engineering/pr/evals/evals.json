@@ -1,0 +1,151 @@
+{
+  "skill_name": "pr",
+  "evals": [
+    {
+      "id": 1,
+      "name": "fallback-docs-only-body",
+      "prompt": "Draft a PR body for a docs-only change. There is no existing body and no PR template. Task intent: clarify the local development guide. Diff: docs/development.md now explains `nix develop`; commit: docs: clarify development shell. Completed verification: markdown links checked successfully. No tracker or issue was supplied.",
+      "expected_output": "A concise fallback PR body with ordinary change bullets, completed link-check evidence, a two-way docs-reader risk, and `- N/A` under References.",
+      "expectations": [
+        "Uses the fallback Summary, Changes, Evidence, Merge Danger, and References structure in order.",
+        "Grounds the change in the documented diff and commit, and reports only the completed markdown-link check as verification.",
+        "Uses concise ordinary bullets rather than inventing typed labels.",
+        "Includes `- N/A` under `## References`."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "revise-stale-body-with-semantic-headings",
+      "prompt": "Revise this supplied stale PR body, not a repository template:\n\n## Why\nOld cache invalidation wording.\n\n## What Changed\n- Reworked caching.\n\n## Testing\n- Tests pass.\n\n## Links\n- [ACME-42](<TRACKER_URL>)\n\nTask intent: make cache invalidation reliable. Diff and commit show only that `invalidateCache` now runs after writes. No verification command was completed. The only supplied tracker value is plain `ACME-42`; no URL exists.",
+      "expected_output": "A revision that keeps Why, What Changed, Testing, and Links in their original order, replaces stale claims with the actual diff-backed change, uses `<MISSING_EVIDENCE>`, and lists `- ACME-42` without a placeholder URL.",
+      "expectations": [
+        "Uses the supplied body as the revision structure and preserves its semantic headings and order.",
+        "Places verification under `## Testing` rather than appending a duplicate Evidence section.",
+        "Replaces the unsupported test-success claim with `<MISSING_EVIDENCE>`.",
+        "Renders the tracker as plain `- ACME-42` and does not invent a URL."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "explicit-template-selection",
+      "prompt": "Draft a PR body using `.github/PULL_REQUEST_TEMPLATE/bugfix.md`. The repository also has `feature.md`, but I explicitly selected the bugfix template. The bugfix template headings are `## Problem`, `## Fix`, `## Validation`, and `## Related Work`. Diff: reject malformed webhook signatures before parsing. Completed result: `pnpm test webhook` passed. Supplied issue URL: https://tracker.example/WEB-18.",
+      "expected_output": "A body that uses the explicitly selected bugfix template headings and order, with diff-backed fix, completed test evidence, and the supplied URL preserved.",
+      "expectations": [
+        "Selects the explicitly named bugfix template instead of the other available template.",
+        "Preserves the selected template headings and order.",
+        "Uses the completed webhook test as validation and preserves the supplied issue URL."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "unresolved-template-ambiguity",
+      "prompt": "Draft a PR body for a change that could be either a feature or a bug fix. The repository has `feature.md` and `bugfix.md`; neither was selected and the task gives no further fit signal. Diff: a new retry limit is configurable. Completed result: `go test ./...` passed.",
+      "expected_output": "A request for the user to choose between the equally applicable templates rather than a guessed PR body structure.",
+      "expectations": [
+        "Identifies that multiple templates are equally applicable.",
+        "Asks the user to select a template instead of guessing.",
+        "Does not silently fall back to generic headings while the template choice remains unresolved."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "body-then-github-operation-composition",
+      "prompt": "Write the PR description, then open the pull request with `gh pr create`. Task intent: document the staging rollback procedure. Diff: docs/rollback.md adds the procedure. Completed result: `markdownlint docs/rollback.md` passed. No template or tracker exists.",
+      "expected_output": "A fallback PR body drafted by `pr`, followed by a clear handoff of the requested PR-creation operation and completed body to `gh`.",
+      "expectations": [
+        "Drafts the PR body from the stated repository evidence.",
+        "Keeps the GitHub creation operation separate from body drafting.",
+        "Hands the requested `gh pr create` operation and completed body to `gh`."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "useful-structural-visual",
+      "prompt": "Draft a PR body for a refactor whose key reviewer question is ownership after splitting `src/cache.ts` into `src/cache/read.ts`, `src/cache/write.ts`, and `src/cache/invalidate.ts`. Diff confirms the split; `pnpm test cache` passed. No template or tracker exists.",
+      "expected_output": "A fallback body that uses a small file-tree visual because the ownership split is clearer visually, with completed cache-test evidence.",
+      "expectations": [
+        "Uses a compact structural visual only because it clarifies the file-ownership change.",
+        "Keeps the visual limited to the files needed to understand the split.",
+        "Reports the completed cache test without adding unsupported verification."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "no-visual-for-simple-doc-change",
+      "prompt": "Draft a PR body for a one-line documentation correction: the install guide now names the correct `nix develop` command. Diff confirms that one-line edit; `markdownlint docs/install.md` passed. No template or tracker exists.",
+      "expected_output": "A concise prose-only fallback body with no visual, completed lint evidence, and a low-risk two-way merge-danger note.",
+      "expectations": [
+        "Uses concise prose rather than a diagram, tree, or diff sketch for the simple change.",
+        "Reports only the completed markdownlint result as verification.",
+        "Describes a proportionate two-way documentation-reader merge risk."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "irreversible-merge-danger",
+      "prompt": "Draft a PR body. Task intent: remove obsolete customer records after the retention window. Diff and commit show a migration that permanently deletes `legacy_preferences` rows. Completed result: `bundle exec rails db:migrate` passed in staging. Supplied issue: DATA-77. No template exists.",
+      "expected_output": "A fallback body that grounds the deletion in the diff, reports the completed staging migration, keeps `- DATA-77` plain, and makes the irreversible data-loss risk explicit as a one-way door.",
+      "expectations": [
+        "Describes the actual permanent deletion rather than only the retention intent.",
+        "Marks Merge Danger as a one-way door with affected customer data as the blast radius and explains why code rollback cannot restore rows.",
+        "Reports the completed staging migration as verification and preserves DATA-77 as a plain key."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "github-operation-near-miss",
+      "prompt": "Review pull request #418, post a comment with your findings, and merge it if CI is green. Do not draft or revise the PR description.",
+      "expected_output": "Routes the operational review, comment, and merge request to `gh` without invoking PR-body drafting.",
+      "expectations": [
+        "Recognizes that no PR body text was requested.",
+        "Routes GitHub review, comment, and merge operations to `gh`.",
+        "Does not invent or rewrite a PR description."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "review-ready-ui-pr-media-routing",
+      "prompt": "Draft a PR body, then create a review-ready published PR for this responsive product-grid UI change. There is no existing PR. Diff: `ProductGrid` now changes from four to two columns at the tablet breakpoint and preserves one column on mobile. Completed result: `pnpm test ProductGrid` passed. No template or tracker exists.",
+      "expected_output": "A diff-backed body followed by the ordered handoff: `gh` creates the new PR, then `before-and-after` captures and attaches UI evidence.",
+      "expectations": [
+        "Drafts the PR body from the stated UI diff and completed test result.",
+        "Routes new-PR creation to `gh` after the body is ready.",
+        "Routes the created PR to `before-and-after` for the requested UI media workflow without duplicating its capture or attachment mechanics."
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "body-only-ui-with-supplied-media",
+      "prompt": "Revise the body for existing PR #732 about a user-visible settings-panel spacing change. Keep this supplied screenshot reference in the body: `![Settings panel](https://example.test/settings.png)`. The user wants body text only; do not capture, attach, or publish media. Diff: the panel uses 16px spacing between controls. Completed result: `pnpm test SettingsPanel` passed.",
+      "expected_output": "A body revision that preserves the supplied media reference without a capture, attachment, publication, or specialized media-routing handoff.",
+      "expectations": [
+        "Revises the requested PR body using the stated diff and completed test evidence.",
+        "Preserves the supplied screenshot reference.",
+        "Does not route to `before-and-after` or initiate browser capture, media attachment, or publication."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "review-ready-backend-pr-no-media-routing",
+      "prompt": "Draft a PR body, then create a review-ready published PR for this backend-only change. There is no existing PR. Diff: add a database index for `orders.account_id` to speed account-history queries; no user-visible UI changes. Completed result: `bundle exec rails db:migrate` passed in staging.",
+      "expected_output": "A body and generic PR-creation handoff to `gh`, with no UI capture or media-attachment route.",
+      "expectations": [
+        "Drafts the body from the backend diff and completed staging migration.",
+        "Routes new-PR creation to `gh` after body drafting.",
+        "Does not route to `before-and-after` because the change is not user-visible."
+      ],
+      "files": []
+    }
+  ]
+}
