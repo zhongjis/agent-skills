@@ -78,7 +78,7 @@
       "ref": "dev",
       "sourceType": "github",
       "skillPath": "packages/shared-skills/skills/git-master/SKILL.md",
-      "computedHash": "95e1fcca74c2258eea2b718d76520e90d7e23726e331a215ebd2db2f44254f80"
+      "computedHash": "ef73743c9cfe37d14b96a594d8d570fd54a059c4aa4d84dde147abdfe23d640f"
     },
     "github-actions": {
       "source": "dalestudy/skills",
