@@ -1,18 +1,16 @@
-# Testing Depth — Pyramid, Mocking, Anti-Patterns, Prompt Tests
+# Testing Depth — Pyramid, Mocking, and Anti-Patterns
 
-Depth for the TDD hard rules in [`shared-policy.md`](shared-policy.md). That file owns the policy (red → green → refactor, one `When` per test, budgets, the prompt-test rule). This file owns the how: the shape of the suite, the mocking ladder, the anti-patterns to reject, and the prompt-test detail. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
+Test-design depth for the [testing policy in `SKILL.md`](../SKILL.md#testing-policy). `SKILL.md` owns the baseline-first policy, test-rung selection, budgets, and the prompt-test rule. This file owns the pyramid, Given/When/Then, mocking ladder, deterministic isolation, anti-patterns, and prompt-test implementation. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
 
 ## The test pyramid
 
-Every feature ships all three rungs, in this proportion:
+The rungs support the test-rung policy in `SKILL.md`:
 
 | Rung | Count | Purpose | Speed budget |
 |---|---|---|---|
 | **Unit** | many | Pure-function correctness for every meaningful input class (happy + edges + boundaries + error paths) | `< 10 ms` each |
 | **Integration** | some | The real adapter against the real downstream (DB, queue, HTTP) via testcontainers, `httptest`, or equivalent. A unit test pretending to be integration is not integration coverage. | `< 1 s` each |
-| **E2E scenario** | few | One narrative per user-visible outcome. Spins the binary or full app; drives it through its real surface (HTTP route, CLI invocation, TUI keystroke). Asserts the observable outcome, not internal state. | seconds, on CI |
-
-A feature with zero E2E coverage is undone, even if every unit test passes.
+| **E2E scenario** | few | A narrative for a user-visible outcome. Spins the binary or full app; drives it through its real surface (HTTP route, CLI invocation, TUI keystroke); asserts the observable outcome, not internal state. | seconds, on CI |
 
 ## Given / When / Then
 
@@ -47,30 +45,28 @@ The rule: if your test fails when the production code's *implementation* changes
 - **Deterministic**: no `sleep`, no wall-clock dependence, no order dependence (`-shuffle=on`, pytest-randomly, vitest random seed). Inject a `Clock`. Subscribe to the event; do not poll for it. Time-based flake is a bug.
 - **Isolated**: every test starts from a known fixture and tears down (`t.TempDir()`, `t.Setenv()`, transactional rollback). Isolation extends **across processes**: suite-global resources — sandbox/cache roots, listen ports, container names — are namespaced per run (`mktemp`, port `0`/ephemeral, unique names) so two checkouts running the suite concurrently cannot interfere. A fixed shared path is a flake generator on a multi-agent workstation; its signature is "a different test fails each run".
 
-## Prompt tests: NEVER assert prose
+## Prompt-test implementation
 
-**FORBIDDEN — NO EXCEPTIONS: a test MUST NOT assert natural-language prompt text.** `expect(prompt).toContain("You are a helpful assistant")`, `not.toContain("old wording")`, `toMatchSnapshot()` on prose, grepping a sentence fragment — every one is pretend-coverage. It stays green while the behavior it claims to guard breaks, then blocks every legitimate rewording until someone bumps the pinned string. A reviewer MUST block it as HIGH severity; deleting such a test is a fix, not a coverage loss. "A nearby test already does it" is no defense — that test is the disease, not the convention.
-
-Assert ONLY what a machine consumes:
+Apply `SKILL.md`'s prompt-test rule by asserting only what a machine consumes:
 
 - the builder's routing decision — `expect(getPromptSource(model)).toBe("model-a")`, never the sentence that routing produces
 - a structural token the runtime dispatches on — a tool name, a tag like `<agent-identity>`, a parsed frontmatter field
 - the conditional the code enforces — skill loaded → tool present; `verbose=false` → directive absent
 - a routing-bearing trigger fragment inside a parsed frontmatter `description` that a router (code, or an LLM skill-picker) dispatches on — pin the *minimal fragment that carries the routing decision*, never the surrounding style prose. Such pins let a later rewrite change every sentence around them while proving the routing contract survived.
 
-If no machine consumes the text, there is no seam: write NO test and say so in the PR; review guards prose. When you delegate test-writing, hand the child the behavior the test must distinguish ("fails if override precedence breaks"), never a ready-made assertion string, prompt fragment, or marker to copy — a prescribed mechanism that is wrong gets implemented faithfully, and the error ships with a green suite.
+If no machine consumes the text, there is no seam: write no test and say so in the PR; review guards prose. When you delegate test-writing, hand the child the behavior the test must distinguish ("fails if override precedence breaks"), never a ready-made assertion string, prompt fragment, or marker to copy — a prescribed mechanism that is wrong gets implemented faithfully, and the error ships with a green suite.
 
 ## Anti-patterns the skill rejects
 
 | Anti-pattern | Why it fails | Fix |
 |---|---|---|
-| Writing code first, tests "to add later" | Tests-after rationalize the existing design, even when wrong. | Red first. Always. |
+| Ignoring covering tests or a failing baseline | Hides existing findings and makes a new failure impossible to attribute. | Read covering tests and run the baseline before changing code; reproduce a bug before fixing it. |
 | One mega-test asserting 12 things | First failure hides the next 11. | Split by `Then` clause — one assertion class per test. |
 | Mocking every collaborator | Test passes regardless of real behavior. | Use a fake or the real thing. Mock only true unmockables. |
 | `time.sleep(0.1)` to "let it finish" | Flake guaranteed. | Subscribe to the completion signal; bounded await. |
 | Snapshot tests for everything | Locks formatting, not behavior. | Snapshots for *structure* (CLI help, JSON shape). Assertions for *behavior*. |
-| Removing a failing test to "unblock CI" | You just deleted a bug report. | Fix the code or fix the test — never delete to silence. |
+| Removing a failing test to "unblock CI" | You just deleted a bug report. | Fix the code or correct the test's premise. |
 | `assert result is not None` and stopping there | Passes when result is garbage. | Assert the *value*, not its existence. |
 | Expected value derived from the output under test | Recomputes a projection of the output and compares it to itself — passes even when the artifact is built from the wrong input. | Derive the expected value from the test's *input* (an independent known-good builder fed the fixture's input), or a stable routing decision. |
 | Override/precedence fixture equal to its fallback | The assertion passes whether or not the code honored the override — precedence is never exercised. | Make every value the code must select, preserve, or override differ from its fallback. Prove it: force the regression the test names, watch it fail, revert. |
-| Single happy-path E2E, no edges | Most bugs live on edges. | Edges are unit-test territory — but include at least one E2E that exercises an error path. |
+| Single happy-path E2E with no edges | Edge behavior can remain unexercised. | Cover edges at the appropriate rung; drive changed user-visible error behavior through the app's real surface. |
