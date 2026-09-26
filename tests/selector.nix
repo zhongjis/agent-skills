@@ -39,6 +39,7 @@ let
     "ast-grep"
     "code-review"
     "codebase-search"
+    "delegate-using-herdr"
     "fd"
     "find-skills"
     "flue-framework"
