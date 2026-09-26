@@ -201,17 +201,18 @@ gh variable delete MY_VAR --env production
 ### Run and Wait for Completion
 
 ```bash
-# Run workflow and get run ID
-gh workflow run ci.yml --ref main
+# Dispatch and capture the created run URL
+RUN_URL=$(gh workflow run ci.yml --ref main)
+if [ -z "$RUN_URL" ]; then
+  echo "No run URL returned; inspect gh run list before continuing." >&2
+  exit 1
+fi
+RUN_ID=${RUN_URL##*/}
 
-# List recent runs to get the ID
-gh run list --workflow ci.yml --limit 1 --json databaseId
-
-# Watch the run
-gh run watch <run_id>
-
-# Download artifacts on completion
-gh run download <run_id> --dir ./artifacts
+# Verify identity before watching or downloading
+gh run view "$RUN_ID" --json databaseId,event,headBranch,url
+gh run watch "$RUN_ID"
+gh run download "$RUN_ID" --dir ./artifacts
 ```
 
 ### Check CI Status for PR

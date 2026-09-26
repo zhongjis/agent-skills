@@ -266,15 +266,15 @@ gh issue delete 123
 gh issue delete 123 --yes
 ```
 
-## Develop Issue (Create Branch/PR)
+## Develop Issue (Create Linked Branch)
 
 ```bash
-# Create draft PR from issue
-gh issue develop 123
+# Create and check out a named branch
+gh issue develop 123 --name fix/issue-123 --checkout
 
-# Create in specific branch
-gh issue develop 123 --branch fix/issue-123
+# Create from a specific base branch
+gh issue develop 123 --base main --checkout
 
-# Create with base branch
-gh issue develop 123 --base main
+# List branches linked to the issue
+gh issue develop 123 --list
 ```

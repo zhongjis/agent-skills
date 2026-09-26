@@ -1,20 +1,18 @@
 ---
 name: gh
-description: GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests, Actions, projects, releases, gists, codespaces, organizations, extensions, and all GitHub operations from the command line. Use when creating or stacking PRs, attaching images or videos to PRs or comments, managing issues, running workflows, checking CI status, managing releases, making GitHub API calls, or handling operational issue workflows such as bulk issue creation, sub-issues, blocked-by links, labels, and GitHub API/GraphQL issue relationships. Triggers on "create PR", "stacked PR", "attach screenshot", "list issues", "gh command", "merge PR", "run workflow", "check status", "create release", "download artifacts", "set secret", "create issues", "sub-issues", "blocked by", and "GitHub API".
+description: Use GitHub CLI (`gh`) for repositories, projects, gists, codespaces, organizations, and extensions; issue and pull-request lifecycles; Actions and releases; REST or GraphQL operations; or attaching existing files to GitHub. Includes stacked PRs, issue relationships, CI status, artifacts, secrets, and reviews. Use `before-and-after` instead for polished UI comparison or preview media.
 adaptedFrom:
   - "https://github.com/github/awesome-copilot/blob/main/skills/gh-cli/SKILL.md"
 ---
 
 # GitHub CLI (gh)
 
-Work seamlessly with GitHub from the command line.
-
 ## Quick Reference
 
 | Task                    | Command                                           |
 | ----------------------- | ------------------------------------------------- |
 | Create PR               | `gh pr create --title "..." --body "..."`         |
-| Attach PR image         | `gh pr edit 123 --attach 'after.png#Updated UI'` ([requirements](references/attachments.md)) [1] |
+| Attach existing image    | `gh pr edit 123 --attach 'diagram.png#Architecture diagram'` ([requirements](references/attachments.md)) [1] |
 | List open PRs           | `gh pr list`                                      |
 | View PR                 | `gh pr view 123`                                  |
 | Merge PR                | `gh pr merge 123 --squash --delete-branch`        |
@@ -36,39 +34,6 @@ Work seamlessly with GitHub from the command line.
 | Set secret              | `gh secret set MY_SECRET`                         |
 | API request             | `gh api /user`                                    |
 
-## CLI Structure
-
-```
-gh                          # Root command
-├── auth                    # Authentication
-├── browse                  # Open in browser
-├── repo                    # Repositories
-├── issue                   # Issues
-├── pr                      # Pull Requests
-├── run                     # Workflow runs
-├── workflow                # Workflows
-├── release                 # Releases
-├── project                 # Projects
-├── codespace               # Codespaces
-├── gist                    # Gists
-├── cache                   # Actions caches
-├── secret                  # Secrets
-├── variable                # Variables
-├── api                     # API requests
-├── search                  # Search
-├── label                   # Labels
-├── org                     # Organizations
-├── ssh-key                 # SSH keys
-├── gpg-key                 # GPG keys
-├── extension               # Extensions
-├── alias                   # Aliases
-├── config                  # Configuration
-├── ruleset                 # Rulesets
-├── attestation             # Attestations
-├── status                  # Status overview
-└── completion              # Shell completion
-```
-
 ## Detailed References
 
 For comprehensive command documentation:
@@ -78,57 +43,13 @@ For comprehensive command documentation:
 - [Issues](references/issues.md) - Create, list, edit, close, comment, labels
 - [Pull Requests](references/prs.md) - Create, review, merge, checkout, diff
 - [Stacked Pull Requests](references/stacked-prs.md) - Create, submit, update, and merge dependent PRs
-- [Attachments](references/attachments.md) - Read before uploading PR/comment images or videos: access, body layout, and partial-upload recovery
+- [Attachments](references/attachments.md) - Attach existing files to PRs or comments; use `before-and-after` for polished UI comparison or preview media
 - [Actions](references/actions.md) - Workflows, runs, caches, secrets, variables
 - [Releases](references/releases.md) - Create, upload, download, verify
 - [Projects](references/projects.md) - Create, manage items, fields
 - [Codespaces](references/codespaces.md) - Create, connect, manage
 - [API](references/api.md) - REST and GraphQL requests
 - [Misc](references/misc.md) - Gists, orgs, search, labels, keys, extensions, aliases
-
-## Global Flags
-
-| Flag                       | Description                            |
-| -------------------------- | -------------------------------------- |
-| `--help` / `-h`            | Show help for command                  |
-| `--repo [HOST/]OWNER/REPO` | Select another repository              |
-| `--hostname HOST`          | GitHub hostname                        |
-| `--jq EXPRESSION`          | Filter JSON output                     |
-| `--json FIELDS`            | Output JSON with specified fields      |
-| `--template STRING`        | Format JSON using Go template          |
-| `--web`                    | Open in browser                        |
-| `--paginate`               | Make additional API calls              |
-
-## Output Formatting
-
-### JSON Output
-
-```bash
-# Basic JSON
-gh repo view --json name,description
-
-# Nested fields
-gh repo view --json owner,name --jq '.owner.login + "/" + .name'
-
-# Array operations
-gh pr list --json number,title --jq '.[] | select(.number > 100)'
-
-# Complex queries
-gh issue list --json number,title,labels \
-  --jq '.[] | {number, title: .title, tags: [.labels[].name]}'
-```
-
-### Template Output
-
-```bash
-# Custom template
-gh repo view --template '{{.name}}: {{.description}}'
-
-# Multiline template
-gh pr view 123 --template 'Title: {{.title}}
-Author: {{.author.login}}
-State: {{.state}}'
-```
 
 ## Common Workflows
 
@@ -150,21 +71,29 @@ gh issue create --title "Child issue title" --body-file child.md --label label-n
 # 4. Capture node ids for relationship mutations
 gh issue view 124 --json id,number,title,url
 
-# 5. Link sub-issues / blockers with GraphQL, then verify
+# 5. Link sub-issues / blockers with GraphQL
 gh api graphql -f query='mutation($issueId: ID!, $subIssueId: ID!) { addSubIssue(input: { issueId: $issueId, subIssueId: $subIssueId }) { issue { id } subIssue { id } } }' -f issueId=PARENT_ID -f subIssueId=CHILD_ID
 gh api graphql -f query='mutation($issueId: ID!, $blockingIssueId: ID!) { addBlockedBy(input: { issueId: $issueId, blockingIssueId: $blockingIssueId }) { issue { id } blockingIssue { id } } }' -f issueId=CHILD_ID -f blockingIssueId=BLOCKER_ID
+
+# 6. Read back every affected issue
+gh issue view 123 --json number,subIssues
+gh issue view 124 --json number,parent,blockedBy,blocking
 ```
 
-If a relationship call fails after issue creation, do not recreate issues. Re-fetch created issue numbers/node ids, verify which relationships exist, then retry only missing links.
+Complete only when every requested parent, sub-issue, blocker, and blocking relationship appears in the readback. If a relationship call fails after issue creation, re-fetch the created issue numbers and node IDs, then retry only missing links on the existing issues.
 
 ### Create PR from Issue
 
 ```bash
-# Create branch from issue
-gh issue develop 123 --branch feature/issue-123
+# Create and check out a linked branch
+gh issue develop 123 --name feature/issue-123 --checkout
 
-# Make changes, commit, push
-git add . && git commit -m "Fix issue #123" && git push
+# Inspect changes and stage only intended paths
+git status --short
+git add path/to/changed-file
+git diff --cached --stat
+git commit -m "Fix issue #123"
+git push -u origin HEAD
 
 # Create PR linking to issue
 gh pr create --title "Fix #123" --body "Closes #123"
@@ -200,16 +129,17 @@ gh label create enhancement --color "a2eeef" --description "Feature request"
 ### CI/CD Workflow
 
 ```bash
-# Run workflow
-gh workflow run ci.yml --ref main
+# Dispatch and capture the created run URL
+RUN_URL=$(gh workflow run ci.yml --ref main)
+if [ -z "$RUN_URL" ]; then
+  echo "No run URL returned; inspect gh run list before continuing." >&2
+  exit 1
+fi
+RUN_ID=${RUN_URL##*/}
 
-# Get latest run
-RUN_ID=$(gh run list --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-
-# Watch the run
+# Verify identity before watching or downloading
+gh run view "$RUN_ID" --json databaseId,event,headBranch,url
 gh run watch "$RUN_ID"
-
-# Download artifacts on completion
 gh run download "$RUN_ID" --dir ./artifacts
 ```
 
@@ -223,37 +153,6 @@ cd repo
 # Sync fork with upstream
 gh repo sync
 ```
-
-## Environment Variables
-
-```bash
-export GH_TOKEN=ghp_xxxxxxxxxxxx    # Token for automation
-export GH_HOST=github.com           # GitHub hostname
-export GH_PROMPT_DISABLED=true      # Disable prompts
-export GH_REPO=owner/repo           # Override default repo
-```
-
-## Best Practices
-
-1. **Set default repository** to avoid repetition:
-   ```bash
-   gh repo set-default owner/repo
-   ```
-
-2. **Use JSON + jq** for complex data extraction:
-   ```bash
-   gh pr list --json number,title --jq '.[] | select(.title | contains("fix"))'
-   ```
-
-3. **Use --paginate** for large result sets:
-   ```bash
-   gh issue list --state all --paginate
-   ```
-
-4. **Use environment variables** for automation:
-   ```bash
-   export GH_TOKEN=$(gh auth token)
-   ```
 
 ## Getting Help
 
