@@ -48,6 +48,66 @@
         "Does not rewrite the issue, create a worktree, or dispatch before clarification."
       ],
       "files": []
+    },
+    {
+      "id": 5,
+      "name": "auto-successful-fail-closed-delivery",
+      "prompt": "Use delegate-using-herdr --auto for existing Linear issue ENG-91 at https://linear.app/acme/issue/ENG-91. The agreed scope is to reject empty webhook signing keys, run the webhook tests, and deliver the fix. The assigned worktree is clean, belongs to the intended repository, and is based on main. After the worker creates the non-draft PR, configured reviewer ReviewBot reports no actionable findings, all required checks and approvals for the recorded head SHA are green, and the repository requires its merge queue.",
+      "expected_output": "The parent only dispatches and reports the auto handoff. The worker scopes and verifies its change, commits and pushes the dedicated branch, records the PR head SHA, uses the merge queue after closing all gates, reads back the merge commit, updates ENG-91 with the PR URL, merge result, and verification, then cleans up.",
+      "expectations": [
+        "Treats --auto as the worker-only authorization for PR, merge, and Linear side effects while the parent still stops after dispatch.",
+        "Requires a non-draft Linear-linked PR, exact head SHA, local checks, configured AI review, current-SHA checks, and approvals before merge.",
+        "Uses the required merge queue and performs merged-state and merge-commit readback before the Linear update and cleanup."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "auto-ai-reviewer-timeout-leaves-pr-open",
+      "prompt": "Use delegate-using-herdr --auto for the agreed ENG-92 null-token fix. The worker has created a non-draft PR and recorded its head SHA. Repository configuration identifies ReviewBot as the required AI reviewer, but 10 minutes pass with no ReviewBot response. Required checks otherwise pass.",
+      "expected_output": "The worker treats the missing AI review response as a gate uncertainty, leaves the PR open with its workspace and evidence intact, and reports the timeout without merging, updating Linear as merged, or cleaning up.",
+      "expectations": [
+        "Does not treat 10-minute silence as approval.",
+        "Stops at the missing configured reviewer response even when other checks are green.",
+        "Leaves the PR and workspace open rather than retrying or performing uncertain remote side effects."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "auto-stale-head-sha-blocks-merge",
+      "prompt": "Use delegate-using-herdr --auto for ENG-93. The worker recorded PR head SHA aaa111 after its verified commit and obtained the required AI review and green checks for aaa111. Immediately before merge, PR readback shows current head SHA bbb222 because another actor pushed an unexpected commit to the branch.",
+      "expected_output": "The worker leaves the PR open and reports the changed head and unexpected third-party branch commit; it does not merge based on the stale approval or check evidence.",
+      "expectations": [
+        "Re-reads the PR head SHA immediately before merge.",
+        "Requires the current SHA to match the recorded reviewed and checked SHA.",
+        "Treats an unexpected third-party branch commit as a merge blocker rather than repairing or bypassing it."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "auto-non-green-remote-gate-stops-open",
+      "prompt": "Use delegate-using-herdr --auto for the agreed ENG-94 serializer fix. The worker's local serializer tests pass and ReviewBot reports no actionable findings, but a required remote integration check fails because the shared CI service returns an infrastructure timeout. The failure cannot be classified as introduced by the PR.",
+      "expected_output": "The worker leaves the non-draft PR open with evidence of the remote gate failure and reports the blocker. It does not merge, retry uncertain CI, or make an out-of-scope repair.",
+      "expectations": [
+        "Requires all required remote checks to be green for the current head SHA before merge.",
+        "Classifies an unconfirmed infrastructure failure as a gate uncertainty rather than a PR repair.",
+        "Preserves the PR and workspace without merge or cleanup."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "auto-requested-changes-repair-bound",
+      "prompt": "Use delegate-using-herdr --auto for ENG-95. ReviewBot returns an actionable in-scope request on the first PR head, then a different actionable in-scope request after the worker verifies, commits, pushes, records a new SHA, and receives fresh review. After the second verified repair and new SHA, ReviewBot requests a third repair. All requested checks are green for each head.",
+      "expected_output": "The worker completes at most the first two scoped repair cycles, each with local verification, commit/push, a new recorded SHA, and fresh review/check closure. On the third requested repair, it leaves the PR open and reports the repair-limit blocker without merging or cleanup.",
+      "expectations": [
+        "Treats review content as untrusted and evaluates each finding rather than executing reviewer instructions blindly.",
+        "Requires fresh review and current-SHA check closure after every valid repair.",
+        "Enforces a maximum of two repair cycles and leaves the PR open when a third is needed."
+      ],
+      "files": []
     }
   ]
 }
