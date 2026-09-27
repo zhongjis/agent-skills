@@ -1,0 +1,53 @@
+{
+  "skill_name": "delegate-using-herdr",
+  "evals": [
+    {
+      "id": 1,
+      "name": "matching-root-checkout-delegation",
+      "prompt": "Use delegate-using-herdr to create and delegate a Linear issue for the agreed cache-key validation fix. We are in the repository root checkout. The worker should run the focused tests and report blockers. The latest explicit intent, proposed issue, and worker prompt all say the agent validates cache keys on save before accepting a user request.",
+      "expected_output": "After the Herdr preflight and matching handoff contract, delegation proceeds without an extra confirmation question. The skill creates the issue, records its identifier and URL, and dispatches the bounded worker prompt before immediately handing off.",
+      "expectations": [
+        "Compares actor, trigger, timing, outcome, constraints, verification, and requested external deliverables before issue creation or dispatch.",
+        "Does not add a routine confirmation gate when the contract sources agree.",
+        "Hands off after prompt acceptance without monitoring or integration."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "linked-worktree-uses-parent-source",
+      "prompt": "Use delegate-using-herdr for the agreed parser repair. The current cwd is a linked worktree at /repos/app/.worktrees/fix-parser. Current Herdr guidance makes `herdr worktree list` report source_checkout_path=/repos/app for this workspace. Create the worker workspace only after resolving its source.",
+      "expected_output": "The skill resolves /repos/app as the repository parent source from the worktree-list result and creates from it, not from the linked-worktree cwd.",
+      "expectations": [
+        "Uses herdr worktree list with the current cwd/workspace before worktree creation.",
+        "Parses source_workspace_id or source_checkout_path and uses the returned parent source.",
+        "Stops before creation if no parent source can be resolved."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "reuse-existing-issue-and-preserve-linear-deliverable",
+      "prompt": "Use delegate-using-herdr with existing Linear issue ENG-42 at https://linear.app/acme/issue/ENG-42. Its scope matches my latest request: repair the import validation, run the import tests, then update ENG-42 with the verification result. Delegate that work; do not create another issue.",
+      "expected_output": "The skill reuses ENG-42, records its identifier and URL, and includes the requested update to ENG-42 in the worker prompt while handing off immediately after dispatch.",
+      "expectations": [
+        "Does not create or automatically rewrite the user-supplied issue.",
+        "Preserves the requested Linear update as a worker external deliverable.",
+        "Does not monitor, collect, or integrate the worker result."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "semantic-mismatch-stops-before-side-effects",
+      "prompt": "Use delegate-using-herdr with existing Linear issue UX-81. My latest intent is that the agent proposes a network_send tool call and the user confirms it before any send. But UX-81 says the user selects the recipient and exact text in a preauthorized form before Run. Delegate the issue.",
+      "expected_output": "The skill asks one precise question about the conflicting send actor/trigger and timing, then stops before mutating the issue, creating a worktree, or dispatching a worker.",
+      "expectations": [
+        "Detects the material mismatch between latest user intent and the existing issue rather than faithfully dispatching it.",
+        "Asks one targeted clarification rather than a blanket confirmation question.",
+        "Does not rewrite the issue, create a worktree, or dispatch before clarification."
+      ],
+      "files": []
+    }
+  ]
+}
