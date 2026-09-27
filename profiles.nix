@@ -8,7 +8,6 @@
     "lark-wiki"
   ];
   work = [
-    "pr"
     "splunk"
   ];
 }
