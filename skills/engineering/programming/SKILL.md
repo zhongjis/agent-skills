@@ -41,6 +41,8 @@ Choose the cheapest existing test rung that observes the changed behavior. A use
 
 **Prompt-test rule:** never assert natural-language prompt prose. Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test.
 
+**No bare word test**: Tests should verify contracts and transformations, not duplicate current catalog contents.
+
 Read [`references/testing.md`](references/testing.md) for the pyramid, Given/When/Then, mocking ladder, determinism and isolation, prompt-test implementation, and anti-patterns.
 
 ## Cross-language iron list
