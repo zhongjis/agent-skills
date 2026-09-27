@@ -157,7 +157,7 @@
       "source": "larksuite/cli",
       "sourceType": "github",
       "skillPath": "skills/lark-drive/SKILL.md",
-      "computedHash": "fda0b34afe006580725575f188483a0ed3b37cfc0c009acc4c024b57b9c842bb"
+      "computedHash": "cb830f535c01eeebe051e40656fd7d439a2ba31612c5b4736c8c77cc2098728b"
     },
     "lark-shared": {
       "source": "larksuite/cli",
