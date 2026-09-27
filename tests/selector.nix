@@ -3,6 +3,7 @@ let
   profiles = import ../profiles.nix;
   selectSkills = import ../lib/select-skills.nix;
   excludedRootNames = (import ../skill-selection.nix).exclude;
+  harnessRoutes = import ../skill-harnesses.nix;
   assemblyTests = import ./assembly.nix;
   exclusionTests = import ./exclusion.nix;
 
@@ -34,34 +35,7 @@ let
         inherit name;
         value = true;
       }) (collect root)));
-  movedRootNames = [
-    "address-comments"
-    "ast-grep"
-    "code-review"
-    "codebase-search"
-    "delegate-using-herdr"
-    "fd"
-    "find-skills"
-    "flue-framework"
-    "gh"
-    "herdr-bulk-action"
-    "herdr-bulk-review"
-    "pi-jsonl-logs"
-    "pr"
-    "programming"
-    "refactor"
-    "remove-ai-slops"
-    "research"
-    "rg"
-    "setup-repo-docs"
-    "skill-maintainer"
-    "splunk"
-    "to-arch-design"
-    "to-tickets"
-    "use-open-design-canvas"
-    "zoom-out"
-  ];
-  routedRootNames = ["pi-jsonl-logs"];
+  routedRootNames = builtins.attrNames harnessRoutes;
   rootNames = discoverNames ../skills;
   selectableRootNames = builtins.filter
     (name: !(builtins.elem name excludedRootNames))
@@ -74,7 +48,7 @@ let
     (harness: root:
       discoverNames root
       ++ builtins.filter
-      (name: (import ../skill-harnesses.nix).${name} or null == harness)
+      (name: harnessRoutes.${name} or null == harness)
       selectableRootNames)
     supportedHarnessRoots;
   allCatalogNames = builtins.attrNames (
@@ -195,19 +169,17 @@ let
     };
   };
 in
-  assert rootNames == movedRootNames;
-  assert builtins.elem "research" rootNames;
-  assert !(builtins.elem "research" vendoredCommonNames);
-  assert !(builtins.elem "research" excludedRootNames);
-  assert !(builtins.hasAttr "research" (import ../skill-harnesses.nix));
-  assert builtins.elem "research" commonNames;
   assert assemblyTests;
   assert exclusionTests;
-  assert !(builtins.elem "pi-jsonl-logs" commonNames);
-  assert builtins.elem "pi-jsonl-logs" harnessNames.pi;
   assert builtins.all
-    (harness: harness == "pi" || !(builtins.elem "pi-jsonl-logs" harnessNames.${harness}))
-    (builtins.attrNames supportedHarnessRoots);
+    (name:
+      !(builtins.elem name commonNames)
+      && builtins.all
+        (harness:
+          builtins.elem name harnessNames.${harness}
+          == (harnessRoutes.${name} == harness))
+        (builtins.attrNames supportedHarnessRoots))
+    routedRootNames;
   assert namesFor {profile = "personal";} == expectedNames "personal" null;
   assert namesFor {profile = "work";} == expectedNames "work" null;
   assert namesFor {

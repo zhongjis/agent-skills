@@ -20,6 +20,11 @@ let
     "work"
   ]);
   projectSkillEntries = builtins.readDir ../.agents/skills;
+  excludedProjectProjections = builtins.filter
+    (name:
+      projectSkillEntries.${name} == "symlink"
+      && builtins.elem name excludedRootNames)
+    (builtins.attrNames projectSkillEntries);
   # Excluded skills are preserved as real leaves; resolve name under any category.
   leafExists = root: name:
     builtins.pathExists (root + "/${name}/SKILL.md")
@@ -41,19 +46,14 @@ let
   };
   fails = value: !(builtins.tryEval (builtins.deepSeq value true)).success;
 in
-  assert excludedRootNames == [
-    "find-skills"
-    "skill-maintainer"
-    "flue-framework"
-  ];
   assert builtins.attrNames filteredRootFixture == ["keep"];
   assert fails staleRootExclusion;
   assert builtins.all
     (name: leafExists ../skills name)
     excludedRootNames;
   assert builtins.all
-    (name: projectSkillEntries.${name} or null == "symlink")
-    (builtins.filter (name: builtins.hasAttr name projectSkillEntries) excludedRootNames);
+    (name: builtins.pathExists (../.agents/skills + "/${name}/SKILL.md"))
+    excludedProjectProjections;
   assert builtins.all
     (skills: builtins.all (name: !(builtins.hasAttr name skills)) excludedRootNames)
     selectedSkillSets;

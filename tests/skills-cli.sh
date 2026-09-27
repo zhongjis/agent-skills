@@ -25,16 +25,48 @@ assert_excludes_line() {
   fi
 }
 
-assert_project_projection() {
-  local name="$1"
-  local expected="$2"
-  local linkPath="$repoRoot/.agents/skills/$name"
+assert_project_projections() {
+  local excludedRootNames linkPath name target excludedName
+  local nameExcluded
+  local projectionCount=0
+  local -a targetParts
 
-  [[ -L "$linkPath" ]] || fail "project projection is not a symlink: $name"
-  [[ "$(readlink "$linkPath")" == "$expected" ]] \
-    || fail "project projection target mismatch: $name"
-  [[ -f "$linkPath/SKILL.md" ]] || fail "project projection target is invalid: $name"
-  printf 'project projection: %s -> %s\n' "$name" "$expected"
+  excludedRootNames="$(nix eval --json --file "$repoRoot/skill-selection.nix" \
+    | sed -nE 's/.*"exclude":[[:space:]]*\[([^]]*)\].*/\1/p' \
+    | tr ',' '\n' \
+    | sed -nE 's/^[[:space:]]*"([^"]+)"[[:space:]]*$/\1/p')"
+
+  for linkPath in "$repoRoot"/.agents/skills/*; do
+    [[ -L "$linkPath" ]] || continue
+    ((projectionCount += 1))
+    name="${linkPath##*/}"
+    target="$(readlink "$linkPath")"
+    IFS=/ read -r -a targetParts <<<"$target"
+    [[ "${#targetParts[@]}" -eq 5
+      && "${targetParts[0]}" == ".."
+      && "${targetParts[1]}" == ".."
+      && "${targetParts[2]}" == "skills"
+      && -n "${targetParts[3]}"
+      && "${targetParts[3]}" != "."
+      && "${targetParts[3]}" != ".."
+      && "${targetParts[4]}" == "$name" ]] \
+      || fail "project projection target mismatch: $name -> $target"
+    [[ -f "$linkPath/SKILL.md" ]] \
+      || fail "project projection target is invalid: $name"
+
+    nameExcluded=false
+    while IFS= read -r excludedName; do
+      if [[ "$name" == "$excludedName" ]]; then
+        nameExcluded=true
+        break
+      fi
+    done <<<"$excludedRootNames"
+    [[ "$nameExcluded" == true ]] \
+      || fail "project projection is not excluded: $name"
+  done
+
+  ((projectionCount > 0)) || fail "no project projections found"
+  printf 'project projections: %d valid excluded symlinks\n' "$projectionCount"
 }
 
 cleanup() {
@@ -74,8 +106,7 @@ run_cli() {
 scriptDir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repoRoot="$(cd -- "$scriptDir/.." && pwd -P)"
 sourceStatusBefore="$(git -C "$repoRoot" status --porcelain=v1 --untracked-files=all)"
-assert_project_projection find-skills ../../skills/misc/find-skills
-assert_project_projection skill-maintainer ../../skills/misc/skill-maintainer
+assert_project_projections
 
 tempDir="$(mktemp -d)"
 [[ -n "$tempDir" && -d "$tempDir" && "$tempDir" == /*/tmp.* ]] \

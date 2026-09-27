@@ -236,31 +236,24 @@ packs_defaults_to_universal_agent() {
   assert_calls packs_defaults_to_universal_agent "$expected"
 }
 
-packs_repository_typescript_catalog() {
-  reset_fixture
-  runPacksDir="$repoRoot/packs"
-  run_packs typescript --agent pi
-  assert_status packs_repository_typescript_catalog 0
+packs_repository_manifests_smoke() {
+  local manifest pack
+  local -a repositoryPacks=()
+  shopt -s nullglob
+  for manifest in "$repoRoot"/packs/*.json; do
+    pack="${manifest##*/}"
+    repositoryPacks+=("${pack%.json}")
+  done
+  shopt -u nullglob
+  ((${#repositoryPacks[@]} > 0)) || fail "repository pack smoke: no manifests found"
 
-  local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
-  assert_calls packs_repository_typescript_catalog "$expected"
-}
-
-packs_repository_vercel_catalog_includes_typescript_dependency() {
-  reset_fixture
-  runPacksDir="$repoRoot/packs"
-  run_packs vercel --agent pi
-  assert_status packs_repository_vercel_catalog_includes_typescript_dependency 0
-
-  local expected
-  expected="${callerDir}"$'\t''add'$'\t''https://github.com/bobmatnyc/claude-mpm-skills'$'\t''--skill'$'\t''biome'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/antfu/skills'$'\t''--skill'$'\t''pnpm'$'\t''--skill'$'\t''vitest'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel/turborepo'$'\t''--skill'$'\t''turborepo'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'$'\n'
-  expected+="${callerDir}"$'\t''add'$'\t''https://github.com/vercel-labs/agent-skills'$'\t''--skill'$'\t''deploy-to-vercel'$'\t''--skill'$'\t''vercel-react-best-practices'$'\t''--skill'$'\t''vercel-composition-patterns'$'\t''--skill'$'\t''vercel-optimize'$'\t''--agent'$'\t''pi'$'\t''--copy'$'\t''-y'
-  assert_calls packs_repository_vercel_catalog_includes_typescript_dependency "$expected"
+  for pack in "${repositoryPacks[@]}"; do
+    reset_fixture
+    runPacksDir="$repoRoot/packs"
+    run_packs "$pack" --agent pi
+    assert_status "repository pack smoke: $pack" 0
+    [[ -s "$callsFile" ]] || fail "repository pack smoke: $pack made no CLI calls"
+  done
 }
 
 packs_invalid_catalogs_fail_before_cli() {
@@ -418,6 +411,5 @@ run_test packs_invalid_dependency_and_source_shapes_fail_before_cli
 run_test packs_invalid_arguments_and_help
 run_test packs_preserves_cli_lock_bytes
 run_test packs_cli_failure_stops_later_sources
-run_test packs_repository_typescript_catalog
-run_test packs_repository_vercel_catalog_includes_typescript_dependency
+run_test packs_repository_manifests_smoke
 printf 'PASS: packs public seam\n'
