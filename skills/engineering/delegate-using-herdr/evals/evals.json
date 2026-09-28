@@ -108,6 +108,18 @@
         "Enforces a maximum of two repair cycles and leaves the PR open when a third is needed."
       ],
       "files": []
+    },
+    {
+      "id": 10,
+      "name": "workspace-and-agent-naming-stay-independent",
+      "prompt": "Use delegate-using-herdr for existing Linear issue A2A-140. The repository's branch convention requires `fix/a2a-140-conversation-feedback-with-long-context`. Create the worktree at the basename `a2a-140-conversation-feedback-with-long-context` with friendly label `A2A-140 Conversation feedback with long context`. A compatible live agent already uses the shortened candidate agent-name stem. The shared Herdr session is default and tab label is 1.",
+      "expected_output": "The handoff preserves the repository branch convention while creating the requested lowercase worktree path and friendly label. It starts a distinct, valid live agent name derived from the issue and slug, shortening and disambiguating it within the limit, and leaves the shared session and tab untouched.",
+      "expectations": [
+        "Keeps `fix/a2a-140-conversation-feedback-with-long-context` as the branch while using the lowercase issue-slug basename through Herdr's path option and the supplied human-readable label.",
+        "Uses a lowercase hyphenated agent name derived from the same stem that matches Herdr's 32-character live-name limit, shortens the slug before adding a discriminator, and remains unique despite the occupied candidate.",
+        "Does not rename or mutate shared Herdr session `default` or tab label `1`, and reports the actual branch, workspace details, and agent name at handoff."
+      ],
+      "files": []
     }
   ]
 }
