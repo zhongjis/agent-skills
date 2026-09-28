@@ -3,14 +3,23 @@ name: address-comments
 adaptedFrom:
   - "https://github.com/openai/skills/tree/main/skills/.curated/gh-address-comments"
   - "https://github.com/v1-io/v1tamins/tree/main/claude/skills/address-review"
-description: Address unresolved pull request review comments and threads to closure.
+description: Address unresolved pull request review comments and threads to closure automatically; add `--manual` to require approval.
 disable-model-invocation: true
 companions: [gh, writing-clearly-and-concisely]
 ---
 
 # Address PR Review Threads
 
-Work unresolved PR review threads and actionable review/conversation comments to closure with an explicit approved plan: gather context, classify comments and required checks, make approved repairs, publish them, wait for required checks, then close handled threads.
+Work unresolved PR review threads and actionable review/conversation comments to closure with a scoped plan: gather context, classify comments and required checks, make authorized repairs, publish them, wait for required checks, then close handled threads.
+
+## Mode
+
+All workflow authorization follows this single rule:
+
+- **Default** (without `--manual`): record the Step 4 plan or amendment and execute the full scoped workflow without asking for approval, including local edits/tests, commit, push, replies, and thread resolutions.
+- **`--manual`**: present the Step 4 plan or amendment and obtain one explicit approval covering its listed local edits/tests and individually named remote actions.
+
+`--manual` changes only the approval gate. Both modes keep fixes scoped, run required checks, retain failure evidence and left-open items, publish code and wait for green checks before resolution, and clean up the temporary directory.
 
 ## Setup
 
@@ -76,33 +85,33 @@ For every unresolved thread and retained non-thread item, read local code around
 
 Record a one-sentence rationale. Also identify each known `PR-introduced` required-check repair and its local verification.
 
-### 4. Present one plan and obtain explicit approval
+### 4. Prepare one plan
 
-Present one plan containing every comment action, every known required-check repair, files to edit, local tests, items left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each thread resolution. Approval covers only the listed local edits/tests and listed remote actions; it does not imply broad permission for side effects.
+Prepare one plan containing every comment action, every known required-check repair, files to edit, local tests, items left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each thread resolution. Authorization is limited to the plan's listed local edits/tests and remote actions; it does not imply broad permission for side effects.
 
-Get explicit confirmation before applying the planned local edits or tests and before committing, pushing, posting GitHub replies, or resolving threads. If material new scope appears, present a plan amendment naming its edits, tests, and remote actions, then get confirmation before proceeding.
+Apply the mode rule to this plan. If material new scope appears, prepare a plan amendment naming its edits, tests, and remote actions, then apply the mode rule again before proceeding.
 
-### 5. Apply and verify approved fixes
+### 5. Apply and verify authorized fixes
 
-Make only approved local edits. Run the planned narrow local checks and fix failures. For every `PR-introduced` required-check failure, fix it, rerun affected local checks, and include its repair in the approved publication plan. Do not repair `base/pre-existing`, confirmed `flaky`, or `infrastructure` failures; retain their evidence and leave them open.
+Make only authorized local edits. Run the planned narrow local checks and fix failures. For every `PR-introduced` required-check failure, fix it, rerun affected local checks, and include its repair in the authorized publication plan. Do not repair `base/pre-existing`, confirmed `flaky`, or `infrastructure` failures; retain their evidence and leave them open.
 
-### 6. Commit and publish approved code
+### 6. Commit and publish authorized code
 
-After local verification passes, create the approved descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not approved or fails, leave handled review threads unresolved and do not claim completion.
+After local verification passes, create the authorized descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not authorized or fails, leave handled review threads unresolved and do not claim completion.
 
 ### 7. Close the required-check loop
 
-After each approved publication, inspect all required remote checks again. For a failure, inspect logs, reproduce when feasible, and classify it using the PR base workflow above.
+After each authorized publication, inspect all required remote checks again. For a failure, inspect logs, reproduce when feasible, and classify it using the PR base workflow above.
 
-- Repair every `PR-introduced` failure. A repair first discovered here is a material scope change: amend the plan and obtain confirmation, then verify, commit, push, and inspect required checks again.
+- Repair every `PR-introduced` failure. A repair first discovered here is a material scope change: amend the plan, apply the mode rule, then verify, commit, push, and inspect required checks again.
 - Leave evidenced `base/pre-existing`, confirmed `flaky`, `infrastructure`, and unclassified failures open with evidence.
-- Continue the approved repair loop until every required check is green. A reported `PR-introduced` failure is not completion.
+- Continue the authorized repair loop until every required check is green. A reported `PR-introduced` failure is not completion.
 
-Required checks must be green before closing replies or thread resolution. If approved code is not published or required checks are not green, do not claim done and do not resolve threads.
+Required checks must be green before closing replies or thread resolution. If authorized code is not published or required checks are not green, do not claim done and do not resolve threads.
 
 ### 8. Reply and resolve only after checks are green
 
-Load writing-clearly-and-concisely. Post one concise, outcome-based reply for each handled `fix` or `disagree`, using the approved action. For example, state what changed and any relevant verification, or state why the code remains unchanged. Do not use a mandatory reply template.
+Load writing-clearly-and-concisely. Post one concise, outcome-based reply for each handled `fix` or `disagree`, using the authorized action. For example, state what changed and any relevant verification, or state why the code remains unchanged. Do not use a mandatory reply template.
 
 Reply in existing review threads; post new PR conversation comments for review submissions and conversation comments. Resolve only handled review threads after their replies. Leave `left open` threads unresolved; submissions and conversation comments have no resolution state.
 
