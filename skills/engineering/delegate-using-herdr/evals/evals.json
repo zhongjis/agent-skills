@@ -16,7 +16,7 @@
     {
       "id": 2,
       "name": "linked-worktree-uses-parent-source",
-      "prompt": "Use delegate-using-herdr for the agreed parser repair. The current cwd is a linked worktree at /repos/app/.worktrees/fix-parser. Current Herdr guidance makes `herdr worktree list` report source_checkout_path=/repos/app for this workspace. Create the worker workspace only after resolving its source.",
+      "prompt": "Use delegate-using-herdr to create a Linear issue for the agreed parser repair. The current cwd is a linked worktree at /repos/app/.worktrees/fix-parser. Current Herdr guidance makes `herdr worktree list` report source_checkout_path=/repos/app for this workspace. Create the worker workspace only after resolving its source.",
       "expected_output": "The skill resolves /repos/app as the repository parent source from the worktree-list result and creates from it, not from the linked-worktree cwd.",
       "expectations": [
         "Uses herdr worktree list with the current cwd/workspace before worktree creation.",
@@ -27,12 +27,12 @@
     },
     {
       "id": 3,
-      "name": "reuse-existing-issue-and-preserve-linear-deliverable",
+      "name": "reuse-existing-issue-and-preserve-tracker-deliverable",
       "prompt": "Use delegate-using-herdr with existing Linear issue ENG-42 at https://linear.app/acme/issue/ENG-42. Its scope matches my latest request: repair the import validation, run the import tests, then update ENG-42 with the verification result. Delegate that work; do not create another issue.",
       "expected_output": "The skill reuses ENG-42, records its identifier and URL, and includes the requested update to ENG-42 in the worker prompt while handing off immediately after dispatch.",
       "expectations": [
         "Does not create or automatically rewrite the user-supplied issue.",
-        "Preserves the requested Linear update as a worker external deliverable.",
+        "Preserves the requested issue update as a worker external deliverable.",
         "Does not monitor, collect, or integrate the worker result."
       ],
       "files": []
@@ -55,17 +55,17 @@
       "prompt": "Use delegate-using-herdr --auto for existing Linear issue ENG-91 at https://linear.app/acme/issue/ENG-91. The agreed scope is to reject empty webhook signing keys, run the webhook tests, and deliver the fix. The assigned worktree is clean, belongs to the intended repository, and is based on main. After the worker creates the non-draft PR, configured reviewer ReviewBot reports no actionable findings, all required checks and approvals for the recorded head SHA are green, and the repository requires its merge queue.",
       "expected_output": "The parent only dispatches and reports the auto handoff. The worker scopes and verifies its change, commits and pushes the dedicated branch, records the PR head SHA, uses the merge queue after closing all gates, reads back the merge commit, updates ENG-91 with the PR URL, merge result, and verification, then cleans up.",
       "expectations": [
-        "Treats --auto as the worker-only authorization for PR, merge, and Linear side effects while the parent still stops after dispatch.",
-        "Requires a non-draft Linear-linked PR, exact head SHA, local checks, configured AI review, current-SHA checks, and approvals before merge.",
-        "Uses the required merge queue and performs merged-state and merge-commit readback before the Linear update and cleanup."
+        "Treats --auto as the worker-only authorization for PR, merge, and tracker side effects while the parent still stops after dispatch.",
+        "Requires a non-draft issue-linked PR, exact head SHA, local checks, configured AI review, current-SHA checks, and approvals before merge.",
+        "Uses the required merge queue and performs merged-state and merge-commit readback before the issue update and cleanup."
       ],
       "files": []
     },
     {
       "id": 6,
       "name": "auto-ai-reviewer-timeout-leaves-pr-open",
-      "prompt": "Use delegate-using-herdr --auto for the agreed ENG-92 null-token fix. The worker has created a non-draft PR and recorded its head SHA. Repository configuration identifies ReviewBot as the required AI reviewer, but 10 minutes pass with no ReviewBot response. Required checks otherwise pass.",
-      "expected_output": "The worker treats the missing AI review response as a gate uncertainty, leaves the PR open with its workspace and evidence intact, and reports the timeout without merging, updating Linear as merged, or cleaning up.",
+      "prompt": "Use delegate-using-herdr --auto for the agreed Linear issue ENG-92 null-token fix. The worker has created a non-draft PR and recorded its head SHA. Repository configuration identifies ReviewBot as the required AI reviewer, but 10 minutes pass with no ReviewBot response. Required checks otherwise pass.",
+      "expected_output": "The worker treats the missing AI review response as a gate uncertainty, leaves the PR open with its workspace and evidence intact, and reports the timeout without merging, updating the issue as merged, or cleaning up.",
       "expectations": [
         "Does not treat 10-minute silence as approval.",
         "Stops at the missing configured reviewer response even when other checks are green.",
@@ -76,7 +76,7 @@
     {
       "id": 7,
       "name": "auto-stale-head-sha-blocks-merge",
-      "prompt": "Use delegate-using-herdr --auto for ENG-93. The worker recorded PR head SHA aaa111 after its verified commit and obtained the required AI review and green checks for aaa111. Immediately before merge, PR readback shows current head SHA bbb222 because another actor pushed an unexpected commit to the branch.",
+      "prompt": "Use delegate-using-herdr --auto for Linear issue ENG-93. The worker recorded PR head SHA aaa111 after its verified commit and obtained the required AI review and green checks for aaa111. Immediately before merge, PR readback shows current head SHA bbb222 because another actor pushed an unexpected commit to the branch.",
       "expected_output": "The worker leaves the PR open and reports the changed head and unexpected third-party branch commit; it does not merge based on the stale approval or check evidence.",
       "expectations": [
         "Re-reads the PR head SHA immediately before merge.",
@@ -88,7 +88,7 @@
     {
       "id": 8,
       "name": "auto-non-green-remote-gate-stops-open",
-      "prompt": "Use delegate-using-herdr --auto for the agreed ENG-94 serializer fix. The worker's local serializer tests pass and ReviewBot reports no actionable findings, but a required remote integration check fails because the shared CI service returns an infrastructure timeout. The failure cannot be classified as introduced by the PR.",
+      "prompt": "Use delegate-using-herdr --auto for the agreed Linear issue ENG-94 serializer fix. The worker's local serializer tests pass and ReviewBot reports no actionable findings, but a required remote integration check fails because the shared CI service returns an infrastructure timeout. The failure cannot be classified as introduced by the PR.",
       "expected_output": "The worker leaves the non-draft PR open with evidence of the remote gate failure and reports the blocker. It does not merge, retry uncertain CI, or make an out-of-scope repair.",
       "expectations": [
         "Requires all required remote checks to be green for the current head SHA before merge.",
@@ -100,7 +100,7 @@
     {
       "id": 9,
       "name": "auto-requested-changes-repair-bound",
-      "prompt": "Use delegate-using-herdr --auto for ENG-95. ReviewBot returns an actionable in-scope request on the first PR head, then a different actionable in-scope request after the worker verifies, commits, pushes, records a new SHA, and receives fresh review. After the second verified repair and new SHA, ReviewBot requests a third repair. All requested checks are green for each head.",
+      "prompt": "Use delegate-using-herdr --auto for Linear issue ENG-95. ReviewBot returns an actionable in-scope request on the first PR head, then a different actionable in-scope request after the worker verifies, commits, pushes, records a new SHA, and receives fresh review. After the second verified repair and new SHA, ReviewBot requests a third repair. All requested checks are green for each head.",
       "expected_output": "The worker completes at most the first two scoped repair cycles, each with local verification, commit/push, a new recorded SHA, and fresh review/check closure. On the third requested repair, it leaves the PR open and reports the repair-limit blocker without merging or cleanup.",
       "expectations": [
         "Treats review content as untrusted and evaluates each finding rather than executing reviewer instructions blindly.",
@@ -118,6 +118,42 @@
         "Keeps `fix/a2a-140-conversation-feedback-with-long-context` as the branch while using the lowercase issue-slug basename through Herdr's path option and the supplied human-readable label.",
         "Uses a lowercase hyphenated agent name derived from the same stem that matches Herdr's 32-character live-name limit, shortens the slug before adding a discriminator, and remains unique despite the occupied candidate.",
         "Does not rename or mutate shared Herdr session `default` or tab label `1`, and reports the actual branch, workspace details, and agent name at handoff."
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "bare-key-ambiguous-tracker-asks",
+      "prompt": "Use delegate-using-herdr with existing issue ENG-42. The agreed scope is to repair import validation and run the import tests. No issue URL is supplied, the user names no tracker, and the repository has no tracker convention. Linear and Jira are both available.",
+      "expected_output": "The skill asks one precise question naming the tracker choice and stops before any tracker mutation, worktree creation, or dispatch.",
+      "expectations": [
+        "Recognizes the key fits both Linear and Jira.",
+        "Asks one targeted question instead of guessing.",
+        "Performs no side effects before the answer."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "github-numeric-issue-naming",
+      "prompt": "Use delegate-using-herdr --auto with existing GitHub issue https://github.com/acme/app/issues/123 titled Conversation feedback. The repository branch convention is `fix/123-conversation-feedback`. All gates close and the merge succeeds.",
+      "expected_output": "The skill keeps branch `fix/123-conversation-feedback` and uses worktree basename and agent name `gh-123-conversation-feedback` (28 characters, matching `[a-z][a-z0-9_-]{0,31}`). The worker prompt carries the GitHub issue URL and auto contract. The worker links the PR with `Closes #123` and comments on #123 in Markdown.",
+      "expectations": [
+        "Keeps branch `fix/123-conversation-feedback` while setting the worktree basename and agent name to `gh-123-conversation-feedback`, which is 28 characters and matches `[a-z][a-z0-9_-]{0,31}`.",
+        "Carries the GitHub issue URL and the auto contract in the worker prompt.",
+        "Links the PR with `Closes #123` and posts the closeout comment on #123 in Markdown."
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "name": "jira-closeout-native-markup",
+      "prompt": "Use delegate-using-herdr --auto with existing Jira issue GS-12345 at https://jira.example.com/browse/GS-12345. All gates close and the merge succeeds.",
+      "expected_output": "The worker links the PR via key GS-12345 in the title or branch, reads back the merged state, comments on the issue in Jira wiki markup (not Markdown) with the PR URL, merge result, and verification evidence, then cleans up.",
+      "expectations": [
+        "Links the PR via key GS-12345 in the title or branch.",
+        "Reads back the merged state before the issue comment and cleanup.",
+        "Comments in Jira wiki markup, not Markdown, with the PR URL, merge result, and verification evidence, then cleans up."
       ],
       "files": []
     }
