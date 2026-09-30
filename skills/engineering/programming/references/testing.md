@@ -1,6 +1,6 @@
 # Testing Depth — Pyramid, Mocking, and Anti-Patterns
 
-Test-design depth for the [testing policy in `SKILL.md`](../SKILL.md#testing-policy). `SKILL.md` owns the baseline-first policy, test-rung selection, budgets, and the prompt-test rule. This file owns the pyramid, Given/When/Then, mocking ladder, deterministic isolation, anti-patterns, and prompt-test implementation. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
+Test-design depth for the [testing policy in `SKILL.md`](../SKILL.md#testing-policy). `SKILL.md` owns the baseline-first policy, test-rung selection, budgets, the prompt-test rule, and the present-contract rule. This file owns the pyramid, Given/When/Then, mocking ladder, deterministic isolation, anti-patterns, and prompt-test implementation. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
 
 ## The test pyramid
 
@@ -66,6 +66,9 @@ If no machine consumes the text, there is no seam: write no test and say so in t
 | `time.sleep(0.1)` to "let it finish" | Flake guaranteed. | Subscribe to the completion signal; bounded await. |
 | Snapshot tests for everything | Locks formatting, not behavior. | Snapshots for *structure* (CLI help, JSON shape). Assertions for *behavior*. |
 | Removing a failing test to "unblock CI" | You just deleted a bug report. | Fix the code or correct the test's premise. |
+| Backward-compat test (`version: 1` fixture, alias, `none → off`, old-runtime gate) | Pins behavior nobody ships toward; keeps dead compat code alive. | Delete it; build fixtures on the current version. |
+| Removal test ("removed agent is invalid", "no `isolation` key", "retired mode rejected") | A changelog written as a test; it catches no real bug. | Delete it. A generic unknown-input test already covers the class. |
+| Catalog test (exact model chain, tool roster, profile names, prompt phrase, file matrix) | Fails on every data edit, never on a logic bug. | Build a synthetic catalog; assert the mechanism (resolution order, filtering, parsing). |
 | `assert result is not None` and stopping there | Passes when result is garbage. | Assert the *value*, not its existence. |
 | Expected value derived from the output under test | Recomputes a projection of the output and compares it to itself — passes even when the artifact is built from the wrong input. | Derive the expected value from the test's *input* (an independent known-good builder fed the fixture's input), or a stable routing decision. |
 | Override/precedence fixture equal to its fallback | The assertion passes whether or not the code honored the override — precedence is never exercised. | Make every value the code must select, preserve, or override differ from its fallback. Prove it: force the regression the test names, watch it fail, revert. |

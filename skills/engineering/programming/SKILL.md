@@ -41,7 +41,12 @@ Choose the cheapest existing test rung that observes the changed behavior. A use
 
 **Prompt-test rule:** never assert natural-language prompt prose. Assert only machine-consumed routing decisions, parsed structure, tool names, tags, fields, or enforced conditionals. A minimal frontmatter trigger fragment is valid only when a router consumes it. If no machine consumes the text, review it instead of inventing a test.
 
-**No bare word test**: Tests should verify contracts and transformations, not duplicate current catalog contents.
+**Present-contract rule:** a test pins one current, supported contract through its mechanism.
+- **Supported only.** Test behavior that production entrypoints reach today. Code reachable only from tests is dead code, not coverage.
+- **No history.** Do not test backward compatibility (legacy formats, aliases, old schema versions, migrations, old-runtime fallbacks) or feature removal (a removed name, field, or mode stays absent or rejected). Git records history; delete a feature's tests with the feature.
+- **Mechanism, not catalog.** Feed synthetic inputs and assert the transformation. Never pin live repo data — model IDs, rosters, counts, config contents, prompt prose — that changes by editing data, not logic.
+
+A negative assertion is valid only when it guards a current contract (security boundary, invalid-input class), never a removed name.
 
 Read [`references/testing.md`](references/testing.md) for the pyramid, Given/When/Then, mocking ladder, determinism and isolation, prompt-test implementation, and anti-patterns.
 
