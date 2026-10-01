@@ -46,6 +46,10 @@ An existing body or repository template takes precedence over this template:
 3. With no applicable template, use the template above.
 4. Treat headings with equivalent meaning as present (for example, `Description` for summary, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate section. Preserve retained heading text and order; append only semantically absent sections from the template above.
 
+## Title
+
+Format PR titles as `[<issue-tracker-item-id>] <title>`, using the primary reference's ID; with no reference, omit the prefix.
+
 ## Sections
 
 Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.

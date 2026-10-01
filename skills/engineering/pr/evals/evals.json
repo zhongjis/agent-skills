@@ -174,6 +174,26 @@
         "Appends `## Merge Danger` because the template has no equivalent heading."
       ],
       "files": []
+    },
+    {
+      "id": 15,
+      "name": "title-uses-primary-tracker-id",
+      "prompt": "Draft a PR title and body. Diff: reject malformed webhook signatures before parsing. Completed result: `pnpm test webhook` passed. Primary issue: https://tracker.example/WEB-18. Related follow-up: WEB-20. No template exists.",
+      "expected_output": "A title prefixed `[WEB-18]` only.",
+      "expectations": [
+        "Title is `[WEB-18] <title>`, omitting WEB-20."
+      ],
+      "files": []
+    },
+    {
+      "id": 16,
+      "name": "title-without-tracker-has-no-prefix",
+      "prompt": "Draft a PR title and body. Diff: docs/install.md now names the correct `nix develop` command. Completed result: `markdownlint docs/install.md` passed. No template or tracker exists.",
+      "expected_output": "A title with no bracketed prefix.",
+      "expectations": [
+        "Title has no bracketed prefix."
+      ],
+      "files": []
     }
   ]
 }
