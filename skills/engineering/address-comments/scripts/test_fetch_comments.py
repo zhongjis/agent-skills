@@ -28,6 +28,7 @@ def page(
     c_next: bool = False,
     r_next: bool = False,
     t_next: bool = False,
+    author: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     return {
         "data": {
@@ -37,6 +38,7 @@ def page(
                     "url": "https://github.com/base/repo/pull/7",
                     "title": "title",
                     "state": "OPEN",
+                    "author": author,
                     "comments": {
                         "pageInfo": {"hasNextPage": c_next, "endCursor": "c2" if c_next else None},
                         "nodes": comment_nodes,
@@ -134,6 +136,18 @@ class FetchAllTests(unittest.TestCase):
             ("owner", "pull"),
             fetch_comments.parse_pr_url("https://github.com/owner/pull/pull/7"),
         )
+
+    def test_fetch_all_records_pr_author_login_or_none_when_null(self):
+        present = page([], [], [], author={"login": "pr-owner"})
+        null_author = page([], [], [], author=None)
+
+        with mock.patch.object(fetch_comments, "gh_api_graphql", return_value=present):
+            self.assertEqual(
+                "pr-owner",
+                fetch_comments.fetch_all("base", "repo", 7)["pull_request"]["author"],
+            )
+        with mock.patch.object(fetch_comments, "gh_api_graphql", return_value=null_author):
+            self.assertIsNone(fetch_comments.fetch_all("base", "repo", 7)["pull_request"]["author"])
 
 
 class PreviewTests(unittest.TestCase):

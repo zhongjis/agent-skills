@@ -17,10 +17,11 @@
       "id": 2,
       "name": "default-executes-specific-remote-actions",
       "prompt": "Address PR #52. One thread needs a one-line validation fix; required checks show a known PR-introduced test failure needing a second local fix. The invocation does not include `--manual`.",
-      "expected_output": "Default mode records and executes one scoped plan covering both local repairs, their checks, and individually named commit, push, reply, and thread-resolution actions without requesting approval.",
+      "expected_output": "Default mode records and executes one scoped plan covering both local repairs, their checks, and individually named commit, push, and reply actions without requesting approval. The plan includes no resolution for the thread it replies to.",
       "expectations": [
         "Lists the comment repair and known required-check repair together with their files and local verification.",
-        "Names commit, push, reply, and thread resolution as separate planned remote actions.",
+        "Names commit, push, and the reply as separate remote actions.",
+        "Includes no resolution for the thread it replies to.",
         "Does not request approval before executing the scoped plan in the default mode."
       ],
       "files": []
@@ -29,23 +30,25 @@
       "id": 3,
       "name": "failure-present-at-start-but-pr-introduced",
       "prompt": "Address PR #53. Before edits, required CI check `unit` is failing. Logs and a safe merge-base comparison show the PR changes the parser behavior that causes the failure; the base passes. The thread itself needs no code change.",
-      "expected_output": "The existing failure is classified as PR-introduced, planned for repair, and not treated as completed merely because it predated invocation.",
+      "expected_output": "The existing failure is classified as PR-introduced and planned for repair. It is not treated as done merely because it predated invocation. Publishing the repair is what clears that failure.",
       "expectations": [
         "Classifies against the PR base rather than skill start time.",
         "Includes the parser repair and affected local test in the scoped plan.",
-        "Requires publishing the repair and green required checks before completion."
+        "Publishes the repair before treating the PR-introduced failure as done."
       ],
       "files": []
     },
     {
       "id": 4,
       "name": "failure-introduced-during-comment-fix",
-      "prompt": "Address PR #54. The initial required checks are green. After the comment fix is verified, committed, and pushed in default mode, required check `integration` fails. Logs and local reproduction show the comment fix introduced the failure.",
-      "expected_output": "The workflow leaves replies and resolution pending, records and executes a plan amendment for the new PR-introduced repair without requesting approval, verifies and publishes it, then rechecks required CI.",
+      "prompt": "Address PR #54. The initial required checks are green. After the comment fix is verified, committed, and pushed in default mode, required check `integration` fails within the check window. Logs and local reproduction show the comment fix introduced the failure.",
+      "expected_output": "The reply is posted after the first push. The integration failure is classified PR-introduced. Default mode executes the amendment without approval, then verifies, commits, and pushes it, which starts a new 5-minute window. The replied thread stays unresolved.",
       "expectations": [
+        "Posts the reply after the first push and before the required-check wait.",
         "Classifies the new integration failure as PR-introduced.",
-        "Does not request approval for the material newly discovered repair or its publication actions in default mode.",
-        "Loops through local verification, push, and required-check inspection before posting closing replies or resolving threads."
+        "Executes the amendment without approval, then verifies, commits, and pushes it.",
+        "Starts a new 5-minute window after the amendment push.",
+        "Leaves the replied thread unresolved."
       ],
       "files": []
     },
@@ -53,49 +56,79 @@
       "id": 5,
       "name": "base-preexisting-required-failure",
       "prompt": "Address PR #55. A required lint job is failing before edits. Its logs show the same generated-file error on the base commit, and the PR diff does not touch generation. One review thread has a documentation fix.",
-      "expected_output": "The lint failure remains open as evidenced base/pre-existing work while the unrelated documentation fix follows its verification and publication path; completion and thread resolution remain blocked while the required check is non-green.",
+      "expected_output": "The lint failure stays open as base/pre-existing with evidence and is not repaired. The doc-fix reply is posted after push. The thread is left unresolved for the reviewer. The run does not claim checks green.",
       "expectations": [
         "Does not attempt to repair the base/pre-existing lint failure.",
         "Reports the base evidence and leaves that failure open.",
         "Does not misclassify the documented thread fix as a repair for the base failure.",
-        "Does not claim completion or resolve the handled thread while the required check remains non-green."
+        "Posts the doc-fix reply after push and leaves the thread unresolved for the reviewer.",
+        "Does not claim checks green."
       ],
       "files": []
     },
     {
       "id": 6,
       "name": "confirmed-flaky-or-infrastructure-failure",
-      "prompt": "Address PR #56. Required check `browser` fails intermittently with repeat evidence from the provider, while required check `deploy` is blocked by a documented provider outage. A small code fix has passed local tests and been pushed.",
-      "expected_output": "Both required failures remain open with evidence as flaky and infrastructure respectively; neither receives speculative code changes or a false completion claim.",
+      "prompt": "Address PR #56. Required check `browser` fails intermittently with repeat evidence from the provider, while required check `deploy` is blocked by a documented provider outage. A small code fix for one review thread has passed local tests and been pushed.",
+      "expected_output": "Browser stays open as flaky and deploy stays open as infrastructure, both with evidence. No unrelated repairs. The reply is posted and the thread left unresolved. The run does not claim checks green.",
       "expectations": [
         "Classifies browser as confirmed flaky and deploy as infrastructure from the supplied evidence.",
         "Does not repair either failure with unrelated code changes.",
-        "Does not claim the PR-comment task completed or resolve handled threads while required checks remain non-green."
+        "Posts the reply and leaves the thread unresolved.",
+        "Does not claim checks green."
       ],
       "files": []
     },
     {
       "id": 7,
-      "name": "completion-blocked-until-published-green-checks",
+      "name": "completion-blocked-until-publication-approved",
       "prompt": "Address PR #57 with `--manual`. A thread needs a code fix. The user approves the edit and local test but does not approve a commit or push. Required remote checks are currently pending.",
-      "expected_output": "Manual mode may verify the code locally, but makes no commit, push, closing reply, resolution, or completion claim without approval for publication and green required checks.",
+      "expected_output": "Manual mode may verify the code locally, but makes no commit, push, or fix reply, and does not resolve the thread. It states that publication approval is still required.",
       "expectations": [
-        "Keeps commit and push pending because they were not approved in manual mode.",
-        "Does not post the closing reply or resolve the thread.",
-        "States that publication and green required checks are still required for completion."
+        "Makes no commit or push, because neither was approved in manual mode.",
+        "Posts no fix reply and does not resolve the thread.",
+        "States that publication approval is still required."
       ],
       "files": []
     },
     {
       "id": 8,
       "name": "manual-requires-approval-for-plan-and-amendment",
-      "prompt": "Address PR #58 with `--manual`. One thread needs a validation fix and required checks are initially green. After the user approves and the fix is tested, committed, and pushed, required check `integration` fails; logs and local reproduction prove the fix introduced it.",
-      "expected_output": "Manual mode requests approval for the initial scoped plan and again for the newly required repair amendment before executing either authorization boundary.",
+      "prompt": "Address PR #58 with `--manual`. One thread needs a validation fix and required checks are initially green. After the user approves and the fix is tested, committed, and pushed, required check `integration` fails within the check window; logs and local reproduction prove the fix introduced it.",
+      "expected_output": "Manual mode requests approval before the initial plan and again before the amendment. The reply is posted after the initial publication. The replied thread stays unresolved. A new 5-minute window starts after the amendment push. The temporary directory is cleaned up.",
       "expectations": [
-        "Requests one explicit approval covering the initial local edits/tests and individually named commit, push, reply, and thread-resolution actions.",
-        "Records an amendment for the newly discovered PR-introduced integration repair and requests approval before repairing or publishing it.",
-        "Waits for green required checks and published code before replying and resolving the handled thread.",
+        "Requests approval before the initial plan, covering its local edits/tests and individually named commit, push, and reply actions.",
+        "Requests approval again before the amendment that repairs the PR-introduced integration failure.",
+        "Posts the reply after the initial publication and leaves the replied thread unresolved.",
+        "Starts a new 5-minute window after the amendment push.",
         "Keeps the repair scoped and cleans up the temporary directory before reporting."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "settled-prior-round-resolution",
+      "prompt": "Address PR #59 in default mode. Reviewer A's round-1 threads T1 and T2 have the PR author's reply as the last comment. T1's reply reported a fix. T2's reply explained why the code stays. Reviewer A later opened round-2 threads T4 and T5, created after those replies; T4 and T5 need code fixes and their last comments are A's. Reviewer B's thread T3 has the PR author's reply as the last comment, and B has no later PR activity.",
+      "expected_output": "Resolves T1 and T2 without new replies, including explanation-only T2. Leaves T3 untouched. Fixes T4 and T5, replies after push, and leaves T4 and T5 unresolved. The plan names the T1 and T2 resolutions.",
+      "expectations": [
+        "Resolves T1 and T2 without new replies, including the explanation-only T2.",
+        "Leaves T3 untouched.",
+        "Fixes T4 and T5, posts replies after push, and leaves T4 and T5 unresolved.",
+        "Names the T1 and T2 resolutions in the plan."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "check-window-ends-pending",
+      "prompt": "Address PR #60 in default mode. One review thread needs a code fix. After that fix is pushed, the required Jenkins check is still pending when 5 minutes have elapsed. Its check link is available.",
+      "expected_output": "Posts the reply after the push and before waiting. Waits at most 5 minutes with a bounded poll. Stops at the deadline and reports the pending check with its link. Does not claim checks green. Leaves the replied thread unresolved.",
+      "expectations": [
+        "Posts the reply after the push and before waiting.",
+        "Waits at most 5 minutes with a bounded poll.",
+        "Stops at the deadline and reports the pending Jenkins check with its link.",
+        "Does not claim checks green.",
+        "Leaves the replied thread unresolved."
       ],
       "files": []
     }

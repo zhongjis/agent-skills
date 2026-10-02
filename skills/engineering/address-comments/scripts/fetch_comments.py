@@ -41,6 +41,7 @@ query(
       url
       title
       state
+      author { login }
 
       # Top-level "Conversation" comments (issue comments on the PR)
       comments(first: 100, after: $commentsCursor) {
@@ -271,6 +272,7 @@ def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
                 "url": pr["url"],
                 "title": pr["title"],
                 "state": pr["state"],
+                "author": (pr.get("author") or {}).get("login"),
                 "owner": owner,
                 "repo": repo,
             }

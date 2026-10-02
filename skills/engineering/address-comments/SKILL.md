@@ -10,16 +10,16 @@ companions: [gh, writing-clearly-and-concisely]
 
 # Address PR Review Threads
 
-Work unresolved PR review threads and actionable review/conversation comments to closure with a scoped plan: gather context, classify comments and required checks, make authorized repairs, publish them, wait for required checks, then close handled threads.
+Work unresolved PR review threads and actionable review/conversation comments to closure with a scoped plan: gather context, classify comments and required checks, make authorized repairs, publish them, reply, settle prior rounds, then wait briefly for required checks.
 
 ## Mode
 
 All workflow authorization follows this single rule:
 
-- **Default** (without `--manual`): record the Step 4 plan or amendment and execute the full scoped workflow without asking for approval, including local edits/tests, commit, push, replies, and thread resolutions.
+- **Default** (without `--manual`): record the Step 4 plan or amendment and execute the full scoped workflow without asking for approval, including local edits/tests, commit, push, replies, and `settled` thread resolutions.
 - **`--manual`**: present the Step 4 plan or amendment and obtain one explicit approval covering its listed local edits/tests and individually named remote actions.
 
-`--manual` changes only the approval gate. Both modes keep fixes scoped, run required checks, retain failure evidence and left-open items, publish code and wait for green checks before resolution, and clean up the temporary directory.
+`--manual` changes only the approval gate. Both modes keep fixes scoped, retain failure evidence and left-open items, publish code before replying, leave threads replied to in this pass unresolved for the reviewer, bound each required-check wait to 5 minutes per push, and clean up the temporary directory.
 
 ## Setup
 
@@ -50,17 +50,25 @@ All workflow authorization follows this single rule:
    printf 'WORK_DIR=%s\n' "$WORK_DIR"
    ```
 
-   Record the printed absolute `WORK_DIR` path. The JSON contains `pull_request`, `conversation_comments`, `reviews`, `review_threads`, and `bodies_file`; the named sidecar contains full bodies keyed by node `id`. Keep both files only for this pass. Before every final or blocked report, remove the recorded path with `rm -rf -- "<recorded absolute WORK_DIR path>"`; shell variables do not persist across tool calls.
+   Record the printed absolute `WORK_DIR` path. The JSON contains `pull_request` (including the PR `author` login), `conversation_comments`, `reviews`, `review_threads`, and `bodies_file`; the named sidecar contains full bodies keyed by node `id`. Keep both files only for this pass. Before every final or blocked report, remove the recorded path with `rm -rf -- "<recorded absolute WORK_DIR path>"`; shell variables do not persist across tool calls.
 
 ## Ordered workflow
 
 ### 1. Discover and triage comments
 
-Enumerate unresolved review threads, non-empty `CHANGES_REQUESTED` or `COMMENTED` review submissions, and conversation comments. Exclude bot/automation conversation authors. For each item record its id, source, author, and, for threads, path, line/range, full chain, and resolution state. If no actionable comments exist, continue through required-check classification; stop only when no actionable comments exist and every required check is green.
+Enumerate unresolved review threads, non-empty `CHANGES_REQUESTED` or `COMMENTED` review submissions, and conversation comments. Exclude bot/automation conversation authors. For each item record its id, source, author, and, for threads, path, line/range, full chain, resolution state, and round. A thread's reviewer is the author of its first comment (earliest `createdAt`); the last comment is the latest `createdAt`. Split every unresolved review thread:
+
+- `active`: someone other than the PR author wrote the last comment. It goes through normal triage.
+- `settled`: the PR author wrote the last comment, and that same reviewer has PR activity created after that comment: a review submission (`submittedAt`), a comment in any review thread (`createdAt`), or a PR conversation comment (`createdAt`). A new round without pushback in this thread is the reviewer's chance to confirm the earlier reply, whether it reported a fix or explained why the code stays. Plan its resolution; it needs no new reply or verdict.
+- `awaiting`: the PR author wrote the last comment, and that reviewer has no later activity. Leave it untouched.
+
+A thread the PR author started is `active` only when someone else wrote its last comment; otherwise leave it untouched.
 
 Review-thread comments always retain their inline full body. Use preview triage only for untruncated non-thread items. A `CHANGES_REQUESTED` review is addressable regardless of preview.
 
 For a truncated non-thread item, load its full body from the sidecar before assigning `skip`, `addressable`, or `unsure`. The only exceptions are metadata that proves the author is bot/automation or a full-text comparison that proves it is an exact duplicate; never infer either exception from a preview. Record skipped items (id, author, preview, and reason) for the plan.
+
+When no `active` or `settled` thread and no actionable non-thread comment or review submission exists, still classify required checks. Stop when no `PR-introduced` repair is needed.
 
 ### 2. Establish the required-check baseline
 
@@ -75,7 +83,7 @@ When attribution is unclear, compare the PR against its merge base and test the 
 
 ### 3. Gather context and classify comments
 
-For every unresolved thread and retained non-thread item, read local code around its location and relevant PR diff context. Classify each exactly once:
+For every `active` thread and retained non-thread item, read local code around its location and relevant PR diff context. Classify each exactly once:
 
 | Verdict | Action |
 | --- | --- |
@@ -83,11 +91,11 @@ For every unresolved thread and retained non-thread item, read local code around
 | `disagree` | Keep the code and give a concise technical reason. |
 | `left open` | Needs user input, broader scope, or cannot be resolved safely. |
 
-Record a one-sentence rationale. Also identify each known `PR-introduced` required-check repair and its local verification.
+`settled` and `awaiting` threads take no verdict. Record a one-sentence rationale. Also identify each known `PR-introduced` required-check repair and its local verification.
 
 ### 4. Prepare one plan
 
-Prepare one plan containing every comment action, every known required-check repair, files to edit, local tests, items left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each thread resolution. Authorization is limited to the plan's listed local edits/tests and remote actions; it does not imply broad permission for side effects.
+Prepare one plan containing every comment action, every `settled` resolution, the `awaiting` threads, every known required-check repair, files to edit, local tests, items left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each `settled` thread resolution. Authorization is limited to the plan's listed local edits/tests and remote actions; it does not imply broad permission for side effects.
 
 Apply the mode rule to this plan. If material new scope appears, prepare a plan amendment naming its edits, tests, and remote actions, then apply the mode rule again before proceeding.
 
@@ -97,33 +105,35 @@ Make only authorized local edits. Run the planned narrow local checks and fix fa
 
 ### 6. Commit and publish authorized code
 
-After local verification passes, create the authorized descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not authorized or fails, leave handled review threads unresolved and do not claim completion.
+After local verification passes, create the authorized descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not authorized or fails, post no reply that reports an unpublished change, and do not claim completion.
 
-### 7. Close the required-check loop
+### 7. Reply and settle prior rounds
 
-After each authorized publication, inspect all required remote checks again. For a failure, inspect logs, reproduce when feasible, and classify it using the PR base workflow above.
+Load writing-clearly-and-concisely. After the code backing a `fix` reply is visible on the PR, post one concise, outcome-based reply per handled `fix` or `disagree`. The reply states what changed and its local verification, or why the code stays. Remote checks are still running, so the reply reports no CI outcome. No mandatory template.
 
-- Repair every `PR-introduced` failure. A repair first discovered here is a material scope change: amend the plan, apply the mode rule, then verify, commit, push, and inspect required checks again.
+Reply in existing threads; use new PR conversation comments for review submissions and conversation comments. Leave every thread replied to in this pass unresolved so its reviewer can confirm. Resolve each `settled` thread without a new reply. Leave `left open` and `awaiting` threads untouched. Submissions and conversation comments have no resolution state.
+
+### 8. Wait for required checks (5-minute window per push)
+
+After each push, watch required checks on the pushed head commit for at most 5 minutes. Each push starts a new window. Use a polling loop with a 5-minute deadline. Stop early when every required check is green or any required check fails.
+
+For a failure, inspect logs, reproduce when feasible, and classify with the PR base workflow from Step 2.
+
+- Repair every `PR-introduced` failure. A repair first discovered here is a material scope change: amend the plan, apply the mode rule, then verify, commit, and push. Reply again only when the repair changes behavior an earlier reply described; post that reply right after the push and leave that thread unresolved. Then start a new window.
 - Leave evidenced `base/pre-existing`, confirmed `flaky`, `infrastructure`, and unclassified failures open with evidence.
-- Continue the authorized repair loop until every required check is green. A reported `PR-introduced` failure is not completion.
+- When the window ends with checks still pending, stop waiting and report each pending check with its link.
 
-Required checks must be green before closing replies or thread resolution. If authorized code is not published or required checks are not green, do not claim done and do not resolve threads.
-
-### 8. Reply and resolve only after checks are green
-
-Load writing-clearly-and-concisely. Post one concise, outcome-based reply for each handled `fix` or `disagree`, using the authorized action. For example, state what changed and any relevant verification, or state why the code remains unchanged. Do not use a mandatory reply template.
-
-Reply in existing review threads; post new PR conversation comments for review submissions and conversation comments. Resolve only handled review threads after their replies. Leave `left open` threads unresolved; submissions and conversation comments have no resolution state.
+Pending checks block neither replies nor resolutions. A known `PR-introduced` failure blocks completion until repaired. Claim checks green only when observed green.
 
 ## Output
 
 Before the final or blocked report, remove the recorded absolute temporary-directory path. Report:
 
-- Unresolved threads and non-thread comments surfaced, including skipped count
+- Surfaced threads by round (`active`, `settled`, `awaiting`) plus non-thread comments, including skipped count
 - Fixed, disagreed, and left-open counts with reasons
-- Required checks: green status, repairs made, and evidence for every open base/pre-existing, flaky, infrastructure, or unclassified failure
+- Required checks: status at the end of the last window (green, failed, or pending with links), repairs made, and evidence for every open base/pre-existing, flaky, infrastructure, or unclassified failure
 - Files changed, local verification, and commit/push result
-- Replies posted and threads resolved
+- Replies posted, `settled` threads resolved, and threads left for reviewers to resolve
 
 Include a compact table:
 
