@@ -131,6 +131,46 @@
         "Leaves the replied thread unresolved."
       ],
       "files": []
+    },
+    {
+      "id": 11,
+      "name": "draft-publication-and-ownership",
+      "prompt": "Address PR #61 with `--manual`. Code is published and the user approved thread replies, but no review submission. A drafting API reply returns PENDING with a URL and a parent review proven to have been created by this workflow. A second reply belongs to the user's pre-existing pending review, a third has unknown review ownership, and a fourth has no parent review. Explain the next authorized actions and what can be claimed posted.",
+      "expected_output": "Requests an amendment approval for COMMENT submission of only the workflow-owned pending review, then verifies publication and targeting. Leaves the user's draft untouched and stops/reports unknown ownership or missing parent as pending/unverified, without claiming URL-only success or deleting/reposting.",
+      "expectations": [
+        "Requires manual plan/amendment approval before submitting the workflow-owned pending review with COMMENT, not APPROVE or REQUEST_CHANGES.",
+        "Claims publication only after readback establishes SUBMITTED comment state, a present non-pending parent review, and the intended replyTo.",
+        "Does not submit the user's pre-existing pending review.",
+        "Stops and reports unknown ownership or missing parent review as pending/unverified without deleting or reposting."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "root-id-targeting-serialized-retries",
+      "prompt": "Address PR #62 in default mode. Four active threads need replies after the verified fix is pushed. Fetch data contains GraphQL node IDs only; the selected comment in one chain is a later reply, not the root. Prepare the publish actions. During the first REST POST, the client times out, but read-only inspection finds a matching existing reply in the intended thread. Required checks remain pending.",
+      "expected_output": "Looks up each root comment's numeric databaseId read-only and uses the REST replies endpoint, serializing writes with readback. Inspects and verifies the existing matching reply after the timeout instead of blindly reposting, and leaves the threads unresolved.",
+      "expectations": [
+        "Selects the earliest comment as the thread root and resolves its numeric REST databaseId through a read-only GraphQL node lookup rather than passing a node ID or later reply ID to REST.",
+        "Uses the REST pull request comment replies endpoint with the intended root databaseId and serializes reply/review writes with readback before the next write.",
+        "Inspects the existing matching reply before retrying and avoids a duplicate after the uncertain POST outcome.",
+        "Verifies SUBMITTED comment state, a present non-pending parent review, and replyTo matching the intended root before counting the reply as posted.",
+        "Leaves replied threads unresolved and does not claim pending required checks are green."
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "name": "duplicate-review-summary",
+      "prompt": "Address PR #63. Two inline threads describe validation and cache bugs. The review submission and a human PR conversation comment summarize those same findings in different wording; the review also independently requests an actionable release-note correction not represented inline. Full bodies are available. All three fixes are verified and pushed.",
+      "expected_output": "Replies once in each handled inline thread and posts a source-linked PR conversation response only for the independent release-note concern. Records overlapping non-thread findings as skipped rather than duplicating inline outcomes in summary comments.",
+      "expectations": [
+        "Compares full non-thread findings against inline threads and deduplicates overlapping concerns even when wording differs.",
+        "Records duplicated findings as skipped with source comment/review links while retaining the independent release-note concern.",
+        "Replies in the existing inline threads and leaves them unresolved for the reviewer.",
+        "Posts a new PR conversation response only for the independent non-thread concern, linking its source review without repeating inline findings."
+      ],
+      "files": []
     }
   ]
 }

@@ -68,6 +68,8 @@ Review-thread comments always retain their inline full body. Use preview triage 
 
 For a truncated non-thread item, load its full body from the sidecar before assigning `skip`, `addressable`, or `unsure`. The only exceptions are metadata that proves the author is bot/automation or a full-text comparison that proves it is an exact duplicate; never infer either exception from a preview. Record skipped items (id, author, preview, and reason) for the plan.
 
+Deduplicate non-thread findings against inline threads using full bodies: retain independently actionable non-thread concerns, and record findings already represented inline as skipped with a link to their source comment/review.
+
 When no `active` or `settled` thread and no actionable non-thread comment or review submission exists, still classify required checks. Stop when no `PR-introduced` repair is needed.
 
 ### 2. Establish the required-check baseline
@@ -111,7 +113,27 @@ After local verification passes, create the authorized descriptive commit and pu
 
 Load writing-clearly-and-concisely. After the code backing a `fix` reply is visible on the PR, post one concise, outcome-based reply per handled `fix` or `disagree`. The reply states what changed and its local verification, or why the code stays. Remote checks are still running, so the reply reports no CI outcome. No mandatory template.
 
-Reply in existing threads; use new PR conversation comments for review submissions and conversation comments. Leave every thread replied to in this pass unresolved so its reviewer can confirm. Resolve each `settled` thread without a new reply. Leave `left open` and `awaiting` threads untouched. Submissions and conversation comments have no resolution state.
+Reply in existing threads. Prefer REST replies to the thread's root comment (earliest `createdAt`), using its numeric REST `databaseId`, not its GraphQL node `id`. The fetched data has only node IDs; resolve the root ID read-only at publication:
+
+```bash
+gh api graphql -f query='query($root: ID!) { node(id: $root) { ... on PullRequestReviewComment { databaseId } } }' \
+  -f root='<root-comment-node-id>' --jq '.data.node.databaseId'
+gh api --method POST repos/<owner>/<repo>/pulls/<number>/comments/<root-comment-database-id>/replies \
+  -f body='<concise reply>'
+```
+
+Serialize all reply/review writes on this PR; finish each write and readback before the next. After an uncertain outcome, inspect the intended thread for an existing matching reply before retrying; verify or recover that reply rather than creating a duplicate.
+
+Use the returned REST `node_id` (or the drafting mutation's comment node ID) for readback:
+
+```bash
+gh api graphql -f query='query($reply: ID!) { node(id: $reply) { ... on PullRequestReviewComment { state url replyTo { id databaseId } pullRequestReview { id state } } } }' \
+  -f reply='<reply-comment-node-id>'
+```
+
+Count a reply as posted only when readback shows comment `state: SUBMITTED`, a present non-`PENDING` parent `pullRequestReview`, and `replyTo` matching the intended root comment. A success response, URL, or matching body alone is not completion. If a drafting API returns `PENDING`, submit only a pending review proven to have been created by this workflow and containing only the plan's authorized replies, using `COMMENT` (never `APPROVE` or `REQUEST_CHANGES`). Name that submission in the plan/amendment and apply the existing mode rule before submitting, then repeat readback. Never publish the user's pre-existing draft. If ownership is unknown or the parent review is absent, stop and report the reply as pending/unverified; deletion or reposting requires separate authorization.
+
+Use new PR conversation comments only for independently actionable non-thread concerns retained in triage; link to the source comment/review rather than repeating findings already represented inline. Leave every thread replied to in this pass unresolved so its reviewer can confirm. Resolve each `settled` thread without a new reply. Leave `left open` and `awaiting` threads untouched. Submissions and conversation comments have no resolution state.
 
 ### 8. Wait for required checks (5-minute window per push)
 
