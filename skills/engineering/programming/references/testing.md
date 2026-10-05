@@ -38,6 +38,16 @@ Mocks are a last resort, not a default. Walk the ladder top-down and stop at the
 
 The rule: if your test fails when the production code's *implementation* changes but its *behavior* did not, it is over-mocked. Delete the mock; assert on observable outputs. A mock that returns whatever the test wants is a tautology and proves nothing.
 
+Pick the double by the evidence the test must produce. For a payment-backed checkout:
+
+| Evidence needed | Double |
+|---|---|
+| Checkout's own decisions (declined → order not confirmed) | Inject a narrow payment client; pass an in-memory fake of it. |
+| The real client's request/response handling | The real client against a local HTTP server (rung 4). |
+| Compatibility with the live provider | The provider's sandbox (rung 3), outside the unit suite. |
+
+Design external boundaries to accept these doubles: inject the client rather than constructing it inside the code under test, and expose one function per operation (`getUser`, `createOrder`) rather than one generic `fetch(endpoint, options)`, so each fake returns one shape with no conditional logic.
+
 ## Efficient AND accurate — both
 
 - **Accurate**: the test fails for the bug it names, and only that bug. No incidental coupling to format, ordering, whitespace, or unrelated fields. Assert on the contract, not on the dump.
@@ -63,6 +73,7 @@ If no machine consumes the text, there is no seam: write no test and say so in t
 | Ignoring covering tests or a failing baseline | Hides existing findings and makes a new failure impossible to attribute. | Read covering tests and run the baseline before changing code; reproduce a bug before fixing it. |
 | One mega-test asserting 12 things | First failure hides the next 11. | Split by `Then` clause — one assertion class per test. |
 | Mocking every collaborator | Test passes regardless of real behavior. | Use a fake or the real thing. Mock only true unmockables. |
+| Verifying through a side channel (querying the DB after `createUser`) | Couples the test to storage; breaks on refactor without a behavior change. | Verify through the public interface (`getUser(id)`). |
 | `time.sleep(0.1)` to "let it finish" | Flake guaranteed. | Subscribe to the completion signal; bounded await. |
 | Snapshot tests for everything | Locks formatting, not behavior. | Snapshots for *structure* (CLI help, JSON shape). Assertions for *behavior*. |
 | Removing a failing test to "unblock CI" | You just deleted a bug report. | Fix the code or correct the test's premise. |

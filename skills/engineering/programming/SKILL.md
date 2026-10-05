@@ -148,6 +148,7 @@ These are the recovery path, not optional cosmetics.
 |---|---|---|
 | Any code smell fires (250+ LOC, >3 parameters, redundant verification, negative naming), the post-write loop surfaces **2+ issues**, or the user says “reshape this”, “extract this”, or “clean this up” | [`refactor`](../refactor/SKILL.md) | Safe codemap-driven multi-step refactor with LSP and tests after each step. Never improvise a structural change. |
 | A recent branch contains AI-authored patterns (broad except, dead helpers, vague comments, oversized files, redundant post-action verification), or the user says “remove slop”, “clean AI code”, or “deslop” | [`remove-ai-slops`](../remove-ai-slops/SKILL.md) | Tests pinned first, then categorized cleanup and quality gates. Behavior-preserving. |
+| The user wants to build a feature or fix a bug test-first, or says “TDD” or “red-green” | [`tdd`](../tdd/SKILL.md) | Seam agreement, vertical slices, and red → green sequencing. Test quality stays governed by this skill. |
 | Rust touches `unsafe`, `*mut`, `*const`, `MaybeUninit`, FFI, `unsafe impl Send/Sync`, or a custom lock-free primitive | [`references/rust-ub/README.md`](references/rust-ub/README.md) | Full UB taxonomy and Miri strictness escalation. Every `unsafe` block must survive Miri Level 3 before it ships. |
 
 ## Activation
