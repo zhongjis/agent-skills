@@ -1,6 +1,6 @@
 # Testing Depth — Pyramid, Mocking, and Anti-Patterns
 
-Test-design depth for the [testing policy in `SKILL.md`](../SKILL.md#testing-policy). `SKILL.md` owns the baseline-first policy, test-rung selection, budgets, the prompt-test rule, and the present-contract rule. This file owns the pyramid, Given/When/Then, mocking ladder, deterministic isolation, anti-patterns, and prompt-test implementation. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
+Test-design depth for the [testing policy in `SKILL.md`](../SKILL.md#testing-policy). `SKILL.md` owns the baseline-first policy, test-rung selection, budgets, the mock-last rule, the prompt-test rule, and the present-contract rule. This file owns the pyramid, Given/When/Then, mocking ladder, deterministic isolation, anti-patterns, and prompt-test implementation. [`code-smells.md`](code-smells.md) owns code smells; this file owns test smells.
 
 ## The test pyramid
 
