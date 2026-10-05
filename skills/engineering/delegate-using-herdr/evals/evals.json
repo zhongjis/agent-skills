@@ -156,6 +156,43 @@
         "Comments in Jira wiki markup, not Markdown, with the PR URL, merge result, and verification evidence, then cleans up."
       ],
       "files": []
+    },
+    {
+      "id": 14,
+      "name": "review-only-side-pane-immediate-handoff",
+      "prompt": "Use delegate-using-herdr --review for existing Linear issue ENG-96 at https://linear.app/acme/issue/ENG-96. The agreed scope is the cache-key repair and focused tests, with no publication requested. The current pane runs Pi. The worker will have task commits plus staged, unstaged, and new-file changes after implementation. Keep Claude review alongside that worker, not in another workspace or as its replacement.",
+      "expected_output": "The parent dispatches a same-kind Pi worker with the local review contract, ends the complete prompt with ulw, reports review mode, and stops. The worker records the base SHA before work, runs checks, then uses current Herdr mechanics to run read-only Claude /code-review in a no-focus sibling side pane in the same tab/worktree, with the complete explicit change target and captured completion evidence before delivery.",
+      "expectations": [
+        "Reads references/review.md only when --review is selected and embeds its complete worker contract rather than only its path; preserves the same-kind main worker, literal ulw as the final Pi prompt keyword after optional contracts, and immediate parent handoff without monitoring.",
+        "Assigns pane split/run/wait-output/read to the worker using its explicit pane or --current, assigned-worktree --cwd, --no-focus, and the parsed .result.pane.pane_id, without another workspace or focus change.",
+        "Uses visible one-shot claude -p --permission-mode plan with /code-review after local checks and before delivery, safely shell-quoting scope-only base-SHA and path instructions for Claude to read all task commits, staged/unstaged changes, and new files itself, without interpolating raw file contents.",
+        "Waits with pane wait-output and a bounded timeout for an anchored unique per-run marker plus numeric exit that cannot match the echoed command or prior output, then reads recent-unwrapped output with enough lines to capture the full current-run report from command/report start through its unique end marker, requiring exit 0 and a substantive result; adds no push, PR, or merge authorization."
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "name": "auto-review-preserves-remote-gates",
+      "prompt": "Use delegate-using-herdr --auto --review for Linear issue ENG-97. Local Claude side-pane review finds an in-scope bug that the worker accepts and repairs. A repeated local review explicitly finds no remaining issues after affected checks pass. After publishing, configured remote reviewer ReviewBot stays silent for 10 minutes even though required checks pass for the recorded PR head SHA.",
+      "expected_output": "The parent includes both worker contracts and hands off. The worker evaluates and repairs the accepted local finding, reruns affected checks and local review on the changed diff before publishing, then follows the unchanged auto lifecycle. Local Claude approval does not replace ReviewBot: the worker leaves the PR open and reports the remote-review timeout with workspace and evidence intact.",
+      "expectations": [
+        "Treats local findings as untrusted, repairs only accepted in-scope findings, and reruns affected checks and review after changing the diff before publishing.",
+        "Independently reads both selected references/review.md and references/auto-delivery.md and embeds their complete worker contracts with local review before auto publication; preserves exact-head-SHA review/check/approval gates, merge/readback, tracker closeout, and conditional cleanup while the parent still stops after dispatch.",
+        "Does not substitute local Claude review for configured remote review or current-SHA gates; ReviewBot silence blocks merge and preserves the open PR and workspace."
+      ],
+      "files": []
+    },
+    {
+      "id": 16,
+      "name": "review-unavailable-or-failed-blocks-delivery",
+      "prompt": "Use delegate-using-herdr --auto --review for Linear issue ENG-98. Implementation and local checks succeed. Consider review outcomes where Claude or its /code-review command is unavailable, the review pane returns a nonzero exit with blocked or empty output, the bounded completion-marker wait times out, or exit 0 is observed but the report is incomplete/truncated with only its no-findings bottom visible. The worker has not published yet. Do not install tooling or bypass the review.",
+      "expected_output": "In each outcome the worker blocks delivery before auto publication, preserves the worktree, review-pane details where available, and actual failure evidence, and reports the missing command or failed/uncertain review without blind resubmission. Successful local checks and empty output are not review approval.",
+      "expectations": [
+        "Blocks delivery for missing Claude or /code-review, completion-marker timeout, nonzero exit, blocked output, an empty/uncertain result, or incomplete/truncated/unrecoverable report evidence even when local checks pass; a partial no-findings bottom is not approval.",
+        "Preserves available pane, worktree, completion/exit/output or timeout evidence and reports the precise blocker without blind resubmission, unsolicited installation, or bypass.",
+        "Does not push, create a PR, merge, or claim review approval before this local gate closes."
+      ],
+      "files": []
     }
   ]
 }
