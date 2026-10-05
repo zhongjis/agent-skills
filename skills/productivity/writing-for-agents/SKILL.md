@@ -1,13 +1,21 @@
 ---
 name: writing-for-agents
-description: Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.
-adaptedFrom:
-  - "https://github.com/mattpocock/skills/blob/main/skills/productivity/writing-for-agents/SKILL.md"
+description: Writing documents for agents. Use when creating or editing skills or agent/subagent definitions, or modifying AGENTS.md or CLAUDE.md.
+metadata:
+  credits:
+    - skill: writing-for-agents
+      author: Matt Pocock
+      url: "https://github.com/mattpocock/skills/blob/main/skills/productivity/writing-for-agents/SKILL.md"
 ---
 
 Reference for writing any document an agent consumes: a skill, an `AGENTS.md` / `CLAUDE.md`, a doc reached by a pointer. The packaging differs; the writing does not: the same levers make each one predictable, since the agent takes the same _process_ every run rather than producing the same output.
 
-When the document you're writing is a skill, read [`references/skill-mechanics.md`](references/skill-mechanics.md) for frontmatter, invocation choice, and router skills.
+Read the reference for the document you're writing:
+
+- A global `AGENTS.md` / `CLAUDE.md`: [`references/global-instructions.md`](references/global-instructions.md).
+- A project `AGENTS.md` / `CLAUDE.md`: [`references/project-instructions.md`](references/project-instructions.md).
+- An agent or subagent definition: [`references/agent-instructions.md`](references/agent-instructions.md).
+- A skill: [`references/skill-mechanics.md`](references/skill-mechanics.md) for frontmatter, invocation choice, and router skills.
 
 ## Context pointers
 
