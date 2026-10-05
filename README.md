@@ -8,19 +8,20 @@ Authored and adapted skills live in root `skills/`; vendored common skills remai
 
 | Folder | Role | Skills |
 | --- | --- | ---: |
-| `skills/` | Authored/adapted (logical common unless routed) | 18 |
-| `.agents/skills/` | Vendored common plus project-local projections | 62 + 2 links |
+| `skills/` | Authored/adapted (logical common unless routed) | 27 |
+| `.agents/skills/` | Vendored common plus project-local projections | 59 + 2 links |
 | `.claude/skills/` | Physical Claude Code | 0 |
 | `.pi/skills/` | Physical Pi | 0 |
+
 Profile membership lives in `profiles.nix` at the repo root. Skills not listed there are `general`.
 Global selection exclusions live in `skill-selection.nix`; excluded authored skills remain available only through project-local projections.
 
 | Profile | Skills |
 | --- | --- |
-| `personal` | _(none)_ |
-| `work` | pr, mysql-best-practices, splunk |
+| `personal` | linear, lark-base, lark-doc, lark-drive, lark-shared, lark-wiki |
+| `work` | splunk |
 
-The source contains 80 unique leaves; `lib.skillsFor` exposes 78. Fifteen root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills` plus `skill-maintainer` are centrally excluded and projected locally. `mcp-builder` is shared.
+The source contains 86 unique leaves; `lib.skillsFor` exposes 82. Twenty-two root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills`, `skill-maintainer`, `flue-framework`, and `codebase-search` are centrally excluded. Only `find-skills` and `skill-maintainer` are projected locally.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 

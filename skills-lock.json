@@ -339,12 +339,6 @@
       "skillPath": "skills/writing-clearly-and-concisely/SKILL.md",
       "computedHash": "136a0413255aa82d800459c775eabf041620b2e9cbf2d713b739bf1b87a3db3a"
     },
-    "writing-for-agents": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
-      "computedHash": "95da47fc97af998e85b7d7e6d57b3ac76727c1e290cfe9ea09005aacb826959f"
-    },
     "xlsx": {
       "source": "anthropics/skills",
       "sourceType": "github",
