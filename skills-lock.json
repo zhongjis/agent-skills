@@ -249,6 +249,12 @@
       "skillPath": ".agents/skills/remove-deadcode/SKILL.md",
       "computedHash": "35006d391550f87fc8f2358b6ee7c046477d1b9cb2e7d3401f791f576af3287f"
     },
+    "retro": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/retro/SKILL.md",
+      "computedHash": "b8d55851a2909e26c2dbb2e8563719c87b3b700559f604e4df344f8c27e21047"
+    },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
       "sourceType": "github",
