@@ -19,10 +19,13 @@ Use this template for writing the PR body:
 
 <diagram, diff-sketch, or tree>
 
-## Evidence
+<details>
+<summary>Evidence</summary>
 
 - **Before:** <screenshot/output/failing test run>
   **After:** <screenshot/output/passing test run>
+
+</details>
 
 ## Merge Danger
 
@@ -36,10 +39,10 @@ Use this template for writing the PR body:
 
 ## References
 
-- <issue tracker reference, or N/A>
+- <primary issue, supporting document/report, or companion PR; N/A only when none exist>
 ```
 
-An existing body or repository template takes precedence over this template:
+Apply explicit user formatting instructions first. Otherwise, an existing body or repository template takes precedence over this template, subject to the Evidence and References rules below:
 
 1. If the user supplied an existing body to revise, revise that body. Preserve its meaningful headings and order.
 2. Otherwise inspect repository PR templates. Use the explicitly requested template, the sole template, or a clearly applicable template. If several templates fit and none is clearly selected, ask the user to choose; do not guess.
@@ -48,7 +51,7 @@ An existing body or repository template takes precedence over this template:
 
 ## Title
 
-Format PR titles as `[<issue-tracker-item-id>] <title>`, using the primary reference's ID; with no reference, omit the prefix.
+Format PR titles as `[<issue-tracker-item-id>] <title>`, using the primary issue's ID; with no issue, omit the prefix. Supporting documents, reports, and companion PRs do not supply title prefixes.
 
 ## Sections
 
@@ -186,11 +189,15 @@ Every Summary carries at least one visual, including the summary-equivalent head
 
 - Link one companion PR when work spans repositories; keep its details there.
 - For a large or mechanical diff, add a short Reviewer Guide: where to start, behavioral risk, one representative bulk file, then docs/tests.
-- Put secondary rationale, long enumerations, and extended verification in `<details>` only when they would bury essential content; keep merge-critical content visible.
+- Put secondary rationale and long enumerations in `<details>` only when they would bury essential content; keep merge-critical content visible.
 
 ### Evidence
 
 Concrete evidence that the change works. Show a before and after.
+
+Collapse the evidence or verification section in `<details>` without `open`, using its existing heading text as `<summary>` and retaining its position. This applies to equivalent headings such as Testing, Validation, and Verification. Keep merge-blocking failures, missing required proof, and pending required CI visible under the risk section; the collapsed section holds the detailed results.
+
+Include a dedicated visual-evidence section only for user-visible UI changes. Omit it for non-visible changes, including inherited “Not applicable” placeholders. The required Summary visual explains the change and is separate from screenshot or recording evidence.
 
 Screenshots are S-tier - when the environment is set up for it and the change is visual.
 
@@ -217,10 +224,10 @@ Keep it brief, and name the concrete irreversible or rollout risk when one exist
 
 ### References
 
-Discover references in this order: supplied or current body, task or conversation, branch name, commits, then explicit companion-change evidence. Keep only directly relevant references, primary first; templates and placeholders are not references. Preserve supplied URLs exactly; render a plain supplied key without inventing a URL or placeholder (for example, `- ACME-42`). When no issue tracker reference exists, write `- N/A` under the reference-equivalent heading.
+Discover references in this order: supplied or current body, task or conversation, branch name, commits, then explicit companion-change evidence. Group directly relevant issues, design documents, benchmark or verification reports, and companion PRs under References or a broad equivalent such as Links or Related Work. When supporting links exist, broaden an inherited issue-only heading such as Linked issue to References. Put the primary issue first, then supporting links with descriptive labels; templates and placeholders are not references. Supporting document/report URLs belong here, not among verification results. Preserve supplied URLs exactly; render a plain supplied key without inventing a URL or placeholder (for example, `- ACME-42`). When no relevant references exist, write `- N/A` under the reference-equivalent heading.
 
 Preserve or include a footer only when the template, repository guidance or convention, or supplied evidence requires it; never invent one.
 
 ## Completion check
 
-Before returning the body, confirm its structure follows the supplied body, the selected repository template, or the template above; the Summary or its equivalent carries a visual; every change claim is supported by the diff; evidence contains only completed results or `<MISSING_EVIDENCE>`; references preserve supplied values or read `- N/A`; and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.
+Before returning the body, confirm its structure follows explicit user instructions and the supplied body, selected repository template, or template above; the Summary or its equivalent carries a visual; every change claim is supported by the diff; verification is collapsed and contains only completed results or `<MISSING_EVIDENCE>`, with merge-critical gaps visible under risks; inapplicable visual-evidence sections are omitted; references group relevant issues and supporting links, preserve supplied values, and use `- N/A` only when none exist; and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.

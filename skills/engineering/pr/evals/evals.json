@@ -21,7 +21,7 @@
       "expected_output": "A revision that keeps Why, What Changed, Testing, and Links in their original order, replaces stale claims with the actual diff-backed change, uses `<MISSING_EVIDENCE>`, and lists `- ACME-42` without a placeholder URL.",
       "expectations": [
         "Uses the supplied body as the revision structure and preserves its semantic headings and order.",
-        "Places verification under `## Testing` rather than appending a duplicate Evidence section.",
+        "Uses Testing as the closed details summary in its original position rather than appending a duplicate Evidence section.",
         "Replaces the unsupported test-success claim with `<MISSING_EVIDENCE>`.",
         "Renders the tracker as plain `- ACME-42` and does not invent a URL."
       ],
@@ -165,11 +165,11 @@
       "id": 14,
       "name": "repository-template-gets-summary-visual",
       "prompt": "Draft a PR body. The repository has a sole template `.github/pull_request_template.md` with headings `**Ticket:**`, `**Description**`, and `**Testing**`. Diff adds an admin page route and inserts its admin-tree node after an existing node. Supplied tracker key: `MKT-123` (no URL). Completed result: `npm test` passed.",
-      "expected_output": "A body that preserves the sole template headings and order, places a visual (for example a tree diff of the inserted admin node) under `**Description**`, records only the completed `npm test` result under `**Testing**`, renders the ticket as plain `MKT-123` with no invented URL, and appends `## Merge Danger` because the template has no equivalent heading.",
+      "expected_output": "A body that preserves the sole template headings and order, places a visual (for example a tree diff of the inserted admin node) under `**Description**`, records only the completed `npm test` result in closed details labeled Testing, renders the ticket as plain `MKT-123` with no invented URL, and appends `## Merge Danger` because the template has no equivalent heading.",
       "expectations": [
         "Preserves the template headings and order without duplicate Summary, Evidence, or References sections.",
         "`**Description**` carries a visual (for example a tree diff of the inserted node).",
-        "`**Testing**` holds only the completed `npm test` result.",
+        "Closed details labeled Testing hold only the completed `npm test` result.",
         "Renders the ticket as plain `MKT-123` with no invented URL.",
         "Appends `## Merge Danger` because the template has no equivalent heading."
       ],
@@ -192,6 +192,45 @@
       "expected_output": "A title with no bracketed prefix.",
       "expectations": [
         "Title has no bracketed prefix."
+      ],
+      "files": []
+    },
+    {
+      "id": 17,
+      "name": "backend-template-conditional-evidence-and-references",
+      "prompt": "Draft a PR title and body for a backend-only index change. The sole repository template has Summary, Linked issue, Verification, Visual evidence, and Risks headings in that order. Its Visual evidence instruction says to write Not applicable for non-UI changes. Diff: add an index on orders.account_id. Completed local result: migration check passed. Required CI for this revision is pending. Primary issue: DATA-18. Supporting report: https://docs.example.test/reports/index-benchmark. No media exists.",
+      "expected_output": "The title uses [DATA-18]. Summary retains a minimal visual. References replaces Linked issue and lists DATA-18 first, then the unchanged report URL with a descriptive label. Verification is closed details in its original position. Visual evidence is omitted. Pending required CI remains visible under Risks.",
+      "expectations": [
+        "Omits the inapplicable Visual evidence section and Not applicable placeholder while retaining a Summary visual.",
+        "Verification uses closed details without open, in its original position.",
+        "Pending required CI remains visible outside details under Risks.",
+        "References replaces Linked issue, lists DATA-18 first, and preserves the report URL outside verification.",
+        "Title uses only [DATA-18]."
+      ],
+      "files": []
+    },
+    {
+      "id": 18,
+      "name": "documents-only-reference-without-title-prefix",
+      "prompt": "Draft a PR title and body with no existing body or repository template. Diff: docs/install.md corrects the development shell command. Completed result: markdown link check passed. Supporting design document: https://docs.example.test/designs/development-shell. No issue tracker item exists.",
+      "expected_output": "A default-template body with a minimal Summary visual, closed Evidence details, and the supplied design document under References. References does not contain N/A. The title has no bracketed prefix.",
+      "expectations": [
+        "References preserves the supplied document URL with a descriptive label and does not use N/A.",
+        "The title has no bracketed prefix.",
+        "Evidence is closed details containing only the completed check."
+      ],
+      "files": []
+    },
+    {
+      "id": 19,
+      "name": "explicit-formatting-overrides-supplied-body",
+      "prompt": "Revise this supplied body: Summary, Linked issue, Verification, Visual evidence, Risks. The existing Verification is expanded and Visual evidence says Not applicable. Explicit user instructions: omit inapplicable visual evidence, collapse Verification, and group issue/document links under References. Diff: server rejects malformed account IDs before DB lookup; no UI change. Completed result: account validation test passed. Primary issue: API-24. Supporting design: https://docs.example.test/designs/account-validation.",
+      "expected_output": "The explicit formatting instructions override the stale supplied structure. The revised body omits Visual evidence, collapses Verification, broadens Linked issue to References with API-24 first and the unchanged design URL, and retains the remaining meaningful section order and a Summary visual.",
+      "expectations": [
+        "Explicit user formatting overrides the supplied body's stale presentation.",
+        "Visual evidence is omitted and Verification is closed details.",
+        "References groups the plain API-24 key and unchanged design URL without invented issue URLs.",
+        "Retains the remaining meaningful section order and Summary visual."
       ],
       "files": []
     }
