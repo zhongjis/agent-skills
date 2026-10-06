@@ -45,6 +45,7 @@ Choose the cheapest existing test rung that observes the changed behavior. A use
 
 **Present-contract rule:** a test pins one current, supported contract through its mechanism.
 - **Supported only.** Test behavior that production entrypoints reach today. Code reachable only from tests is dead code, not coverage.
+- **Transitional code: test the seam only.** If code still ships but a planned follow-up deletes it, keep one test for each place it calls the new code, and delete its deeper behavior tests instead of rewriting them.
 - **No history.** Do not test backward compatibility (legacy formats, aliases, old schema versions, migrations, old-runtime fallbacks) or feature removal (a removed name, field, or mode stays absent or rejected). Git records history; delete a feature's tests with the feature.
 - **Mechanism, not catalog.** Feed synthetic inputs and assert the transformation. Never pin live repo data — model IDs, rosters, counts, config contents, prompt prose — that changes by editing data, not logic.
 

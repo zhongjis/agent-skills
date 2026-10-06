@@ -16,9 +16,9 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 Work from whatever is already in the conversation context. If the user passes a reference (a spec path, an issue number or URL) as an argument, fetch it and read its full body and comments.
 
-### 2. Explore the codebase (optional)
+### 2. Explore the codebase
 
-If you have not already explored the codebase, do so to understand the current state of the code. Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
+If you have not already explored the codebase, do so to understand the current state of the code. When a ticket moves storage or ownership, this is required: list what it drops, every caller outside the moved module, and which tests retire or move. A move that crosses services is a **wide refactor**; sequence it expand–contract (see step 3). Ticket titles and descriptions should use the project's domain glossary vocabulary, and respect ADRs in the area you're touching.
 
 Look for opportunities to prefactor the code to make the implementation easier. "Make the change easy, then make the easy change."
 
@@ -74,6 +74,8 @@ Do NOT close or modify any parent issue.
 
 **Blocked by:** the numbers/titles of the tickets that gate this one, or "None (can start immediately)".
 
+**Transitional code:** code this ticket rewires that a later ticket deletes, and its agreed seams, or "None".
+
 **Status:** ready-for-agent
 
 - [ ] Acceptance criterion 1
@@ -95,6 +97,10 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
 
 - [ ] Criterion 1
 - [ ] Criterion 2
+
+## Transitional code
+
+Code this ticket rewires that a later ticket deletes, and its agreed **seams** (one seam test per caller). "None" if nothing is transitional.
 
 ## Blocked by
 

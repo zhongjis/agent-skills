@@ -62,7 +62,7 @@ Always triage; run the deep pass only when the foundation brief flags a security
 Runs only when a spec source exists — PR description, commit messages, a linked issue or ticket, or a path provided. Fetch reachable links to read it. Report:
 
 - Requirements the spec asked for that are missing or only partial.
-- Behavior in the diff that wasn't asked for (scope creep).
+- Behavior in the diff that wasn't asked for (scope creep). First match it against code the same diff deletes (removed tables, routes, `git log -S`): moved code is not new scope.
 - Requirements that look implemented but where the implementation looks wrong.
 
 Quote the spec line for each finding. If no spec source exists, the axis does not run.
