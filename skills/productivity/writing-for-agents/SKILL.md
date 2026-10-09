@@ -25,6 +25,8 @@ A pointer does two jobs: state what the material is, and list the **branches** t
 
 - **Front-load the leading word**: the pointer is where it does its triggering work.
 - **One trigger per branch.** Synonyms that rename a single branch are one branch written twice; collapse them and keep only genuinely distinct branches.
+- **Scope each trigger to its branch, not its domain.** "Use when adding or changing a migration" reaches the material on migrations; "use when working with databases" reaches it on every query, loading material the run never uses.
+- **Condition every pointer.** "`database.md` for schema changes" is a pointer; "before every edit, read `database.md`" is a step disguised as one, loading the material on every run and spending the context load disclosure was meant to save.
 - **Cut identity the body already carries.**
 
 ## The two loads
@@ -61,6 +63,21 @@ Every step ends on a **completion criterion**, the condition that tells the agen
 
 The strongest criteria are both checkable and exhaustive.
 
+**Checkpoints** are completion criteria too: "stop for review after the first implementation" ends the run there. Keep one only where a human decision is genuinely needed; otherwise write the whole loop the task needs into done (implement, run it, inspect the result, fix what fails). Open-ended exploration takes the same bound: what to explore and where to stop.
+
+The **handoff** is part of done: name who reads the result and what it carries (what changed, what was checked, what still needs attention).
+
+**Itinerary** is the failure mode of steps: a recipe spelling out work the agent would plan well unaided. It over-constrains a capable model and caps it at what the writer foresaw. Write the outcome and its completion criterion; spell out the steps only where their order or exact method is load-bearing (fragile, irreversible, or checked by something outside the agent).
+
+## Decision boundaries
+
+A document that lets the agent act draws a **decision boundary**: which choices the agent makes alone and which wait for a human. Draw both sides.
+
+- **Inside**: the routine work the agent carries through without asking, with the fact that makes it safe: "The local tests use disposable fixtures and have no production access; run them, fix failures the change caused, and rerun without asking."
+- **Outside**: the decisions that wait (scope changes, irreversible or external actions, anything the human must own), plus the independent work that continues while a question is open.
+
+A blanket "always ask first" is a boundary with no inside: a careful model halts where you wanted it to continue. Calibrate force to risk: emphatic guardrails written to restrain one model read as hard stops to a more careful one.
+
 ## When to split
 
 Splitting one document into two spends one of the two loads, so split only when the cut earns it:
@@ -86,6 +103,7 @@ You win twice: fewer tokens, and a sharper hook for the agent to hang its thinki
 ## Pruning
 
 - Keep each meaning in a **single source of truth**: one authoritative place, so changing the behaviour is a one-place edit. **Duplication** (the same meaning in more than one place) costs maintenance and tokens, and inflates a meaning's prominence on the ladder past its real rank. (The accidental inverse of a leading word, which repeats a token on purpose, never the meaning.)
+- Layers stack: global and project instruction files, skills, agent definitions, and the task prompt all speak in one run. A **contradiction** between them about what to deliver, what the agent decides alone, or what counts as done is a variance bug; fix it in the layer that owns the decision.
 - The **environment** is a source of truth too (`package.json` scripts, config files, the directory layout, `--help` output), and a document that restates it is a **cache**: a copy of a lookup, earning its load only when the lookup is expensive. Cache what the agent cannot find by looking: the unwritten convention, the reason behind a choice, the gotcha no config confesses. Leave the one-file, one-command lookups to the environment, where they cannot go stale.
 - Check every line for **relevance**: does it still bear on what the document does? A line loses relevance by never bearing on the task (mere exposition, or a branch that should be disclosed) or by going stale as the behaviour or world it describes changes. Shorter documents are easier to keep relevant. Without a pruning discipline the default fate is **sediment**: stale layers that settle because adding feels safe and removing feels risky, until you must core down through them to find what is still live.
-- Hunt **no-ops** sentence by sentence: an instruction the model already obeys by default pays load to say nothing. The test (does it change behaviour versus the default?) is model-relative, not reader-relative: two people disagreeing about a no-op disagree about the default, and settle it by running the document, not by debate. When a sentence fails, delete the whole sentence rather than trim words from it. The test also grades leading words: a word too weak to beat the default (_be thorough_ when the agent is already thorough-ish) is a no-op, and the fix is a stronger word (_relentless_), not a different technique.
+- Hunt **no-ops** sentence by sentence: an instruction the model already obeys by default pays load to say nothing. The test (does it change behaviour versus the default?) is model-relative, not reader-relative: two people disagreeing about a no-op disagree about the default, and settle it by running the document, not by debate. Test against the default of every model that runs the document: repository instructions also steer contributors' agents on other models. A push written for a weaker default **overshoots** a stronger one, driving it past the default into needless test runs and extra review rounds. When a sentence fails, delete the whole sentence rather than trim words from it. The test also grades leading words: a word too weak to beat the default (_be thorough_ when the agent is already thorough-ish) is a no-op, and the fix is a stronger word (_relentless_), not a different technique.
