@@ -9,7 +9,7 @@ Authored and adapted skills live in root `skills/`; vendored common skills remai
 | Folder | Role | Skills |
 | --- | --- | ---: |
 | `skills/` | Authored/adapted (logical common unless routed) | 28 |
-| `.agents/skills/` | Vendored common plus project-local projections | 59 + 2 links |
+| `.agents/skills/` | Vendored common plus project-local projections | 58 + 2 links |
 | `.claude/skills/` | Physical Claude Code | 0 |
 | `.pi/skills/` | Physical Pi | 0 |
 
@@ -21,7 +21,7 @@ Global selection exclusions live in `skill-selection.nix`; excluded authored ski
 | `personal` | linear, lark-base, lark-doc, lark-drive, lark-shared, lark-wiki |
 | `work` | splunk |
 
-The source contains 87 unique leaves; `lib.skillsFor` exposes 83. Twenty-three root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills`, `skill-maintainer`, `flue-framework`, and `codebase-search` are centrally excluded. Only `find-skills` and `skill-maintainer` are projected locally.
+The source contains 86 unique leaves; `lib.skillsFor` exposes 82. Twenty-three root skills are logical common, `pi-jsonl-logs` is routed only to Pi, and `find-skills`, `skill-maintainer`, `flue-framework`, and `codebase-search` are centrally excluded. Only `find-skills` and `skill-maintainer` are projected locally.
 
 Keep private, work-internal, secret, host, and credential material outside this public repository.
 
