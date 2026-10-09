@@ -138,8 +138,6 @@ Run:
 nix flake check path:.
 nix eval --file tests/selector.nix
 bash tests/packs.sh
-bash tests/skills-cli.sh
-SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
 ```
 
 Flake-consumer realization check (verifies dot-dirs survive the Nix store copy):
@@ -147,5 +145,3 @@ Flake-consumer realization check (verifies dot-dirs survive the Nix store copy):
 ```sh
 nix eval --impure --expr '(builtins.getFlake (toString ./.)).lib.skillsFor { profile = "personal"; harness = "pi"; }'
 ```
-
-The CLI test uses the installed `skills` command when available and falls back to `npx skills`. Set `SKILLS_CLI_FORCE_NPX=true` to exercise the fallback lifecycle even when `skills` is installed. Synthetic fixtures verify lock-aware discovery, explicit copied install/list/refresh/remove behavior, support-file preservation, zero symlink fan-out, lock cleanup, source immutability, and temp cleanup.

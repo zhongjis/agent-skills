@@ -120,8 +120,6 @@ Review scoped diff for public-safe content, provenance consistency, complete tre
 ```bash
 nix flake check path:.
 nix eval --file tests/selector.nix
-bash tests/skills-cli.sh
-SKILLS_CLI_FORCE_NPX=true bash tests/skills-cli.sh
 ```
 
 ## Completion Criteria

@@ -97,6 +97,6 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `exclude-skills.nix`, `select-skills.nix`, `default.nix`)
 - `packs/AGENTS.md` — bootstrap pack manifests, ordering, validation, and lock-ownership contracts
-- `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`, `skills-cli.sh`)
+- `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`)
 - `skills/AGENTS.md` — authored/adapted skill ownership, routing, and whole-tree contracts
 - Root-owned files: `README.md`, `LICENSE` (MIT), `flake.nix`, `skill-selection.nix`, `packs.sh`, `.gitignore`, and any other root-level project documentation or runner.
