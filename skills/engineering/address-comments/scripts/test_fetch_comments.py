@@ -3,6 +3,7 @@ from __future__ import annotations
 # pyright: reportAny=false, reportExplicitAny=false, reportUnknownMemberType=false
 
 import importlib.util
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -89,12 +90,54 @@ class FetchAllTests(unittest.TestCase):
         self.assertEqual(["review-1"], [node["id"] for node in result["reviews"]])
         self.assertEqual(["thread-1"], [node["id"] for node in result["review_threads"]])
 
+    def test_author_identity_survives_collection_pagination_and_body_splitting(self):
+        authors = [{"login": "automation", "__typename": "Bot"}, {"login": "reviewer", "__typename": "User"}, None]
+        long_body = "long body " * 30
+        pages = [
+            page(
+                [{"id": f"c{i}", "body": long_body, "author": author}],
+                [{"id": f"r{i}", "body": long_body, "author": author}],
+                [{"id": f"t{i}", "comments": {
+                    "pageInfo": {"hasNextPage": False},
+                    "nodes": [{"id": f"reply{i}", "body": long_body, "author": author}],
+                }}],
+                c_next=i < 2, r_next=i < 2, t_next=i < 2,
+            )
+            for i, author in enumerate(authors)
+        ]
+        with mock.patch.object(fetch_comments, "gh_api_graphql", side_effect=pages):
+            result = fetch_comments.fetch_all("base", "repo", 7)
+        bodies = fetch_comments.split_bodies(result)
+
+        for collection in ("conversation_comments", "reviews"):
+            nodes = result[collection]
+            self.assertEqual(authors, [node["author"] for node in nodes])
+            for node in nodes:
+                self.assertTrue(node["truncated"])
+                self.assertIsNone(node["body"])
+                self.assertEqual(long_body, bodies[node["id"]])
+        replies = [thread["comments"]["nodes"][0] for thread in result["review_threads"]]
+        self.assertEqual(authors, [node["author"] for node in replies])
+        self.assertTrue(all(node["body"] == long_body for node in replies))
+        self.assertEqual(6, len(bodies))
+
+    def test_graphql_requests_identity_in_every_author_selection(self):
+        with mock.patch.object(fetch_comments, "_run_json", return_value={}) as run:
+            fetch_comments.gh_api_graphql("base", "repo", 7)
+            fetch_comments.gh_api_thread_comments("thread-1", "reply-100")
+        for call, expected_authors in zip(run.call_args_list, (4, 1)):
+            selections = re.findall(r"\bauthor\s*\{([^}]+)\}", call.kwargs["stdin"])
+            self.assertEqual(expected_authors, len(selections))
+            for selection in selections:
+                self.assertIn("login", selection.split())
+                self.assertIn("__typename", selection.split())
+
     def test_fetch_all_paginates_review_thread_replies_beyond_first_100(self):
         first_thread = {
             "id": "thread-1",
             "comments": {
                 "pageInfo": {"hasNextPage": True, "endCursor": "reply-100"},
-                "nodes": [{"id": "reply-1"}],
+                "nodes": [{"id": "reply-1", "author": {"login": "reviewer", "__typename": "User"}}],
             },
         }
         payload = page([], [], [first_thread])
@@ -102,14 +145,30 @@ class FetchAllTests(unittest.TestCase):
         final_page_info = {"hasNextPage": False, "endCursor": "reply-200"}
         with mock.patch.object(fetch_comments, "gh_api_graphql", return_value=payload), mock.patch.object(
             fetch_comments,
-            "fetch_remaining_thread_comments",
-            return_value=([{"id": "reply-101"}], final_page_info),
+            "gh_api_thread_comments",
+            side_effect=[
+                {"data": {"node": {"comments": {
+                    "pageInfo": {"hasNextPage": True, "endCursor": "reply-150"},
+                    "nodes": [{"id": "reply-101", "author": {"login": "automation", "__typename": "Bot"}}],
+                }}}},
+                {"data": {"node": {"comments": {
+                    "pageInfo": final_page_info,
+                    "nodes": [{"id": "reply-151", "author": None}],
+                }}}},
+            ],
         ) as fetch_remaining:
             result = fetch_comments.fetch_all("base", "repo", 7)
 
-        fetch_remaining.assert_called_once_with("thread-1", "reply-100")
+        self.assertEqual(
+            [mock.call("thread-1", "reply-100"), mock.call("thread-1", "reply-150")],
+            fetch_remaining.call_args_list,
+        )
         comments = result["review_threads"][0]["comments"]
-        self.assertEqual(["reply-1", "reply-101"], [node["id"] for node in comments["nodes"]])
+        self.assertEqual(["reply-1", "reply-101", "reply-151"], [node["id"] for node in comments["nodes"]])
+        self.assertEqual(
+            [{"login": "reviewer", "__typename": "User"}, {"login": "automation", "__typename": "Bot"}, None],
+            [node["author"] for node in comments["nodes"]],
+        )
         self.assertEqual(final_page_info, comments["pageInfo"])
 
     def test_get_current_pr_ref_uses_base_repository_coordinates_from_pr_url(self):
@@ -138,16 +197,17 @@ class FetchAllTests(unittest.TestCase):
         )
 
     def test_fetch_all_records_pr_author_login_or_none_when_null(self):
-        present = page([], [], [], author={"login": "pr-owner"})
+        present = page([], [], [], author={"login": "pr-owner", "__typename": "User"})
         null_author = page([], [], [], author=None)
 
         with mock.patch.object(fetch_comments, "gh_api_graphql", return_value=present):
-            self.assertEqual(
-                "pr-owner",
-                fetch_comments.fetch_all("base", "repo", 7)["pull_request"]["author"],
-            )
+            metadata = fetch_comments.fetch_all("base", "repo", 7)["pull_request"]
+            self.assertEqual("pr-owner", metadata["author"])
+            self.assertEqual("User", metadata["author_type"])
         with mock.patch.object(fetch_comments, "gh_api_graphql", return_value=null_author):
-            self.assertIsNone(fetch_comments.fetch_all("base", "repo", 7)["pull_request"]["author"])
+            metadata = fetch_comments.fetch_all("base", "repo", 7)["pull_request"]
+            self.assertIsNone(metadata["author"])
+            self.assertIsNone(metadata["author_type"])
 
 
 class PreviewTests(unittest.TestCase):

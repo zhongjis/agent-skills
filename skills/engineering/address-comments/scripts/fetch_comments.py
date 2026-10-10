@@ -41,7 +41,7 @@ query(
       url
       title
       state
-      author { login }
+      author { login __typename }
 
       # Top-level "Conversation" comments (issue comments on the PR)
       comments(first: 100, after: $commentsCursor) {
@@ -51,7 +51,7 @@ query(
           body
           createdAt
           updatedAt
-          author { login }
+          author { login __typename }
         }
       }
 
@@ -63,7 +63,7 @@ query(
           state
           body
           submittedAt
-          author { login }
+          author { login __typename }
         }
       }
 
@@ -89,7 +89,7 @@ query(
               body
               createdAt
               updatedAt
-              author { login }
+              author { login __typename }
             }
           }
         }
@@ -113,7 +113,7 @@ query(
           body
           createdAt
           updatedAt
-          author { login }
+          author { login __typename }
         }
       }
     }
@@ -273,6 +273,7 @@ def fetch_all(owner: str, repo: str, number: int) -> dict[str, Any]:
                 "title": pr["title"],
                 "state": pr["state"],
                 "author": (pr.get("author") or {}).get("login"),
+                "author_type": (pr.get("author") or {}).get("__typename"),
                 "owner": owner,
                 "repo": repo,
             }
