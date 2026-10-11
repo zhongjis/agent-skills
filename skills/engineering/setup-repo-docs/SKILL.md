@@ -13,8 +13,8 @@ Work autonomously up to the point of mutation: examine the repository and report
 ## Target structure
 
 ```text
-CONTEXT.md                    # Canonical domain language; create lazily
-CONTEXT-MAP.md                # Optional index for multiple bounded contexts
+GLOSSARY.md                   # Canonical domain language; create lazily
+GLOSSARY-MAP.md               # Optional index for multiple bounded contexts
 docs/
 ├── README.md                 # Map, authority model, and declared canonical paths
 ├── ideas/                    # Non-binding exploration; Status: idea
@@ -33,12 +33,12 @@ Setup is idempotent: a second run against a complete structure proposes no chang
 
 Reuse established artifacts rather than duplicating them:
 
-- `domain-modeling` owns domain-language discovery and writes `CONTEXT.md`, optional `CONTEXT-MAP.md`, and ADR substance. Adopt existing files. Create them only when resolved terms or decisions exist.
+- `domain-modeling` owns domain-language discovery and writes `GLOSSARY.md`, optional `GLOSSARY-MAP.md`, and ADR substance. Adopt existing files. Create them only when resolved terms or decisions exist.
 - Use the domain-modeling ADR test: record a choice only when it is hard to reverse, surprising without context, and the result of a real trade-off.
 - `agents-md` owns execution-contract content in `AGENTS.md`. Preserve that content; update only imports or path references required by the docs setup.
-- Link `CONTEXT.md`, `CONTEXT-MAP.md`, and `docs/adr/` from `docs/README.md` when present.
+- Link `GLOSSARY.md`, `GLOSSARY-MAP.md`, and `docs/adr/` from `docs/README.md` when present.
 
-`CONTEXT.md` is authoritative for vocabulary, not system behavior. Behavioral conflicts resolve in this order: rules → ADRs → shipped specs → guides → ideas. References provide evidence, never policy.
+`GLOSSARY.md` is authoritative for vocabulary, not system behavior. Behavioral conflicts resolve in this order: rules → ADRs → shipped specs → guides → ideas. References provide evidence, never policy.
 
 ## Lifecycle rules
 
@@ -59,7 +59,7 @@ Run one structural pass every time, and an optional content pass only when the u
 
 #### 1. Examine
 
-Read root and applicable child `AGENTS.md` files, existing canonical docs, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, indexes, scripts, and inbound links. Inventory each document by purpose, authority, status, owner, freshness, and path constraints. Map clear documents to the target structure; flag mixed or ambiguous documents instead of guessing.
+Read root and applicable child `AGENTS.md` files, existing canonical docs, `GLOSSARY.md`, `GLOSSARY-MAP.md`, ADRs, indexes, scripts, and inbound links. Inventory each document by purpose, authority, status, owner, freshness, and path constraints. Map clear documents to the target structure; flag mixed or ambiguous documents instead of guessing.
 
 Complete when every existing document and inbound reference is accounted for, and the tree is classified as `MIGRATION`, `CLEANUP-ONLY`, or `CLEAN NO-OP`.
 
@@ -119,7 +119,7 @@ Complete when content is relocated with no lost bytes, every anchor and heading 
 
 ### Closing
 
-Recommend the `domain-modeling` skill when `CONTEXT.md` is absent or thin, or ADR substance is missing, so the user can populate domain language and decisions. This is a non-blocking suggestion the user chooses to invoke.
+Recommend the `domain-modeling` skill when `GLOSSARY.md` is absent or thin, or ADR substance is missing, so the user can populate domain language and decisions. This is a non-blocking suggestion the user chooses to invoke.
 
 ## Report contract
 

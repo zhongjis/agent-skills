@@ -5,24 +5,24 @@
       "id": 1,
       "name": "new-repository-setup",
       "prompt": "Set up repository documentation for a small service with a root AGENTS.md, a shipped API contract, deployment instructions, one unapproved caching proposal, and no existing docs index. Report first; do not change any files without my approval.",
-      "expected_output": "An examine-and-report plan using docs/README.md, ideas, specs, adr, guides, references, and rules; CONTEXT.md is lazy; companion conventions are preserved; no files are changed before approval.",
+      "expected_output": "An examine-and-report plan using docs/README.md, ideas, specs, adr, guides, references, and rules; GLOSSARY.md is lazy; companion conventions are preserved; no files are changed before approval.",
       "files": [],
       "expectations": [
         "Reports findings with a verdict header and performs no mutations before the approval gate.",
         "Proposes docs/README.md plus the ideas, specs, adr, guides, references, and rules taxonomy without creating empty directories.",
         "Places the unapproved proposal in ideas with exact Status: idea and treats it as non-binding.",
         "Places the internal API contract in specs and deployment instructions in guides rather than references.",
-        "Treats CONTEXT.md as a lazy domain-modeling artifact and does not invent domain terms or ADRs."
+        "Treats GLOSSARY.md as a lazy domain-modeling artifact and does not invent domain terms or ADRs."
       ]
     },
     {
       "id": 2,
       "name": "adopt-existing-companion-artifacts",
-      "prompt": "Examine and propose migration for a repository that already has CONTEXT.md, CONTEXT-MAP.md, docs/adr/0001-use-postgres.md, docs/rules/contributor-workflow.md, and root AGENTS.md importing that rule. It also has flat docs/api.md and docs/run-production.md. Preserve all established companion artifacts and locked paths.",
+      "prompt": "Examine and propose migration for a repository that already has GLOSSARY.md, GLOSSARY-MAP.md, docs/adr/0001-use-postgres.md, docs/rules/contributor-workflow.md, and root AGENTS.md importing that rule. It also has flat docs/api.md and docs/run-production.md. Preserve all established companion artifacts and locked paths.",
       "expected_output": "A migration plan that adopts existing domain-modeling and agents-md artifacts, keeps docs/adr and locked rule paths, classifies flat docs safely, and creates no duplicate glossary or decisions directory.",
       "files": [],
       "expectations": [
-        "Emits a MIGRATION verdict and adopts CONTEXT.md and CONTEXT-MAP.md without creating docs/specs/domain-language.md.",
+        "Emits a MIGRATION verdict and adopts GLOSSARY.md and GLOSSARY-MAP.md without creating docs/specs/domain-language.md.",
         "Keeps docs/adr/ as the sole ADR location and does not create docs/decisions/.",
         "Preserves docs/rules/contributor-workflow.md and its exact AGENTS.md import path.",
         "Treats ADR history as append-only and preserves the existing ADR.",
@@ -32,7 +32,7 @@
     {
       "id": 3,
       "name": "idempotent-second-run",
-      "prompt": "Run setup-repo-docs on a repository already matching its declared structure: docs/README.md declares all canonical paths, CONTEXT.md is linked, docs/adr and populated buckets are indexed, rules imports resolve, links pass, and there are no ambiguous documents.",
+      "prompt": "Run setup-repo-docs on a repository already matching its declared structure: docs/README.md declares all canonical paths, GLOSSARY.md is linked, docs/adr and populated buckets are indexed, rules imports resolve, links pass, and there are no ambiguous documents.",
       "expected_output": "A CLEAN NO-OP report stating that setup is already complete and a second run requires no structural changes.",
       "files": [],
       "expectations": [
@@ -46,14 +46,14 @@
     {
       "id": 4,
       "name": "approved-apply-migration",
-      "prompt": "Apply the approved setup-repo-docs migration to the provided fixture. Preserve existing CONTEXT.md, docs/adr history, and locked docs/rules paths; classify flat docs by purpose; create docs/README.md; repair all links and AGENTS.md imports atomically; then re-examine to prove idempotency.",
+      "prompt": "Apply the approved setup-repo-docs migration to the provided fixture. Preserve existing GLOSSARY.md, docs/adr history, and locked docs/rules paths; classify flat docs by purpose; create docs/README.md; repair all links and AGENTS.md imports atomically; then re-examine to prove idempotency.",
       "expected_output": "An applied migration with preserved companion artifacts and locked paths, repaired references, canonical taxonomy, verification evidence, and a CLEAN NO-OP re-examination.",
       "files": [
         "evals/files/apply-repository"
       ],
       "expectations": [
         "Applies only after explicit user approval and changes only the approved documentation structure.",
-        "Preserves CONTEXT.md, existing docs/adr history, and exact docs/rules policy paths without creating docs/decisions or docs/specs/domain-language.md.",
+        "Preserves GLOSSARY.md, existing docs/adr history, and exact docs/rules policy paths without creating docs/decisions or docs/specs/domain-language.md.",
         "Moves unambiguous flat docs into ideas, specs, and guides; creates docs/README.md; and gives every idea exact Status: idea.",
         "Repairs Markdown links, indexes, scripts, and AGENTS.md imports atomically so no active reference uses an obsolete path.",
         "Runs focused verification and reports a CLEAN NO-OP re-examination with no required structural changes."

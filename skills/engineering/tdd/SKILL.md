@@ -12,7 +12,7 @@ metadata:
 
 TDD is the red → green loop. This skill owns its sequencing: where tests go, the order they are written in, and the rules of the loop.
 
-When exploring the codebase, read `CONTEXT.md` (if it exists) so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
+When exploring the codebase, read `GLOSSARY.md` (if it exists) so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
 
 ## Seams: where tests go
 
