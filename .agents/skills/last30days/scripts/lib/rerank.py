@@ -317,12 +317,33 @@ def _intent_hint_block(plan: schema.QueryPlan) -> str:
     return ""
 
 
+_UNTRUSTED_FENCE_TAG = re.compile(r"<\s*/?\s*untrusted_content\s*>", re.IGNORECASE)
+
+
+def _defang_untrusted_fence(value: str) -> str:
+    """Scraped content must not be able to terminate the fence that contains it.
+
+    A title carrying the literal closing tag would otherwise end the block
+    early, leaving the rest of the scraped text outside the fence and
+    indistinguishable from engine-authored prompt text.
+
+    Only the tag form is rewritten. A bare ``untrusted_content`` identifier in
+    scraped prose or code is left byte-exact: this is a research tool, and
+    altering evidence to defend the fence would corrupt what the judge scores.
+    Matched case-insensitively and tolerant of inner whitespace because the
+    reader is a model, not an XML parser.
+    """
+    return _UNTRUSTED_FENCE_TAG.sub(
+        lambda match: match.group(0).replace("_", "-"), value
+    )
+
+
 def _fenced_untrusted_content(candidate_block: str) -> str:
     return (
         f"{UNTRUSTED_CONTENT_NOTICE}\n\n"
         "Candidates:\n"
         "<untrusted_content>\n"
-        f"{candidate_block}\n"
+        f"{_defang_untrusted_fence(candidate_block)}\n"
         "</untrusted_content>"
     )
 
@@ -886,7 +907,10 @@ def _extract_comment_text(candidate: schema.Candidate) -> str:
     parts = []
     for item in candidate.source_items:
         for comment in item.metadata.get("top_comments", [])[:3]:
-            body = comment.get("body", "") if isinstance(comment, dict) else str(comment)
+            body = (
+                comment.get("excerpt") or comment.get("body", "")
+                if isinstance(comment, dict) else str(comment)
+            )
             if body:
                 parts.append(body[:150])
         for insight in item.metadata.get("comment_insights", [])[:2]:
@@ -905,7 +929,7 @@ def _extract_comment_text_scored(candidate: schema.Candidate) -> str:
     for item in candidate.source_items:
         for comment in item.metadata.get("top_comments", [])[:3]:
             if isinstance(comment, dict):
-                body = comment.get("body", "")
+                body = comment.get("excerpt") or comment.get("body", "")
                 if not body:
                     continue
                 score = comment.get("score")
