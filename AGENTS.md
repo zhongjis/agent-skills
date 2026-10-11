@@ -92,11 +92,12 @@ When the user requests a durable behavior change, record it here or in the relev
 - **Scoped CLI projection**: add and refresh exactly one skill for one harness with `--copy`; never use wildcard selectors or broad `skills update`
 - **Bootstrap packs**: `packs/` catalogs are ordered Skills CLI source/name sets with optional ordered pack dependencies; they are separate from profile selection and never prune existing skills
 - **Pack runner**: root `packs.sh` resolves dependencies first, validates the full closure before invoking Skills CLI, requires full HTTPS sources, groups calls by source, defaults omitted `--agent` to Skills CLI `universal` (`.agents/skills/`), and leaves `skills-lock.json` under Skills CLI ownership; the flake exposes it as `#packs` and the default app
+- **Update check**: root `check-updates.sh` is read-only; per lock entry it runs the scoped `add <spec> --skill <name> --agent universal --copy -y` in a temp project and diffs against `.agents/skills/<name>`; it never runs `skills update` or computes hashes
 
 ## Child DOX Index
 
 - `lib/AGENTS.md` — Nix selection API (`lib.skillsFor`, `exclude-skills.nix`, `select-skills.nix`, `default.nix`)
 - `packs/AGENTS.md` — bootstrap pack manifests, ordering, validation, and lock-ownership contracts
-- `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`)
+- `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`, `check-updates.sh`)
 - `skills/AGENTS.md` — authored/adapted skill ownership, routing, and whole-tree contracts
-- Root-owned files: `README.md`, `LICENSE` (MIT), `flake.nix`, `skill-selection.nix`, `packs.sh`, `.gitignore`, and any other root-level project documentation or runner.
+- Root-owned files: `README.md`, `LICENSE` (MIT), `flake.nix`, `skill-selection.nix`, `packs.sh`, `check-updates.sh`, `.gitignore`, and any other root-level project documentation or runner.

@@ -138,7 +138,17 @@ Run:
 nix flake check path:.
 nix eval --file tests/selector.nix
 bash tests/packs.sh
+bash tests/check-updates.sh
 ```
+
+Check for upstream updates (read-only; needs network):
+
+```sh
+./check-updates.sh
+./check-updates.sh caveman --diff
+```
+
+Each skill in `skills-lock.json` is fetched into a temp project and compared with `.agents/skills/<name>`, printing `current`, `outdated`, or `failed`. Exit 0 means all current; 1 means any outdated or failed; 2 means usage error. Nothing in the repo is modified; refresh an outdated skill with the scoped `skills add ...` command the script prints.
 
 Flake-consumer realization check (verifies dot-dirs survive the Nix store copy):
 
