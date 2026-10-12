@@ -7,7 +7,7 @@
       "prompt": "Use delegate-using-herdr to create and delegate a Linear issue for the agreed cache-key validation fix. We are in the repository root checkout. The worker should run the focused tests and report blockers. The latest explicit intent, proposed issue, and worker prompt all say the agent validates cache keys on save before accepting a user request.",
       "expected_output": "After the Herdr preflight and matching handoff contract, delegation proceeds without an extra confirmation question. The skill creates the issue, records its identifier and URL, and dispatches the bounded worker prompt before immediately handing off.",
       "expectations": [
-        "Checks the issue and proposed worker prompt against the active task's intended outcome, purpose, binding constraints, acceptance evidence, budget, and requested deliverables before issue creation or dispatch; includes actor, trigger, and timing when material.",
+        "Checks the issue and proposed worker prompt against the active task's intended outcome, purpose, binding constraints, acceptance evidence, scope tripwires, and requested deliverables before issue creation or dispatch; includes actor, trigger, and timing when material.",
         "Does not add a routine confirmation gate when the contract sources agree.",
         "Hands off after prompt acceptance without monitoring or integration."
       ],
