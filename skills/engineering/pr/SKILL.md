@@ -12,6 +12,11 @@ metadata:
       url: "https://github.com/mattpocock/skills/blob/main/skills/engineering/pr/SKILL.md"
 ---
 
+## Core principles
+
+- PR title and description describe the final state at the head commit of the PR branch, not individual commits or review rounds.
+- The title names the overall change. The description explains that change, its evidence, risks, and references.
+
 Use this template for writing the PR body:
 
 ```markdown
@@ -42,16 +47,15 @@ Use this template for writing the PR body:
 - <primary issue, supporting document/report, or companion PR; N/A only when none exist>
 ```
 
-Apply explicit user formatting instructions first. Otherwise, an existing body or repository template takes precedence over this template, subject to the Evidence and References rules below:
+Apply specifically requested user formatting first. Otherwise, select a repository PR template or use the template above, subject to the Evidence and References rules below:
 
-1. If the user supplied an existing body to revise, revise that body. Preserve its meaningful headings and order. Merge a heading that repeats another section's role (for example, `Changes` beside `Summary`) into that section. Drop catch-all headings such as `Notes` or `Details`; move any merge-critical item into Merge Danger.
-2. Otherwise inspect repository PR templates. Use the explicitly requested template, the sole template, or a clearly applicable template. If several templates fit and none is clearly selected, ask the user to choose; do not guess.
-3. With no applicable template, use the template above.
-4. Treat headings with equivalent meaning as present (for example, `Description` for summary, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate section. Preserve retained heading text and order; append only semantically absent sections from the template above.
+1. If no repo templates exists or not specifically instructed by user, use skill template above.
+2. For an existing description, normalize it to the selected structure. Preserve relevant content, exact references, supplied media references, and required footers. Merge duplicate-role sections; move merge-critical content from catch-all sections into Merge Danger.
+3. In the selected template or explicitly requested structure, treat headings with equivalent meaning as present (for example, `Description` for summary, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate section. Preserve retained heading text and order; append only semantically absent sections from the template above.
 
 ## Title
 
-Format PR titles as `[<issue-tracker-item-id>] <title>`, using the primary issue's ID; with no issue, omit the prefix. Supporting documents, reports, and companion PRs do not supply title prefixes.
+Format PR titles as `<change-type>(<primary-issue-id>): <description>`, using the primary issue's ID; with no issue, omit the prefix. Supporting documents, reports, and companion PRs do not supply title prefixes.
 
 ## Sections
 
@@ -59,14 +63,9 @@ Skip all preambles and keep prose brief. Use the user's domain language from `GL
 
 Write for a human reviewer who reads the visible body (everything outside `<details>`) in about a minute: at most about 40 visible lines, one or two Summary visuals, and no sections beyond the selected structure. (writing-clearly-and-concisely)
 
-Describe the final state at the head commit. On every revision, rewrite the body rather than append to it: drop per-commit result tags, "since last review" blocks, and earlier-revision comparisons. Review-round history belongs in a PR comment.
+On creation or after pushing commits, reconcile the title and description with the complete branch diff. Update only when needed.
 
-Keep the evidence roles separate:
-
-- The task or conversation establishes intent.
-- The branch diff establishes the actual change.
-- Commits provide supporting context, not proof.
-- Completed observed command, test, or review results establish verification.
+When updating, rewrite the description rather than append to it. NO per-commit result tags, "since last review" blocks, and earlier-revision comparisons. Core principle must be followed.
 
 ### Summary
 
@@ -183,11 +182,7 @@ function expandSkill(command: string): string {
 
 #### Guidance
 
-Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
-
-You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
-
-Every Summary carries at least one visual, including the summary-equivalent heading of a supplied body or repository template. Write the short text beside a visual as concise, ordinary change bullets unless a repository convention requires labels.
+Every Summary includes at least one compact diagram, tree, pseudocode block, or diff sketch explaining the change. Place concise change bullets beside it. Include only details needed by the reviewer.
 
 #### Reviewer help
 
@@ -197,19 +192,13 @@ Every Summary carries at least one visual, including the summary-equivalent head
 
 ### Evidence
 
-Concrete evidence that the change works. Show a before and after.
+Show concrete before/after proof when observed. Prefer screenshots for visual changes; otherwise use test results or console output.
 
-Collapse the evidence or verification section in `<details>` without `open`, using its existing heading text as `<summary>` and retaining its position. This applies to equivalent headings such as Testing, Validation, and Verification. Keep merge-blocking failures, missing required proof, and pending required CI visible under the risk section; the collapsed section holds the detailed results.
+Use only completed results that still apply to the head. Keep about five behavior-level results, without execution metadata or `Not verified:` placeholders.
 
-Include a dedicated visual-evidence section only for user-visible UI changes. Omit it for non-visible changes, including inherited “Not applicable” placeholders. The required Summary visual explains the change and is separate from screenshot or recording evidence.
+Collapse verification in closed `<details>`, preserving the selected heading and position. Keep merge-blocking failures, missing required proof, and pending required CI visible under risks.
 
-Screenshots are S-tier - when the environment is set up for it and the change is visual.
-
-Execution-based evidence is A-tier. Test results, console output. Show the exact test that now fails and passes, using pseudocode.
-
-Write at most about five evidence bullets, one per proven claim, each as `<behavior proven>: pass` or `fail`. Leave out command strings, suite counts, commit SHAs, tool versions, mutation checks, and who ran the check.
-
-Draw before and after only from completed, observed results. When required proof is unavailable, write `Not verified: <claim> (<reason>)` in its place.
+Include visual evidence only for user-visible UI changes. Summary diagrams explain the change; screenshots or recordings demonstrate it.
 
 #### UI media routing
 
@@ -224,16 +213,14 @@ For a user-visible UI change, route to `before-and-after` only when the user req
 
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
 
-The blast radius is the potential impact or scope of the changes introduced by this PR. Name the one or two highest-impact effects. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
-
-Keep it brief, and name the concrete irreversible or rollout risk when one exists.
+The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
 
 ### References
 
-Discover references in this order: supplied or current body, task or conversation, branch name, commits, then explicit companion-change evidence. Group directly relevant issues, design documents, benchmark or verification reports, and companion PRs under References or a broad equivalent such as Links or Related Work. When supporting links exist, broaden an inherited issue-only heading such as Linked issue to References. Put the primary issue first, then supporting links with descriptive labels; templates and placeholders are not references. Supporting document/report URLs belong here, not among verification results. Preserve supplied URLs exactly; render a plain supplied key without inventing a URL or placeholder (for example, `- ACME-42`). When no relevant references exist, write `- N/A` under the reference-equivalent heading.
+Find references in the supplied/current body, task or conversation, branch name, commits, then companion-change evidence.
 
-Preserve or include a footer only when the template, repository guidance or convention, or supplied evidence requires it; never invent one.
+List directly relevant issues, documents, reports, and companion PRs. Put the primary issue first; label supporting links. Use References or an equivalent heading, broadening issue-only headings when needed. Keep report links here, not in Evidence.
 
-## Completion check
+Preserve supplied URLs exactly. Keep plain issue keys plain; invent no URLs or placeholders. Use `- N/A` only when no relevant references exist.
 
-Before returning the body, confirm its structure follows explicit user instructions and the supplied body, selected repository template, or template above; the Summary or its equivalent carries a visual; the visible body fits the reviewer budget and describes only the head commit's final state, with no duplicate-role or catch-all sections; every change claim is supported by the diff; verification is collapsed and contains only completed results or `Not verified:` lines, with merge-critical gaps visible under risks; inapplicable visual-evidence sections are omitted; references group relevant issues and supporting links, preserve supplied values, and use `- N/A` only when none exist; and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.
+Include footers only when required by the template, repository guidance or convention, or supplied evidence.

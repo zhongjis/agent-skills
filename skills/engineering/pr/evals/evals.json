@@ -18,11 +18,11 @@
       "id": 2,
       "name": "revise-stale-body-with-semantic-headings",
       "prompt": "Revise this supplied stale PR body, not a repository template:\n\n## Why\nOld cache invalidation wording.\n\n## What Changed\n- Reworked caching.\n\n## Testing\n- Tests pass.\n\n## Links\n- [ACME-42](<TRACKER_URL>)\n\nTask intent: make cache invalidation reliable. Diff and commit show only that `invalidateCache` now runs after writes. No verification command was completed. The only supplied tracker value is plain `ACME-42`; no URL exists.",
-      "expected_output": "A revision that keeps Why, What Changed, Testing, and Links in their original order, replaces stale claims with the actual diff-backed change, uses a `Not verified:` line, and lists `- ACME-42` without a placeholder URL.",
+      "expected_output": "A revision normalized to the default template because no repository template or explicit formatting was selected. It replaces stale claims with the actual diff-backed change, includes no unsupported verification or `Not verified:` entry in Evidence, and lists `- ACME-42` without a placeholder URL.",
       "expectations": [
-        "Uses the supplied body as the revision structure and preserves its semantic headings and order.",
-        "Uses Testing as the closed details summary in its original position rather than appending a duplicate Evidence section.",
-        "Replaces the unsupported test-success claim with a `Not verified:` line naming the claim and reason.",
+        "Uses the default template rather than treating the supplied body's headings as structural authority.",
+        "Uses the selected template's Evidence heading without a duplicate Testing section.",
+        "Removes the unsupported test-success claim and includes no `Not verified:` entry in Evidence.",
         "Renders the tracker as plain `- ACME-42` and does not invent a URL."
       ],
       "files": []
@@ -41,13 +41,13 @@
     },
     {
       "id": 4,
-      "name": "unresolved-template-ambiguity",
+      "name": "unselected-repository-templates-use-default",
       "prompt": "Draft a PR body for a change that could be either a feature or a bug fix. The repository has `feature.md` and `bugfix.md`; neither was selected and the task gives no further fit signal. Diff: a new retry limit is configurable. Completed result: `go test ./...` passed.",
-      "expected_output": "A request for the user to choose between the equally applicable templates rather than a guessed PR body structure.",
+      "expected_output": "A default-template body because no repository template was specifically requested, with a Summary visual and only completed verification.",
       "expectations": [
-        "Identifies that multiple templates are equally applicable.",
-        "Asks the user to select a template instead of guessing.",
-        "Does not silently fall back to generic headings while the template choice remains unresolved."
+        "Uses Summary, Evidence, Merge Danger, and References rather than selecting an unrequested repository template.",
+        "Does not ask for a template choice when none was specifically requested.",
+        "Includes a Summary visual and only the completed verification result."
       ],
       "files": []
     },
@@ -152,9 +152,9 @@
       "id": 13,
       "name": "unrun-tests-are-missing-evidence",
       "prompt": "Draft a PR body. There is no existing body and no PR template. Diff adds `src/rateLimiter.ts` enforcing a per-account request limit and `src/rateLimiter.test.ts` with burst and refill cases. No test or command was run. No tracker or issue was supplied.",
-      "expected_output": "A default-template body whose Summary carries a visual of the rate-limit change, whose Evidence is a `Not verified:` line and does not present the new test cases as before/after or passing results, and whose References are `- N/A`. The new tests may appear as part of the change, not as verification.",
+      "expected_output": "A default-template body whose Summary carries a visual of the rate-limit change, whose Evidence contains no `Not verified:` entry and does not present the new test cases as before/after or passing results, and whose References are `- N/A`. The new tests may appear as part of the change, not as verification.",
       "expectations": [
-        "Evidence uses a `Not verified:` line and does not present the new test cases as before/after or passing results.",
+        "Evidence contains no `Not verified:` entry and does not present the new test cases as before/after or passing results.",
         "The new tests may appear as part of the change, not as verification.",
         "Summary carries a visual.",
         "Includes `- N/A` under `## References`."
@@ -164,7 +164,7 @@
     {
       "id": 14,
       "name": "repository-template-gets-summary-visual",
-      "prompt": "Draft a PR body. The repository has a sole template `.github/pull_request_template.md` with headings `**Ticket:**`, `**Description**`, and `**Testing**`. Diff adds an admin page route and inserts its admin-tree node after an existing node. Supplied tracker key: `MKT-123` (no URL). Completed result: `npm test` passed.",
+      "prompt": "Draft a PR body using `.github/pull_request_template.md`. The repository has that sole template with headings `**Ticket:**`, `**Description**`, and `**Testing**`. Diff adds an admin page route and inserts its admin-tree node after an existing node. Supplied tracker key: `MKT-123` (no URL). Completed result: `npm test` passed.",
       "expected_output": "A body that preserves the sole template headings and order, places a visual (for example a tree diff of the inserted admin node) under `**Description**`, records only the completed `npm test` result in closed details labeled Testing, renders the ticket as plain `MKT-123` with no invented URL, and appends `## Merge Danger` because the template has no equivalent heading.",
       "expectations": [
         "Preserves the template headings and order without duplicate Summary, Evidence, or References sections.",
@@ -179,9 +179,9 @@
       "id": 15,
       "name": "title-uses-primary-tracker-id",
       "prompt": "Draft a PR title and body. Diff: reject malformed webhook signatures before parsing. Completed result: `pnpm test webhook` passed. Primary issue: https://tracker.example/WEB-18. Related follow-up: WEB-20. No template exists.",
-      "expected_output": "A title prefixed `[WEB-18]` only.",
+      "expected_output": "A title formatted `fix(WEB-18): <description>`.",
       "expectations": [
-        "Title is `[WEB-18] <title>`, omitting WEB-20."
+        "Title uses the change-type and primary issue format, with WEB-18 and no WEB-20."
       ],
       "files": []
     },
@@ -189,23 +189,23 @@
       "id": 16,
       "name": "title-without-tracker-has-no-prefix",
       "prompt": "Draft a PR title and body. Diff: docs/install.md now names the correct `nix develop` command. Completed result: `markdownlint docs/install.md` passed. No template or tracker exists.",
-      "expected_output": "A title with no bracketed prefix.",
+      "expected_output": "A plain descriptive title with no change-type/issue prefix.",
       "expectations": [
-        "Title has no bracketed prefix."
+        "Title has no change-type/issue prefix."
       ],
       "files": []
     },
     {
       "id": 17,
       "name": "backend-template-conditional-evidence-and-references",
-      "prompt": "Draft a PR title and body for a backend-only index change. The sole repository template has Summary, Linked issue, Verification, Visual evidence, and Risks headings in that order. Its Visual evidence instruction says to write Not applicable for non-UI changes. Diff: add an index on orders.account_id. Completed local result: migration check passed. Required CI for this revision is pending. Primary issue: DATA-18. Supporting report: https://docs.example.test/reports/index-benchmark. No media exists.",
-      "expected_output": "The title uses [DATA-18]. Summary retains a minimal visual. References replaces Linked issue and lists DATA-18 first, then the unchanged report URL with a descriptive label. Verification is closed details in its original position. Visual evidence is omitted. Pending required CI remains visible under Risks.",
+      "prompt": "Draft a PR title and body for a backend-only index change using the sole repository template. The template has Summary, Linked issue, Verification, Visual evidence, and Risks headings in that order. Its Visual evidence instruction says to write Not applicable for non-UI changes. Diff: add an index on orders.account_id. Completed local result: migration check passed. Required CI for this revision is pending. Primary issue: DATA-18. Supporting report: https://docs.example.test/reports/index-benchmark. No media exists.",
+      "expected_output": "The title uses `<change-type>(DATA-18): <description>`. Summary retains a minimal visual. References replaces Linked issue and lists DATA-18 first, then the unchanged report URL with a descriptive label. Verification is closed details in its original position. Visual evidence is omitted. Pending required CI remains visible under Risks.",
       "expectations": [
         "Omits the inapplicable Visual evidence section and Not applicable placeholder while retaining a Summary visual.",
         "Verification uses closed details without open, in its original position.",
         "Pending required CI remains visible outside details under Risks.",
         "References replaces Linked issue, lists DATA-18 first, and preserves the report URL outside verification.",
-        "Title uses only [DATA-18]."
+        "Title uses `<change-type>(DATA-18): <description>` with DATA-18 as its only issue ID."
       ],
       "files": []
     },
@@ -213,10 +213,10 @@
       "id": 18,
       "name": "documents-only-reference-without-title-prefix",
       "prompt": "Draft a PR title and body with no existing body or repository template. Diff: docs/install.md corrects the development shell command. Completed result: markdown link check passed. Supporting design document: https://docs.example.test/designs/development-shell. No issue tracker item exists.",
-      "expected_output": "A default-template body with a minimal Summary visual, closed Evidence details, and the supplied design document under References. References does not contain N/A. The title has no bracketed prefix.",
+      "expected_output": "A default-template body with a minimal Summary visual, closed Evidence details, and the supplied design document under References. References does not contain N/A. The title has no change-type/issue prefix.",
       "expectations": [
         "References preserves the supplied document URL with a descriptive label and does not use N/A.",
-        "The title has no bracketed prefix.",
+        "The title has no change-type/issue prefix.",
         "Evidence is closed details containing only the completed check."
       ],
       "files": []
@@ -224,13 +224,13 @@
     {
       "id": 19,
       "name": "explicit-formatting-overrides-supplied-body",
-      "prompt": "Revise this supplied body: Summary, Linked issue, Verification, Visual evidence, Risks. The existing Verification is expanded and Visual evidence says Not applicable. Explicit user instructions: omit inapplicable visual evidence, collapse Verification, and group issue/document links under References. Diff: server rejects malformed account IDs before DB lookup; no UI change. Completed result: account validation test passed. Primary issue: API-24. Supporting design: https://docs.example.test/designs/account-validation.",
-      "expected_output": "The explicit formatting instructions override the stale supplied structure. The revised body omits Visual evidence, collapses Verification, broadens Linked issue to References with API-24 first and the unchanged design URL, and retains the remaining meaningful section order and a Summary visual.",
+      "prompt": "Revise this supplied body: Summary, Linked issue, Verification, Visual evidence, Risks. The existing Verification is expanded and Visual evidence says Not applicable. Explicit user instructions: use headings Summary, References, Verification, Risks in that order; omit inapplicable visual evidence, collapse Verification, and group issue/document links under References. Diff: server rejects malformed account IDs before DB lookup; no UI change. Completed result: account validation test passed. Primary issue: API-24. Supporting design: https://docs.example.test/designs/account-validation.",
+      "expected_output": "The explicit formatting instructions override the stale supplied structure. The revised body omits Visual evidence, collapses Verification, broadens Linked issue to References with API-24 first and the unchanged design URL, and follows the explicitly requested Summary, References, Verification, Risks order with a Summary visual.",
       "expectations": [
         "Explicit user formatting overrides the supplied body's stale presentation.",
         "Visual evidence is omitted and Verification is closed details.",
         "References groups the plain API-24 key and unchanged design URL without invented issue URLs.",
-        "Retains the remaining meaningful section order and Summary visual."
+        "Uses the explicitly requested Summary, References, Verification, Risks order and retains a Summary visual."
       ],
       "files": []
     },
@@ -238,13 +238,64 @@
       "id": 20,
       "name": "revise-bloated-body-to-final-state",
       "prompt": "Revise this supplied body for the head commit `c3`:\n\n## Summary\n- Adds the Sync Health admin page behind `crmSyncV2`.\n\nGate change since the last review (`c3`): the page now also needs `syncHealthFlag`.\n\n## Changes\nReview by commit: `c1` (responder), `c2` (page), `c3` (flag gate).\n\n## Testing\n- CI on `c2`: pass.\n- CI on head `c3`: not run.\n- `client: jest src/domains/syncHealth`: 6 suites, 108/108 pass.\n- Mutation check: reverting the gate makes 2 new tests fail (53/55).\n- UI results below are from `c2`; later commits update copyright years.\n\n## Notes\n- Depends on the aggregator shipping its endpoint (API-7).\n- Table rows are no longer striped.\n\n## Merge Danger\n**Door:** two-way\n\n## References\n- API-9\n\nDiff at `c3`: new admin page and route, both gated on `crmSyncV2` and `syncHealthFlag`. Completed results at `c3`: the page tests passed, including the gate cases. Primary issue: API-9.",
-      "expected_output": "A rewritten body that describes only the `c3` final state: Summary states both gates without a 'since the last review' block, Changes is merged into Summary, Notes is removed with the aggregator dependency moved into Merge Danger, and collapsed Testing holds a few plain claim-level bullets plus a `Not verified:` line for head CI.",
+      "expected_output": "A rewritten body that describes only the `c3` final state: Summary states both gates without a 'since the last review' block, Changes is merged into Summary, Notes is removed with the aggregator dependency moved into Merge Danger, and the default template's collapsed Evidence holds only applicable completed claim-level results. Missing head CI proof remains visible under Merge Danger, not in Evidence.",
       "expectations": [
         "Contains no 'since the last review' text, per-commit result tags, or earlier-revision comparison.",
         "Has no Changes or Notes section; the aggregator dependency appears under Merge Danger.",
-        "Testing is closed details with at most five bullets, each a proven claim, and no command strings, suite counts, mutation checks, or commit SHAs.",
-        "Head CI appears as a `Not verified:` line rather than an unsupported pass.",
+        "Evidence is closed details with at most five bullets, each a proven claim, and no command strings, suite counts, mutation checks, or commit SHAs.",
+        "Missing head CI proof appears under Merge Danger rather than as an unsupported pass or a `Not verified:` entry in Evidence.",
         "The visible body stays within about 40 lines and Summary carries a visual."
+      ],
+      "files": []
+    },
+    {
+      "id": 21,
+      "name": "push-reconciles-title-and-normalizes-description",
+      "prompt": "Push the verified commits to existing PR #732. Its current title is [API-24] Add account validation and its description uses Changes and Notes, with reference API-24. No repository template exists. The complete branch diff now adds account validation and a request limit; the newest commit only adds the limit. Completed results covering the current head: account validation and request-limit checks passed. No UI change exists.",
+      "expected_output": "After the authorized push, checks and updates both title and description for the complete current diff, normalizes the description to the default template, preserves API-24, and publishes necessary text updates through gh without another approval or comment.",
+      "expectations": [
+        "Title and description describe both account validation and the request limit, not only the latest commit.",
+        "Normalizes Changes and Notes to the default template, changes the old bracketed title to `<change-type>(API-24): <description>`, and preserves API-24.",
+        "Evidence contains only completed applicable results.",
+        "Publishes necessary title and description updates through gh under the push authorization without creating another PR or adding a comment."
+      ],
+      "files": []
+    },
+    {
+      "id": 22,
+      "name": "push-with-current-text-needs-no-text-write",
+      "prompt": "Push the latest commits to existing PR #733. Its title `feat(API-24): add account validation and request limiting` and description already describe the complete head diff. Keep using the sole repository template. The description follows that template with a Summary visual, collapsed applicable completed evidence, risks, and References. The new commit changes only internal variable names without changing these claims. Existing completed checks still cover the head behavior.",
+      "expected_output": "Checks both title and description, retains their accurate text and applicable evidence, and performs no unnecessary text update or comment.",
+      "expectations": [
+        "Checks both title and description against the complete current diff.",
+        "Does not rewrite unchanged accurate text or discard still-applicable evidence.",
+        "Does not add a comment."
+      ],
+      "files": []
+    },
+    {
+      "id": 23,
+      "name": "explicit-pr-skill-title-only",
+      "prompt": "Use the pr skill to draft only the title for existing PR #734. Do not change its description or publish anything. Complete head diff: account validation and request limiting. Latest commit: request limiting. Primary issue: API-24.",
+      "expected_output": "A title formatted `<change-type>(API-24): <description>` describing both changes, with no body draft or publication.",
+      "expectations": [
+        "Title describes the complete head diff, not only the latest commit.",
+        "Uses `<change-type>(API-24): <description>` with API-24 as its only issue ID.",
+        "Does not draft or modify the description or publish anything."
+      ],
+      "files": []
+    },
+    {
+      "id": 24,
+      "name": "behavior-change-invalidates-earlier-evidence",
+      "prompt": "Revise the description for existing PR #735; text only. No repository template exists. Complete head diff: request limit changes from 10 to 20 per minute; documentation links are unchanged. Old Evidence says the 10-request boundary test and documentation link check passed. Those completed results tested the earlier head. The boundary result no longer covers the new behavior; the link result still applies. Required verification of the 20-request boundary has not run.",
+      "expected_output": "A normalized description explaining the 20-request limit, retaining the applicable link-check result, removing stale boundary evidence, and keeping the required boundary-proof gap visible under Merge Danger.",
+      "expectations": [
+        "Describes the current 20-request limit.",
+        "Removes the obsolete boundary result while retaining applicable link-check evidence.",
+        "Does not invent a passing new-boundary result or include a Not verified entry in Evidence.",
+        "Keeps missing required boundary proof visible under Merge Danger.",
+        "Does not publish."
       ],
       "files": []
     }
