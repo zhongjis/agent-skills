@@ -18,11 +18,11 @@
       "id": 2,
       "name": "revise-stale-body-with-semantic-headings",
       "prompt": "Revise this supplied stale PR body, not a repository template:\n\n## Why\nOld cache invalidation wording.\n\n## What Changed\n- Reworked caching.\n\n## Testing\n- Tests pass.\n\n## Links\n- [ACME-42](<TRACKER_URL>)\n\nTask intent: make cache invalidation reliable. Diff and commit show only that `invalidateCache` now runs after writes. No verification command was completed. The only supplied tracker value is plain `ACME-42`; no URL exists.",
-      "expected_output": "A revision that keeps Why, What Changed, Testing, and Links in their original order, replaces stale claims with the actual diff-backed change, uses `<MISSING_EVIDENCE>`, and lists `- ACME-42` without a placeholder URL.",
+      "expected_output": "A revision that keeps Why, What Changed, Testing, and Links in their original order, replaces stale claims with the actual diff-backed change, uses a `Not verified:` line, and lists `- ACME-42` without a placeholder URL.",
       "expectations": [
         "Uses the supplied body as the revision structure and preserves its semantic headings and order.",
         "Uses Testing as the closed details summary in its original position rather than appending a duplicate Evidence section.",
-        "Replaces the unsupported test-success claim with `<MISSING_EVIDENCE>`.",
+        "Replaces the unsupported test-success claim with a `Not verified:` line naming the claim and reason.",
         "Renders the tracker as plain `- ACME-42` and does not invent a URL."
       ],
       "files": []
@@ -152,9 +152,9 @@
       "id": 13,
       "name": "unrun-tests-are-missing-evidence",
       "prompt": "Draft a PR body. There is no existing body and no PR template. Diff adds `src/rateLimiter.ts` enforcing a per-account request limit and `src/rateLimiter.test.ts` with burst and refill cases. No test or command was run. No tracker or issue was supplied.",
-      "expected_output": "A default-template body whose Summary carries a visual of the rate-limit change, whose Evidence is `<MISSING_EVIDENCE>` and does not present the new test cases as before/after or passing results, and whose References are `- N/A`. The new tests may appear as part of the change, not as verification.",
+      "expected_output": "A default-template body whose Summary carries a visual of the rate-limit change, whose Evidence is a `Not verified:` line and does not present the new test cases as before/after or passing results, and whose References are `- N/A`. The new tests may appear as part of the change, not as verification.",
       "expectations": [
-        "Evidence uses `<MISSING_EVIDENCE>` and does not present the new test cases as before/after or passing results.",
+        "Evidence uses a `Not verified:` line and does not present the new test cases as before/after or passing results.",
         "The new tests may appear as part of the change, not as verification.",
         "Summary carries a visual.",
         "Includes `- N/A` under `## References`."
@@ -231,6 +231,20 @@
         "Visual evidence is omitted and Verification is closed details.",
         "References groups the plain API-24 key and unchanged design URL without invented issue URLs.",
         "Retains the remaining meaningful section order and Summary visual."
+      ],
+      "files": []
+    },
+    {
+      "id": 20,
+      "name": "revise-bloated-body-to-final-state",
+      "prompt": "Revise this supplied body for the head commit `c3`:\n\n## Summary\n- Adds the Sync Health admin page behind `crmSyncV2`.\n\nGate change since the last review (`c3`): the page now also needs `syncHealthFlag`.\n\n## Changes\nReview by commit: `c1` (responder), `c2` (page), `c3` (flag gate).\n\n## Testing\n- CI on `c2`: pass.\n- CI on head `c3`: not run.\n- `client: jest src/domains/syncHealth`: 6 suites, 108/108 pass.\n- Mutation check: reverting the gate makes 2 new tests fail (53/55).\n- UI results below are from `c2`; later commits update copyright years.\n\n## Notes\n- Depends on the aggregator shipping its endpoint (API-7).\n- Table rows are no longer striped.\n\n## Merge Danger\n**Door:** two-way\n\n## References\n- API-9\n\nDiff at `c3`: new admin page and route, both gated on `crmSyncV2` and `syncHealthFlag`. Completed results at `c3`: the page tests passed, including the gate cases. Primary issue: API-9.",
+      "expected_output": "A rewritten body that describes only the `c3` final state: Summary states both gates without a 'since the last review' block, Changes is merged into Summary, Notes is removed with the aggregator dependency moved into Merge Danger, and collapsed Testing holds a few plain claim-level bullets plus a `Not verified:` line for head CI.",
+      "expectations": [
+        "Contains no 'since the last review' text, per-commit result tags, or earlier-revision comparison.",
+        "Has no Changes or Notes section; the aggregator dependency appears under Merge Danger.",
+        "Testing is closed details with at most five bullets, each a proven claim, and no command strings, suite counts, mutation checks, or commit SHAs.",
+        "Head CI appears as a `Not verified:` line rather than an unsupported pass.",
+        "The visible body stays within about 40 lines and Summary carries a visual."
       ],
       "files": []
     }

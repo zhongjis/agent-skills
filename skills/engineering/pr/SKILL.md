@@ -44,7 +44,7 @@ Use this template for writing the PR body:
 
 Apply explicit user formatting instructions first. Otherwise, an existing body or repository template takes precedence over this template, subject to the Evidence and References rules below:
 
-1. If the user supplied an existing body to revise, revise that body. Preserve its meaningful headings and order.
+1. If the user supplied an existing body to revise, revise that body. Preserve its meaningful headings and order. Merge a heading that repeats another section's role (for example, `Changes` beside `Summary`) into that section. Drop catch-all headings such as `Notes` or `Details`; move any merge-critical item into Merge Danger.
 2. Otherwise inspect repository PR templates. Use the explicitly requested template, the sole template, or a clearly applicable template. If several templates fit and none is clearly selected, ask the user to choose; do not guess.
 3. With no applicable template, use the template above.
 4. Treat headings with equivalent meaning as present (for example, `Description` for summary, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate section. Preserve retained heading text and order; append only semantically absent sections from the template above.
@@ -56,6 +56,10 @@ Format PR titles as `[<issue-tracker-item-id>] <title>`, using the primary issue
 ## Sections
 
 Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
+
+Write for a human reviewer who reads the visible body (everything outside `<details>`) in about a minute: at most about 40 visible lines, one or two Summary visuals, and no sections beyond the selected structure. (writing-clearly-and-concisely)
+
+Describe the final state at the head commit. On every revision, rewrite the body rather than append to it: drop per-commit result tags, "since last review" blocks, and earlier-revision comparisons. Review-round history belongs in a PR comment.
 
 Keep the evidence roles separate:
 
@@ -189,7 +193,7 @@ Every Summary carries at least one visual, including the summary-equivalent head
 
 - Link one companion PR when work spans repositories; keep its details there.
 - For a large or mechanical diff, add a short Reviewer Guide: where to start, behavioral risk, one representative bulk file, then docs/tests.
-- Put secondary rationale and long enumerations in `<details>` only when they would bury essential content; keep merge-critical content visible.
+- Cut secondary rationale, behavior catalogs, and API contracts the diff already shows. Use `<details>` only for a short item a reviewer needs; keep merge-critical content visible.
 
 ### Evidence
 
@@ -203,7 +207,9 @@ Screenshots are S-tier - when the environment is set up for it and the change is
 
 Execution-based evidence is A-tier. Test results, console output. Show the exact test that now fails and passes, using pseudocode.
 
-Draw before and after only from completed, observed results. When required proof is unavailable, write `<MISSING_EVIDENCE>` exactly in its place.
+Write at most about five evidence bullets, one per proven claim, each as `<behavior proven>: pass` or `fail`. Leave out command strings, suite counts, commit SHAs, tool versions, mutation checks, and who ran the check.
+
+Draw before and after only from completed, observed results. When required proof is unavailable, write `Not verified: <claim> (<reason>)` in its place.
 
 #### UI media routing
 
@@ -218,7 +224,7 @@ For a user-visible UI change, route to `before-and-after` only when the user req
 
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
 
-The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
+The blast radius is the potential impact or scope of the changes introduced by this PR. Name the one or two highest-impact effects. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
 
 Keep it brief, and name the concrete irreversible or rollout risk when one exists.
 
@@ -230,4 +236,4 @@ Preserve or include a footer only when the template, repository guidance or conv
 
 ## Completion check
 
-Before returning the body, confirm its structure follows explicit user instructions and the supplied body, selected repository template, or template above; the Summary or its equivalent carries a visual; every change claim is supported by the diff; verification is collapsed and contains only completed results or `<MISSING_EVIDENCE>`, with merge-critical gaps visible under risks; inapplicable visual-evidence sections are omitted; references group relevant issues and supporting links, preserve supplied values, and use `- N/A` only when none exist; and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.
+Before returning the body, confirm its structure follows explicit user instructions and the supplied body, selected repository template, or template above; the Summary or its equivalent carries a visual; the visible body fits the reviewer budget and describes only the head commit's final state, with no duplicate-role or catch-all sections; every change claim is supported by the diff; verification is collapsed and contains only completed results or `Not verified:` lines, with merge-critical gaps visible under risks; inapplicable visual-evidence sections are omitted; references group relevant issues and supporting links, preserve supplied values, and use `- N/A` only when none exist; and required footers are evidence-backed. Route generic GitHub operations and PR creation to `gh`; for authorized user-visible UI media, route capture and attachment to `before-and-after` in the required order.
