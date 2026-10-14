@@ -102,6 +102,9 @@ You win twice: fewer tokens, and a sharper hook for the agent to hang its thinki
 
 ## Pruning
 
+- **Preserve the contract when compressing.** Shorten wording, not obligations. Retain triggers, precedence, authorization boundaries, required outputs, and exceptions. Replace lists with a broader rule only when it preserves their meaning.
+- **Consolidate shared rules.** State a principle once; keep only distinct behavior under each element. Scope preservation rules explicitly—for example, preserve the selected template's headings, not an obsolete document's structure.
+- **Check behavioral equivalence.** Compare original and revised instructions on representative cases, including explicit overrides, missing evidence, stale evidence, and unchanged outputs. File validation proves structure, not agent behavior.
 - Keep each meaning in a **single source of truth**: one authoritative place, so changing the behaviour is a one-place edit. **Duplication** (the same meaning in more than one place) costs maintenance and tokens, and inflates a meaning's prominence on the ladder past its real rank. (The accidental inverse of a leading word, which repeats a token on purpose, never the meaning.)
 - Layers stack: global and project instruction files, skills, agent definitions, and the task prompt all speak in one run. A **contradiction** between them about what to deliver, what the agent decides alone, or what counts as done is a variance bug; fix it in the layer that owns the decision.
 - The **environment** is a source of truth too (`package.json` scripts, config files, the directory layout, `--help` output), and a document that restates it is a **cache**: a copy of a lookup, earning its load only when the lookup is expensive. Cache what the agent cannot find by looking: the unwritten convention, the reason behind a choice, the gotcha no config confesses. Leave the one-file, one-command lookups to the environment, where they cannot go stale.
