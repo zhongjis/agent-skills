@@ -14,8 +14,7 @@ metadata:
 
 ## Core principles
 
-- PR title and description describe the final state at the head commit of the PR branch, not individual commits or review rounds.
-- The title names the overall change. The description explains that change, its evidence, risks, and references.
+- PR title and description describe ONLY the final state at the head commit of the PR branch (after) vs Base branch (before), not individual commits or review rounds.
 
 Use this template for writing the PR body:
 
@@ -50,7 +49,7 @@ Use this template for writing the PR body:
 Apply specifically requested user formatting first. Otherwise, select a repository PR template or use the template above, subject to the Evidence and References rules below:
 
 1. If no repo templates exists or not specifically instructed by user, use skill template above.
-2. For an existing description, normalize it to the selected structure. Preserve relevant content, exact references, supplied media references, and required footers. Merge duplicate-role sections; move merge-critical content from catch-all sections into Merge Danger.
+2. For an existing description, normalize it to the selected structure. Preserve relevant content, exact references, supplied media references, and required footers only when they follow the principle. Merge duplicate-role sections; move merge-critical content from catch-all sections into Merge Danger.
 3. In the selected template or explicitly requested structure, treat headings with equivalent meaning as present (for example, `Description` for summary, `Testing` for evidence, `Risks` for merge danger, or `Links` for references). Fill that heading rather than adding a duplicate section. Preserve retained heading text and order; append only semantically absent sections from the template above.
 
 ## Title
@@ -63,7 +62,7 @@ Skip all preambles and keep prose brief. Use the user's domain language from `GL
 
 Write for a human reviewer who reads the visible body (everything outside `<details>`) in about a minute: at most about 40 visible lines, one or two Summary visuals, and no sections beyond the selected structure. (writing-clearly-and-concisely)
 
-On creation or after pushing commits, reconcile the title and description with the complete branch diff. Update only when needed.
+On creation or after pushing commits, reconcile the title and description with the complete branch diff. Update when content not following core principle.
 
 When updating, rewrite the description rather than append to it. NO per-commit result tags, "since last review" blocks, and earlier-revision comparisons. Core principle must be followed.
 
