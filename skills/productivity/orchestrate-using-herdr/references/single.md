@@ -6,7 +6,7 @@
 
 3. **Create the worktree.** Keep the repository's branch convention. Name the worktree directory lowercase `<id>-<slug>` (`a2a-140-cache-keys`; prefix numeric IDs with `gh-`), using `--path` to decouple it from the branch, and give a friendly `--label` (`A2A-140 Cache keys`). Without `--track`, use a concise slug alone. Create with `--no-focus`. **Done when** Herdr returns the worktree path, workspace, pane, and branch.
 
-4. **Start the worker** in the returned root pane, same kind unless the user named one. Name it from the same stem, shortened to fit 32 characters; on a collision, add a short hyphenated discriminator. **Done when** Herdr reports the agent name and pane.
+4. **Start the worker** in the returned root pane as `pi` unless the user named another kind. Name it from the same stem, shortened to fit 32 characters; on a collision, add a short hyphenated discriminator. **Done when** Herdr reports the agent name and pane.
 
 5. **Dispatch one brief** filled from the spec per [delegation-contract.md](delegation-contract.md). **Done when** Herdr confirms the prompt was accepted.
 

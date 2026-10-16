@@ -47,7 +47,7 @@ Pick the shape, then follow its reference:
 ## House rules
 
 - **Worktree per unit.** Create it from the repository's parent source, never from a linked worktree's cwd; when the user asks, base it on the current worktree instead.
-- **Same kind.** Start workers as the current pane's agent kind unless the user names another.
+- **Pi by default.** Start workers as `pi` unless the user names another kind.
 - **Names.** Derive lowercase agent names from the unit (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents.
 - **Hands off the user's space.** Keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
 - **Briefs, not recipes.** Every brief follows [delegation-contract.md](references/delegation-contract.md): a self-contained brief with outcome, acceptance criteria, binding agreed details, conversation-only context, direction, and scope with tripwires. The worker owns the plan.
@@ -62,6 +62,16 @@ Applies under `--watch`, `--track`, and `--auto`.
 - Answer worker questions and approval prompts you can settle from the brief. Tell the user only when a question needs their decision; they can see `blocked` panes themselves.
 - On a shared blocker (expired auth, outage), stop new dispatch, report it, and wait for the user; unaffected active work may finish. Keep independent units going after an isolated failure.
 - Integrate or merge worker results only under `--auto` or when the user asks.
+
+## Worker context
+
+Context management applies only when you send a live worker a **follow-up**: new work after its task settles, in any mode. The first dispatch always starts fresh. Steering a blocked or drifting worker back onto its original task is not a context decision; steer it in the same session. Decide per follow-up without asking; the user may override in the request:
+
+- **Keep** the session when the follow-up builds directly on the worker's prior work (re-review the same PR).
+- **Handoff** when the same unit enters a new phase and most of the old context is noise (implementation done, now `address-review`).
+- **New** when the unit restarts because its context would mislead; send a corrected full brief.
+
+Unrelated work always gets a new worker in its own worktree. The commands for each kind are in [agent-quirks.md](references/agent-quirks.md).
 
 ## Report
 

@@ -5,7 +5,7 @@
       "id": 1,
       "name": "default-fire-and-forget-single",
       "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. We are in the repository root checkout. We already agreed to validate keys in the save path and reuse the existing KeyError type. No flags.",
-      "expected_output": "Writes a to-spec-shaped spec into the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source with --no-focus, starts a same-kind worker, dispatches one brief ending with ulw for a pi worker, confirms acceptance, reports the handoff, and stops.",
+      "expected_output": "Writes a to-spec-shaped spec into the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source with --no-focus, starts a pi worker, dispatches one brief ending with ulw, confirms acceptance, reports the handoff, and stops.",
       "expectations": [
         "Creates no issue-tracker ticket without --track.",
         "Marks the agreed implementation details binding in the brief.",
