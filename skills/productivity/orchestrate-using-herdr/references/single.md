@@ -8,7 +8,7 @@
 
 4. **Start the worker** in the returned root pane, same kind unless the user named one. Name it from the same stem, shortened to fit 32 characters; on a collision, add a short hyphenated discriminator. **Done when** Herdr reports the agent name and pane.
 
-5. **Dispatch one brief:** outcome and purpose; the spec, or the ticket link plus context the ticket lacks; binding agreed details; suggested skills; the mode's worker contract when `--auto` is set; and instructions to read referenced sources first, work only in the worktree, and report blockers rather than expand scope. End Pi prompts with `ulw`. **Done when** Herdr confirms the prompt was accepted.
+5. **Dispatch one brief** filled from the spec per [delegation-contract.md](delegation-contract.md). **Done when** Herdr confirms the prompt was accepted.
 
 6. **Hand off or supervise** per the mode in `SKILL.md`.
 

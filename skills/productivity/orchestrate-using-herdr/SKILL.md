@@ -50,8 +50,7 @@ Pick the shape, then follow its reference:
 - **Same kind.** Start workers as the current pane's agent kind unless the user names another.
 - **Names.** Derive lowercase agent names from the unit (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents.
 - **Hands off the user's space.** Keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
-- **Briefs, not recipes.** A brief carries the spec (outcome, purpose, acceptance evidence, scope and exclusions), general direction, and any contract or implementation details the user and you already agreed, marked binding. The worker owns the plan. It works only in its worktree and stops to report when the work needs a path, service, data boundary, migration, or decision outside the brief. Redact secrets from every brief.
-- **Pi workers** always get the literal `ulw` as the last token of the prompt.
+- **Briefs, not recipes.** Every brief follows [delegation-contract.md](references/delegation-contract.md): a self-contained brief with outcome, acceptance criteria, binding agreed details, conversation-only context, direction, and scope with tripwires. The worker owns the plan.
 - **Verify, don't trust.** Use returned IDs, never predicted ones. An unconfirmed prompt submission or write is *uncertain*: inspect before any retry, and never resubmit blindly.
 
 ## Supervision

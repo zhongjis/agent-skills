@@ -16,7 +16,7 @@ Referenced skills define task behavior, including posting; user overrides win ("
 
 ## 2. Dispatch
 
-Track item → agent → pane → worktree. Give each worker its exact item and target, the shared instruction, skills to read, overrides, allowed side effects, inputs from dependencies, and required evidence. Dispatch with bare non-blocking prompts so independent items run concurrently up to the confirmed count; hold dependents until their prerequisites are verified.
+Track item → agent → pane → worktree. Give each worker a brief per [delegation-contract.md](delegation-contract.md): the confirmed plan fills the shared sections (allowed side effects go under Scope, required evidence under Acceptance criteria); each item's target, inputs, and overrides fill the rest. Dispatch with bare non-blocking prompts so independent items run concurrently up to the confirmed count; hold dependents until their prerequisites are verified.
 
 **Done when** every ready item is dispatched and accepted, and dependents are queued.
 
