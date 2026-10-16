@@ -1,0 +1,62 @@
+{
+  "skill_name": "orchestrate-using-herdr",
+  "evals": [
+    {
+      "id": 1,
+      "name": "default-fire-and-forget-single",
+      "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. We are in the repository root checkout. We already agreed to validate keys in the save path and reuse the existing KeyError type. No flags.",
+      "expected_output": "Writes a to-spec-shaped spec into the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source with --no-focus, starts a same-kind worker, dispatches one brief ending with ulw for a pi worker, confirms acceptance, reports the handoff, and stops.",
+      "expectations": [
+        "Creates no issue-tracker ticket without --track.",
+        "Marks the agreed implementation details binding in the brief.",
+        "Stops after confirmed prompt acceptance without monitoring."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "linked-worktree-uses-parent-source",
+      "prompt": "Use orchestrate-using-herdr for the agreed parser repair. The current cwd is a linked worktree at /repos/app/.worktrees/fix-parser; `herdr worktree list` reports source_checkout_path=/repos/app.",
+      "expected_output": "Creates the new worktree from /repos/app, not from the linked-worktree cwd.",
+      "expectations": [
+        "Uses herdr worktree list before creation and parses the parent source.",
+        "Stops before creation if no parent source resolves."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "track-reuses-ticket-and-supervises",
+      "prompt": "Use orchestrate-using-herdr --track with existing Linear issue ENG-42 at https://linear.app/acme/issue/ENG-42 for the import validation repair.",
+      "expected_output": "Reuses ENG-42 unchanged, names the worktree and agent eng-42-<slug>, sends the ticket link plus context the ticket lacks, supervises the worker to a verified result checked at the destination, and comments the result on ENG-42.",
+      "expectations": [
+        "Does not create or rewrite the supplied ticket.",
+        "Does not treat Herdr done as success without destination evidence.",
+        "Closes out on the ticket in Markdown."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "batch-needs-confirmed-plan",
+      "prompt": "Use orchestrate-using-herdr to review Jira issues OPS-41, OPS-42 and OPS-43 with the same rollout-risk rubric. I haven't decided whether I want ticket feedback or reviews of the linked code.",
+      "expected_output": "Stops before dispatch, clarifies ticket feedback versus linked-code review, proposes a per-item plan (targets, side effects, evidence, worker kind, concurrency, isolation, lifecycle), and waits for explicit confirmation.",
+      "expectations": [
+        "Does not dispatch before explicit plan confirmation.",
+        "Writes no per-item spec; uses one shared instruction."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "auto-merge-fails-closed",
+      "prompt": "Offline simulation: orchestrate-using-herdr --auto. The worker reported PR #12 at head abc123. Required checks are green, but the configured AI reviewer has not responded to abc123 after the worker's last push. What do you do?",
+      "expected_output": "Leaves PR #12 open with evidence because the reviewer gate for the current head is not closed; does not merge or bypass protection; reports the exact blocker.",
+      "expectations": [
+        "Re-checks the head SHA before any merge.",
+        "Treats a silent reviewer as an open gate, not approval."
+      ],
+      "files": []
+    }
+  ]
+}
