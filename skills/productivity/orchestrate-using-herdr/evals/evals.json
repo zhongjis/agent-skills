@@ -57,6 +57,30 @@
         "Treats a silent reviewer as an open gate, not approval."
       ],
       "files": []
+    },
+    {
+      "id": 6,
+      "name": "watch-authorizes-local-dependency-checkpoints",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for three agreed implementation tickets. Tickets B and C depend on A. Mode and Git-skill defaults require explicit commit permission. No push, PR, or merge was requested. State the Git authority and relevant brief clauses; do not run commands.",
+      "expected_output": "Treats invocation as explicit authorization for scoped local implementation commits and dependency checkpoints. Includes that permission in worker briefs and does not ask separately for commit approval. Preserves normal hooks and unrelated work; does not authorize push, PR, merge, deployment, or history rewriting and does not edit global instructions or mode prompts.",
+      "expectations": [
+        "Allows local dependency checkpoints without another approval question.",
+        "Carries local-commit permission explicitly into implementation briefs.",
+        "Keeps publication, merge, deployment, and history rewriting outside this local permission.",
+        "Changes no global or mode authorization defaults."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "explicit-no-commit-overrides-default",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for the agreed parser fix, but leave all work uncommitted. Explain worker authority without running commands.",
+      "expected_output": "Carries the explicit no-commit restriction into the worker brief, leaves changes uncommitted, and does not reinterpret the skill's default as permission to commit or publish.",
+      "expectations": [
+        "Honors the explicit no-commit instruction.",
+        "Does not authorize commits, publication, or merge."
+      ],
+      "files": []
     }
   ]
 }

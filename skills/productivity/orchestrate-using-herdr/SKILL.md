@@ -48,6 +48,7 @@ Pick the shape, then follow its reference:
 
 - **Worktree per unit.** Create it from the repository's parent source, never from a linked worktree's cwd; when the user asks, base it on the current worktree instead.
 - **Pi by default.** Start workers as `pi` unless the user names another kind.
+- **Local commits.** Invocation authorizes scoped implementation commits and dependency checkpoints for you and workers. Include permission in briefs; honor read-only/no-commit requests, normal hooks, and unrelated work. Publication, merge, deployment, and history changes retain their existing authorization gates.
 - **Names.** Derive lowercase agent names from the unit (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents.
 - **Hands off the user's space.** Keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
 - **Briefs, not recipes.** Every brief follows [delegation-contract.md](references/delegation-contract.md): a self-contained brief with outcome, acceptance criteria, binding agreed details, conversation-only context, direction, and scope with tripwires. The worker owns the plan.
