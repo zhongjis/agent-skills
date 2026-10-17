@@ -6,7 +6,9 @@ disable-model-invocation: true
 
 # Orchestrate using Herdr
 
-You are the orchestrator. You turn the agreed work into briefs, dispatch each to its own Herdr agent, and, when a flag asks, supervise those agents to a verified result. Invoking this skill authorizes worktree creation, agent startup, and dispatch for the agreed work; the flags below authorize the rest.
+Now you are the in herdr orchestrator mode. You turn the agreed work into briefs, dispatch each to its own Herdr agent, and, when a flag asks, supervise those agents to a verified result.
+Invoking this skill authorizes worktree creation, agent startup, and dispatch for the agreed work; the flags below authorize the rest.
+Mode always on during the session unless user specifically call skill with "--off" flag
 
 ## Preflight
 
@@ -21,14 +23,23 @@ Choose per work unit, by the task:
 
 A Herdr agent is a peer orchestrator, not a specialist: it plans, delegates to its own subagents, verifies, and delivers. Mix both freely, for example subagent recon first, then Herdr workers for the implementation units.
 
+## Execution ownership
+
+The orchestrator owns briefs, dispatch, coordination, and acceptance. Herdr workers own task execution, including investigation, implementation, tests, repairs, and authorized publication or review replies.
+
+Route follow-up work for a dispatched unit through its worker. Apply Worker context to choose Keep, Handoff, or New; delegation does not mean preserving a noisy session.
+
+The orchestrator may inspect sources and destination state to scope work, answer questions, and verify results. Return missing evidence or failed acceptance criteria to the worker rather than taking over execution. Small task size alone does not justify taking over; execute assigned worker work yourself only when the user explicitly requests it.
+
 ## Modes
 
-| Flag | Orchestrator after dispatch |
-| --- | --- |
-| none | Fire and forget: report the handoff and stop. |
-| `--watch` | Supervise every worker to a verified result (see Supervision). |
-| `--track` | Use an issue-tracker ticket per unit ([track.md](references/track.md)) and supervise as `--watch`. |
-| `--auto` | Supervise as `--watch`; merge each worker's PR when its gates close ([auto-merge.md](references/auto-merge.md)). Combines with `--track`. |
+| Flag      | Orchestrator after dispatch                                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| none      | Fire and forget: report the handoff and stop.                                                                                             |
+| `--watch` | Supervise every worker to a verified result (see Supervision).                                                                            |
+| `--track` | Use an issue-tracker ticket per unit ([track.md](references/track.md)) and supervise as `--watch`.                                        |
+| `--auto`  | Supervise as `--watch`; merge each worker's PR when its gates close ([auto-merge.md](references/auto-merge.md)). Combines with `--track`. |
+| `--off`   | Turn off orchistrator mode, the skill rule no longer applies                                                                              |
 
 ## Tasks
 
@@ -36,6 +47,10 @@ The invocation's task list is the work. With no list, the work is the task or ta
 
 - Each distinct task runs the one-task workflow.
 - Tasks that repeat one instruction over items run as a batch.
+
+## Dependent work
+
+When changes depend on one another, organize their implementation branches as a `gh stack`, rooted at the agreed base, with each dependent branch based on its prerequisite. Carry branch and base identities into worker briefs and maintain the stack as dependencies change. When publication is authorized, create PRs from that same stack using its existing branches and worktrees. Publication continues the implementation stack; it does not create a parallel set of PR branches. Preserve recovery points with backup refs when needed, rather than treating implementation branches as immutable. Publication and history changes retain their existing authorization gates.
 
 ## Workflow
 
@@ -52,7 +67,7 @@ Pick the shape, then follow its reference:
 - **Names.** Derive lowercase agent names from the unit (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents.
 - **Hands off the user's space.** Keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
 - **Briefs, not recipes.** Every brief follows [delegation-contract.md](references/delegation-contract.md): a self-contained brief with outcome, acceptance criteria, binding agreed details, conversation-only context, direction, and scope with tripwires. The worker owns the plan.
-- **Verify, don't trust.** Use returned IDs, never predicted ones. An unconfirmed prompt submission or write is *uncertain*: inspect before any retry, and never resubmit blindly.
+- **Verify, don't trust.** Use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect before any retry, and never resubmit blindly.
 
 ## Supervision
 
@@ -66,7 +81,7 @@ Applies under `--watch`, `--track`, and `--auto`.
 
 ## Worker context
 
-Context management applies only when you send a live worker a **follow-up**: new work after its task settles, in any mode. The first dispatch always starts fresh. Steering a blocked or drifting worker back onto its original task is not a context decision; steer it in the same session. Decide per follow-up without asking; the user may override in the request:
+For follow-up work, retain worker execution ownership and choose the context strategy below. Steering an unfinished task stays in the same session; new work after settlement uses Keep, Handoff, or New. The first dispatch always starts fresh. Decide per follow-up without asking; the user may override in the request:
 
 - **Keep** the session when the follow-up builds directly on the worker's prior work (re-review the same PR).
 - **Handoff** when the same unit enters a new phase and most of the old context is noise (implementation done, now `address-review`).

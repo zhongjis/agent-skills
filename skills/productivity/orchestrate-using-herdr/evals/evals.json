@@ -72,6 +72,18 @@
       "files": []
     },
     {
+      "id": 8,
+      "name": "review-followup-stays-worker-owned",
+      "prompt": "Offline simulation: a pi worker finished the implementation and published PR #198. Now address its review comments and an existing failing test gate. Most implementation context is noise for this phase. One comment needs only a short reply. Explain routing without running commands.",
+      "expected_output": "Delegates the review-comment and test-gate workflow through the worker using Handoff for the new phase. The orchestrator checks returned evidence and destination state, returning missing evidence to the worker rather than performing repairs or posting the short reply itself.",
+      "expectations": [
+        "Keeps execution with the pi worker rather than taking over small tasks.",
+        "Uses Handoff because the settled unit enters a new phase with mostly noisy context.",
+        "Retains orchestrator acceptance and verification without duplicating worker execution."
+      ],
+      "files": []
+    },
+    {
       "id": 7,
       "name": "explicit-no-commit-overrides-default",
       "prompt": "Offline simulation: orchestrate-using-herdr --watch for the agreed parser fix, but leave all work uncommitted. Explain worker authority without running commands.",
@@ -79,6 +91,31 @@
       "expectations": [
         "Honors the explicit no-commit instruction.",
         "Does not authorize commits, publication, or merge."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "dependent-implementation-uses-stack-bases",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for three agreed changes: foundation, authorization, and execution. Authorization depends on foundation; execution depends on authorization. The agreed root base is main. Plan the implementation branch topology and worker briefs. No publication was requested; do not run commands.",
+      "expected_output": "Plans a gh stack rooted at main: the foundation implementation branch bases on main, authorization bases on foundation, and execution bases on authorization. Carries branch and prerequisite-base identities into worker briefs and maintains these dependencies throughout implementation without publishing PRs.",
+      "expectations": [
+        "Uses gh stack for the dependent implementation branches, not three independent main-based branches.",
+        "Names the correct root and immediate prerequisite base for every layer in worker briefs.",
+        "Keeps publication and history rewriting outside the local implementation authority."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "publication-continues-implementation-stack",
+      "prompt": "Offline simulation: three workers completed and verified an existing gh stack in their worktrees: feature/foundation on main, feature/auth on feature/foundation, and feature/execution on feature/auth. The workers are idle and their worktrees clean. Publish these changes as three dependent PRs. Explain which branches and worktrees you use and how you preserve recovery points; do not run commands.",
+      "expected_output": "Routes authorized publication through the existing workers using the existing implementation branches and worktrees, with PR bases main, feature/foundation, and feature/auth respectively. Preserves recovery points with backup refs if needed rather than creating a second publication stack. Keeps merge and history-rewrite authorization separate.",
+      "expectations": [
+        "Publishes from feature/foundation, feature/auth, and feature/execution in their existing worktrees with the correct chained PR bases.",
+        "Does not create replacement publication branches merely to preserve original worker branches as immutable.",
+        "Uses backup refs when recovery points are needed and retains worker execution ownership.",
+        "Does not infer merge or history-rewrite permission from publication permission."
       ],
       "files": []
     }

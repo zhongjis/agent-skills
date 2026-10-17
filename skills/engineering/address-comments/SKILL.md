@@ -74,6 +74,8 @@ When no `active` or `settled` thread and no actionable non-thread comment or rev
 
 ### 2. Establish the check baseline
 
+Check existing PR test/CI gate failures alongside review comments. Include their fixes in the same plan, verify locally, and publish together. If a failure cannot be fixed within scope, report the concrete blocker.
+
 Before edits, identify configured required checks separately from all other observed CI/deployment checks on the current PR head, and record statuses and links. Inspect both views (for example, `gh pr checks --required` and `gh pr checks`); no configured required checks does not mean all observed checks passed.
 
 For every observed failure, attempt read-only log inspection using available tools and its linked run/deployment, and reproduce locally when feasible. A status label or link alone is not log inspection. If logs cannot be inspected, record the exact access/tool blocker and failure link, mark attribution `unclassified`, and leave it open. Do not request elevated authority or mutate provider state just to inspect logs. Attribution is relative to the PR base, not when this skill started:

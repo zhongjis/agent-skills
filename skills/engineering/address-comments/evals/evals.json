@@ -56,10 +56,10 @@
       "id": 5,
       "name": "base-preexisting-required-failure",
       "prompt": "Address PR #55. A required lint job is failing before edits. Its logs show the same generated-file error on the base commit, and the PR diff does not touch generation. One review thread has a documentation fix.",
-      "expected_output": "The lint failure stays open as base/pre-existing with evidence and is not repaired. The doc-fix reply is posted after push. The thread is left unresolved for the reviewer. The run does not claim checks green.",
+      "expected_output": "Records the base attribution but includes an in-scope lint repair alongside the documentation fix. If repair requires broader scope, reports the concrete blocker instead. The doc-fix reply follows publication and the thread stays unresolved.",
       "expectations": [
-        "Does not attempt to repair the base/pre-existing lint failure.",
-        "Reports the base evidence and leaves that failure open.",
+        "Does not exclude the lint failure from repair solely because it also occurs on base.",
+        "Plans and verifies an in-scope repair or reports a concrete blocker requiring broader scope.",
         "Does not misclassify the documented thread fix as a repair for the base failure.",
         "Posts the doc-fix reply after push and leaves the thread unresolved for the reviewer.",
         "Does not claim checks green."
@@ -156,6 +156,18 @@
         "Inspects the existing matching reply before retrying and avoids a duplicate after the uncertain POST outcome.",
         "Verifies SUBMITTED comment state, a present non-pending parent review, and replyTo matching the intended root before counting the reply as posted.",
         "Leaves replied threads unresolved and does not claim pending required checks are green."
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "name": "existing-failure-without-required-checks",
+      "prompt": "Address PR #64. GitHub reports no configured required checks. The existing Runtime test lane failed with an unhandled PostgreSQL teardown error despite passing assertions. No review comment needs a code change. A focused local rerun passes, but the teardown error remains unexplained.",
+      "expected_output": "Investigates the existing test gate failure and includes an in-scope repair in the same workflow, or reports a concrete blocker. Does not stop solely because no required checks or comment fixes exist, and does not treat one local pass as proof that the CI failure is resolved.",
+      "expectations": [
+        "Investigates the failed Runtime lane even without configured required checks or comment fixes.",
+        "Does not equate a passing focused rerun with resolving the CI failure.",
+        "Verifies and publishes an in-scope repair or reports the concrete blocker."
       ],
       "files": []
     },
