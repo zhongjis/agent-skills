@@ -59,9 +59,9 @@ Push too little down and the top bloats; push too much and you hide material the
 Every step ends on a **completion criterion**, the condition that tells the agent the work is done. Two properties make it a lever:
 
 - **Clarity**: can the agent tell done from not-done? A vague bound ("understanding reached") invites **premature completion**: ending the step before it is genuinely done, attention slipping to _being done_. The visible steps still ahead (the **post-completion steps**) supply the pull; the criterion's clarity is the resistance. Defend in order: **sharpen the bound first** (local and cheap); only if it is irreducibly fuzzy _and_ you observe the rush, hide the later steps by splitting the sequence. Hiding only works across a real context boundary (a hand-off or a subagent dispatch; an inline call leaves the later steps in context and clears nothing).
-- **Demand**: how much it requires. "Every modified model accounted for" forces thorough work where "produce a change list" does not. Demand drives **legwork** (the digging the agent does within the work, latent in the wording rather than written as its own step), and it is not step-bound: "every rule applied" binds a body of flat reference just as "every step done" binds a sequence, which is how an all-reference document still carries an exhaustiveness bar.
+- **Demand**: require enough evidence to establish the agreed outcome.
 
-The strongest criteria are both checkable and exhaustive.
+Make completion checkable and proportionate to scope and risk. Require exhaustive coverage only for a bounded set the task needs.
 
 **Checkpoints** are completion criteria too: "stop for review after the first implementation" ends the run there. Keep one only where a human decision is genuinely needed; otherwise write the whole loop the task needs into done (implement, run it, inspect the result, fix what fails). Open-ended exploration takes the same bound: what to explore and where to stop.
 
@@ -102,9 +102,9 @@ You win twice: fewer tokens, and a sharper hook for the agent to hang its thinki
 
 ## Pruning
 
-- **Preserve the contract when compressing.** Shorten wording, not obligations. Retain triggers, precedence, authorization boundaries, required outputs, and exceptions. Replace lists with a broader rule only when it preserves their meaning.
+- **Match pruning to the task.** Compression preserves meaning, including triggers, precedence, authorization boundaries, required outputs, and exceptions. Authorized simplification may remove unnecessary prescriptions while retaining current requirements and necessary safety boundaries.
 - **Consolidate shared rules.** State a principle once; keep only distinct behavior under each element. Scope preservation rules explicitly—for example, preserve the selected template's headings, not an obsolete document's structure.
-- **Check behavioral equivalence.** Compare original and revised instructions on representative cases, including explicit overrides, missing evidence, stale evidence, and unchanged outputs. File validation proves structure, not agent behavior.
+- **Check the intended change.** For compression, check behavioral equivalence. For simplification, check that unnecessary prescriptions disappear while required outcomes and boundaries remain. Use representative cases; file validation alone does not establish behavior.
 - Keep each meaning in a **single source of truth**: one authoritative place, so changing the behaviour is a one-place edit. **Duplication** (the same meaning in more than one place) costs maintenance and tokens, and inflates a meaning's prominence on the ladder past its real rank. (The accidental inverse of a leading word, which repeats a token on purpose, never the meaning.)
 - Layers stack: global and project instruction files, skills, agent definitions, and the task prompt all speak in one run. A **contradiction** between them about what to deliver, what the agent decides alone, or what counts as done is a variance bug; fix it in the layer that owns the decision.
 - The **environment** is a source of truth too (`package.json` scripts, config files, the directory layout, `--help` output), and a document that restates it is a **cache**: a copy of a lookup, earning its load only when the lookup is expensive. Cache what the agent cannot find by looking: the unwritten convention, the reason behind a choice, the gotcha no config confesses. Leave the one-file, one-command lookups to the environment, where they cannot go stale.
