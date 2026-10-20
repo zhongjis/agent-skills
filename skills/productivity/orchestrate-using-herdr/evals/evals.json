@@ -5,7 +5,7 @@
       "id": 1,
       "name": "default-fire-and-forget-single",
       "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. We are in the repository root checkout. We already agreed to validate keys in the save path and reuse the existing KeyError type. No flags.",
-      "expected_output": "Writes a to-spec-shaped spec into the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source with --no-focus, starts a pi worker, dispatches one brief ending with ulw, confirms acceptance, reports the handoff, and stops.",
+      "expected_output": "Writes the spec as the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source with --no-focus, starts a pi worker, dispatches one brief ending with ulw, confirms acceptance, reports the handoff, and stops.",
       "expectations": [
         "Creates no issue-tracker ticket without --track.",
         "Marks the agreed implementation details binding in the brief.",
@@ -26,24 +26,25 @@
     },
     {
       "id": 3,
-      "name": "track-reuses-ticket-and-supervises",
-      "prompt": "Use orchestrate-using-herdr --track with existing Linear issue ENG-42 at https://linear.app/acme/issue/ENG-42 for the import validation repair.",
-      "expected_output": "Reuses ENG-42 unchanged, names the worktree and agent eng-42-<slug>, sends the ticket link plus context the ticket lacks, supervises the worker to a verified result checked at the destination, and comments the result on ENG-42.",
+      "name": "track-files-ticket-first",
+      "prompt": "Use orchestrate-using-herdr --track for the agreed import validation repair. No ticket exists yet; the repository files issues in Linear.",
+      "expected_output": "Creates one Linear ticket from the spec in Markdown before any worktree or dispatch, names the worktree and agent <issue-id>-<slug>, links the ticket in the brief with the close-out comment as a worker deliverable, then reports the handoff and stops because no supervision mode was given.",
       "expectations": [
-        "Does not create or rewrite the supplied ticket.",
-        "Does not treat Herdr done as success without destination evidence.",
-        "Closes out on the ticket in Markdown."
+        "Creates the ticket before creating the worktree or dispatching.",
+        "Does not supervise: --track is not a mode.",
+        "Puts the ticket close-out in the brief as a worker deliverable."
       ],
       "files": []
     },
     {
       "id": 4,
-      "name": "batch-needs-confirmed-plan",
-      "prompt": "Use orchestrate-using-herdr to review Jira issues OPS-41, OPS-42 and OPS-43 with the same rollout-risk rubric. I haven't decided whether I want ticket feedback or reviews of the linked code.",
-      "expected_output": "Stops before dispatch, clarifies ticket feedback versus linked-code review, proposes a per-item plan (targets, side effects, evidence, worker kind, concurrency, isolation, lifecycle), and waits for explicit confirmation.",
+      "name": "batch-shares-one-brief",
+      "prompt": "Earlier in this conversation we agreed: review PRs #41, #42 and #43 with code-review, draft verdicts only, no posting. Now: orchestrate-using-herdr.",
+      "expected_output": "Dispatches one worker per PR immediately without asking to confirm a plan, using one shared brief that differs only in the target PR; carries the draft-only, no-posting decision into every brief.",
       "expectations": [
-        "Does not dispatch before explicit plan confirmation.",
-        "Writes no per-item spec; uses one shared instruction."
+        "Does not ask for plan confirmation of already agreed work.",
+        "Uses one shared brief with only the target differing.",
+        "Carries the no-posting decision as a binding decision."
       ],
       "files": []
     },
@@ -72,18 +73,6 @@
       "files": []
     },
     {
-      "id": 8,
-      "name": "review-followup-stays-worker-owned",
-      "prompt": "Offline simulation: a pi worker finished the implementation and published PR #198. Now address its review comments and an existing failing test gate. Most implementation context is noise for this phase. One comment needs only a short reply. Explain routing without running commands.",
-      "expected_output": "Delegates the review-comment and test-gate workflow through the worker using Handoff for the new phase. The orchestrator checks returned evidence and destination state, returning missing evidence to the worker rather than performing repairs or posting the short reply itself.",
-      "expectations": [
-        "Keeps execution with the pi worker rather than taking over small tasks.",
-        "Uses Handoff because the settled unit enters a new phase with mostly noisy context.",
-        "Retains orchestrator acceptance and verification without duplicating worker execution."
-      ],
-      "files": []
-    },
-    {
       "id": 7,
       "name": "explicit-no-commit-overrides-default",
       "prompt": "Offline simulation: orchestrate-using-herdr --watch for the agreed parser fix, but leave all work uncommitted. Explain worker authority without running commands.",
@@ -91,6 +80,18 @@
       "expectations": [
         "Honors the explicit no-commit instruction.",
         "Does not authorize commits, publication, or merge."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "review-followup-stays-worker-owned",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch. A pi worker finished the implementation and published PR #198. Now address its review comments and an existing failing test gate. Most implementation context is noise for this phase. One comment needs only a short reply. Explain routing without running commands.",
+      "expected_output": "Delegates the review-comment and test-gate workflow through the worker using Handoff for the new phase. The orchestrator checks returned evidence and destination state, returning missing evidence to the worker rather than performing repairs or posting the short reply itself.",
+      "expectations": [
+        "Keeps execution with the pi worker rather than taking over small tasks.",
+        "Uses Handoff because the settled task enters a new phase with mostly noisy context.",
+        "Retains orchestrator acceptance and verification without duplicating worker execution."
       ],
       "files": []
     },
@@ -116,6 +117,52 @@
         "Does not create replacement publication branches merely to preserve original worker branches as immutable.",
         "Uses backup refs when recovery points are needed and retains worker execution ownership.",
         "Does not infer merge or history-rewrite permission from publication permission."
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "off-ends-mode",
+      "prompt": "Earlier this session you ran orchestrate-using-herdr. Now: orchestrate-using-herdr --off. Then: fix the typo in README.md.",
+      "expected_output": "Ends orchestrator mode, then fixes the typo directly under normal rules without creating a worktree or starting a Herdr worker.",
+      "expectations": [
+        "Treats --off as ending the mode and the skill rules.",
+        "Starts no Herdr worker for the later task."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "sticky-mode-flag-scope",
+      "prompt": "Offline simulation: you ran orchestrate-using-herdr --watch for task A earlier this session; A is settled. The user now asks for an unrelated task B with no flags, then asks: what is the status of A? Explain routing without running commands.",
+      "expected_output": "Dispatches B to a new worker in its own worktree because the mode is sticky, and does not supervise B because --watch applied only to the earlier invocation; reports the handoff and stops.",
+      "expectations": [
+        "Routes B to a new Herdr worker rather than executing it directly.",
+        "Does not carry --watch over to B.",
+        "Answers a later status question directly instead of dispatching a worker."
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "name": "fire-and-forget-queues-dependent-tasks",
+      "prompt": "Offline simulation: orchestrate-using-herdr with no flags for three agreed tasks; B and C are blocked by A. Explain what you dispatch and report without running commands.",
+      "expected_output": "Dispatches only A, reports B and C as queued with their blocker, and stops without supervising or starting dependents on unverified work.",
+      "expectations": [
+        "Dispatches only the task with no prerequisites.",
+        "Reports dependent tasks as queued with their prerequisites.",
+        "Does not switch to supervision on its own."
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "name": "batch-launch-uses-preflight",
+      "prompt": "Offline simulation: orchestrate-using-herdr batch review of PRs #41 and #42 with code-review; the task is agreed. A local branch for #41 already exists from an earlier run. Describe the launch of each item without running commands.",
+      "expected_output": "Runs preflight per item: resolves the parent source, fetches and hard-resets the #41 worktree to origin head because --base is ignored for an existing local branch and confirms rev-parse, creates worktrees with --no-focus, starts pi workers named review-41/review-42 with retry on agent_pane_busy, dispatches bare prompts with escaped $skill, and confirms working.",
+      "expectations": [
+        "Does not review a stale local head for #41.",
+        "Confirms each worker moved to working before treating dispatch as done."
       ],
       "files": []
     }
