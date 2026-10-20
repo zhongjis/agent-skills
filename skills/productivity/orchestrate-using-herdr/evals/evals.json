@@ -165,6 +165,18 @@
         "Confirms each worker moved to working before treating dispatch as done."
       ],
       "files": []
+    },
+    {
+      "id": 15,
+      "name": "marks-orchestrator-pane",
+      "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. Case A: `herdr pane current --current` returns no label. Case B: the pane is labeled `api work`. Case C: the pane is labeled `[o] api work` and the skill is invoked again.",
+      "expected_output": "Case A renames the pane to `[o] <slug>` with a slug of at most 4 words for the work. Case B renames it to `[o] api work`. Case C leaves the label unchanged.",
+      "expectations": [
+        "Renames only its own pane via `herdr pane rename $HERDR_PANE_ID`.",
+        "Never produces a doubled `[o] [o]` prefix.",
+        "Leaves session and tab labels unchanged."
+      ],
+      "files": []
     }
   ]
 }

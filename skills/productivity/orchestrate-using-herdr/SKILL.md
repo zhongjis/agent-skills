@@ -60,6 +60,7 @@ Per-kind commands: [agent-quirks.md](references/agent-quirks.md).
 
 ## House rules
 
+- **Mark your pane:** on invocation, read your pane's label (`herdr pane current --current`). No label: rename it to `[o] <slug>`, a slug of at most 4 words for the overall work. Label present: prefix it with `[o] ` unless it already starts with `[o]`.
 - **Pi by default** unless the user names another kind.
 - **Names:** lowercase, derived from the task (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents; on a collision add a short hyphenated discriminator. Prefix numeric IDs with `gh-`. The worktree basename and agent name share the stem: `<issue-id>-<slug>` when the task has a ticket, a concise slug otherwise.
 - **Hands off the user's space:** keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
