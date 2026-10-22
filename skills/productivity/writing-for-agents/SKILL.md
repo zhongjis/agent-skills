@@ -1,6 +1,6 @@
 ---
 name: writing-for-agents
-description: Writing documents for agents. Use when creating or editing skills or agent/subagent definitions, or modifying AGENTS.md or CLAUDE.md.
+description: Writing documents for agents. Use when creating or editing skills, agent/subagent definitions, or tool descriptions and prompt guidelines, or modifying AGENTS.md or CLAUDE.md.
 metadata:
   credits:
     - skill: writing-for-agents
@@ -16,6 +16,7 @@ Read the reference for the document you're writing:
 - A project `AGENTS.md` / `CLAUDE.md`: [`references/project-instructions.md`](references/project-instructions.md).
 - An agent or subagent definition: [`references/agent-instructions.md`](references/agent-instructions.md).
 - A skill: [`references/skill-mechanics.md`](references/skill-mechanics.md) for frontmatter, invocation choice, and router skills.
+- A tool description, prompt guideline, or tool-injected prompt block: [`references/tool-descriptions.md`](references/tool-descriptions.md).
 
 ## Context pointers
 
@@ -106,7 +107,7 @@ You win twice: fewer tokens, and a sharper hook for the agent to hang its thinki
 - **Consolidate shared rules.** State a principle once; keep only distinct behavior under each element. Scope preservation rules explicitly—for example, preserve the selected template's headings, not an obsolete document's structure.
 - **Check the intended change.** For compression, check behavioral equivalence. For simplification, check that unnecessary prescriptions disappear while required outcomes and boundaries remain. Use representative cases; file validation alone does not establish behavior.
 - Keep each meaning in a **single source of truth**: one authoritative place, so changing the behaviour is a one-place edit. **Duplication** (the same meaning in more than one place) costs maintenance and tokens, and inflates a meaning's prominence on the ladder past its real rank. (The accidental inverse of a leading word, which repeats a token on purpose, never the meaning.)
-- Layers stack: global and project instruction files, skills, agent definitions, and the task prompt all speak in one run. A **contradiction** between them about what to deliver, what the agent decides alone, or what counts as done is a variance bug; fix it in the layer that owns the decision.
+- Layers stack: global and project instruction files, skills, agent definitions, tool descriptions, and the task prompt all speak in one run. A **contradiction** between them about what to deliver, what the agent decides alone, or what counts as done is a variance bug; fix it in the layer that owns the decision.
 - The **environment** is a source of truth too (`package.json` scripts, config files, the directory layout, `--help` output), and a document that restates it is a **cache**: a copy of a lookup, earning its load only when the lookup is expensive. Cache what the agent cannot find by looking: the unwritten convention, the reason behind a choice, the gotcha no config confesses. Leave the one-file, one-command lookups to the environment, where they cannot go stale.
 - Check every line for **relevance**: does it still bear on what the document does? A line loses relevance by never bearing on the task (mere exposition, or a branch that should be disclosed) or by going stale as the behaviour or world it describes changes. Shorter documents are easier to keep relevant. Without a pruning discipline the default fate is **sediment**: stale layers that settle because adding feels safe and removing feels risky, until you must core down through them to find what is still live.
 - Hunt **no-ops** sentence by sentence: an instruction the model already obeys by default pays load to say nothing. The test (does it change behaviour versus the default?) is model-relative, not reader-relative: two people disagreeing about a no-op disagree about the default, and settle it by running the document, not by debate. Test against the default of every model that runs the document: repository instructions also steer contributors' agents on other models. A push written for a weaker default **overshoots** a stronger one, driving it past the default into needless test runs and extra review rounds. When a sentence fails, delete the whole sentence rather than trim words from it. The test also grades leading words: a word too weak to beat the default (_be thorough_ when the agent is already thorough-ish) is a no-op, and the fix is a stronger word (_relentless_), not a different technique.
