@@ -1,245 +1,136 @@
-# Pi Session Schema & Advanced Patterns
+# Pi Session Schema and Analysis Patterns
 
-## Complete Entry Type Reference
+This reference covers Pi 1.4's v3 format. Consult the official [session format][1] and [message types][2] for the complete current schema; bundled scripts intentionally produce audit history rather than replaying the SDK's model context.
 
-### SessionHeader (first line, no id/parentId)
+## Entries and messages
+
+A session is JSONL. The first record is metadata:
+
 ```json
-{"type":"session","version":3,"id":"uuid","timestamp":"2024-12-03T14:00:00.000Z","cwd":"/path/to/project"}
+{"type":"session","version":3,"id":"session-uuid","timestamp":"2026-10-24T00:00:00.000Z","cwd":"/path/to/project"}
 ```
 
-### SessionMessageEntry
+The header's `id` identifies the session; it is not a tree-entry ID. It has no `parentId`. Other entries have an entry `id`, nullable `parentId`, and ISO timestamp. A root has `parentId: null`. Message timestamps inside `.message` are Unix milliseconds, not ISO strings.[1][2]
+
 ```json
-{"type":"message","id":"a1b2c3d4","parentId":"prev1234","timestamp":"...","message":{...}}
-```
-Message roles and their content shapes:
-
-| Role | Content type | Notes |
-|------|-------------|-------|
-| `user` | `string` OR `(TextContent \| ImageContent)[]` | String for plain text, array when images included |
-| `assistant` | `(TextContent \| ThinkingContent \| ToolCall)[]` | Always array |
-| `toolResult` | `(TextContent \| ImageContent)[]` | From tool execution |
-| `bashExecution` | (special fields) | `command`, `output`, `exitCode`, `cancelled`, `truncated` |
-| `custom` | `string \| (TextContent \| ImageContent)[]` | Extension-injected |
-| `branchSummary` | — | In `summary` field |
-| `compactionSummary` | — | In `summary` field |
-
-### Content block types
-```
-TextContent:      { type: "text", text: string }
-ThinkingContent:  { type: "thinking", thinking: string, thinkingSignature: string }
-ImageContent:     { type: "image", data: string (base64), mimeType: string }
-ToolCall:         { type: "toolCall", id: string, name: string, arguments: object }
+{"type":"message","id":"entry1","parentId":null,"timestamp":"2026-10-24T00:00:01.000Z","message":{"role":"user","content":"Hello","timestamp":1792800001000}}
 ```
 
-### Usage object (on assistant messages)
+Current entry types include `message`, `model_change`, `thinking_level_change`, `usage`, `compaction`, `context_edit`, `branch_summary`, `custom`, `custom_message`, `label`, and `session_info`. Consumers should preserve the distinction between a session entry and its nested message.[1]
+
+Important message shapes:[2]
+
+| Role | Content or payload |
+|------|--------------------|
+| `system` | String or text-block array; optional `sections`, `toolsAdded`, `toolsRemoved` describe prompt/tool changes |
+| `user` | String or text/image-block array |
+| `assistant` | Text/thinking/tool-call array; model/provider, usage, stop reason, optional diagnostics/error metadata |
+| `toolResult` | Text/image-block array; `toolCallId`, `toolName`, `isError`, optional `details`, `usage`, `nestedCalls` |
+| `bashExecution` | `command`, `output`, optional `exitCode`, `cancelled`, `truncated`; optional output path/context-exclusion fields |
+| `custom` | String or text/image-block array plus extension metadata |
+| `branchSummary` / `compactionSummary` | Summary payload; Pi constructs these context messages from summary entries |
+
+`bashExecution` is `.message.role`, not an entry's top-level role. Assistant `arguments` are objects in the current official `toolCall` shape. Some imported logs use JSON-encoded strings, so bundled extractors normalize that representation.[2]
+
+Text, thinking, and tool-call blocks can carry provider metadata such as signatures or a tool namespace. Treat signatures as opaque. Never print image `data` merely to identify a message. Thinking can be redacted; its visible character count is not a token count.[2]
+
+## Usage and errors
+
+Assistant messages always carry usage. Optional usage also appears on tool-result messages, `usage` entries, and compaction/branch-summary entries. All contribute to full-session totals.[1][2]
+
 ```json
-{
-  "input": 3,
-  "output": 340,
-  "cacheRead": 33866,
-  "cacheWrite": 29986,
-  "totalTokens": 34209,
-  "cost": {
-    "input": 0.000009,
-    "output": 0.0051,
-    "cacheRead": 0.00339,
-    "cacheWrite": 0.1124,
-    "total": 0.121
-  }
-}
+{"input":10,"output":20,"cacheRead":30,"cacheWrite":40,"totalTokens":100,"cost":{"input":0.1,"output":0.2,"cacheRead":0.3,"cacheWrite":0.4,"total":1}}
 ```
 
-### Other entry types
+Use recorded `totalTokens` and `cost.total`. Optional `reasoning` is already part of `output`; `cacheWrite1h` is a subset of `cacheWrite`, so neither should be added again.[2]
+
+Keep whole-file accounting separate from branch-local context. Counting assistant messages does not count user turns. Requested `.model` can differ from optional `.responseModel`; `.model_change.modelId` describes the selected model, which may be virtual.[1][2]
+
+Provider failures can be assistant messages with `stopReason: "error"` or `"aborted"`, `errorMessage`, and `diagnostics`; they are not necessarily failed tool results. A Bash exit-code phrase inside text is not a structured status. Tool results and nested-call records provide separate error evidence.[2]
+
+## Nested tools
+
+Tool results can record bounded metadata:[2]
+
 ```json
-{"type":"model_change","id":"...","parentId":"...","provider":"anthropic","modelId":"claude-sonnet-4-6"}
-{"type":"thinking_level_change","id":"...","parentId":"...","thinkingLevel":"high"}
-{"type":"compaction","id":"...","parentId":"...","summary":"...","firstKeptEntryId":"...","tokensBefore":50000}
-{"type":"branch_summary","id":"...","parentId":"...","fromId":"...","summary":"..."}
-{"type":"custom","id":"...","parentId":"...","customType":"my-extension","data":{}}
-{"type":"custom_message","id":"...","parentId":"...","customType":"...","content":"...","display":true}
-{"type":"label","id":"...","parentId":"...","targetId":"...","label":"checkpoint-1"}
-{"type":"session_info","id":"...","parentId":"...","name":"Refactor auth module"}
+{"nestedCalls":{"calls":[{"id":"nested1","name":"write","arguments":{"path":"src/example.ts"},"status":"ok","durationMs":12}],"complete":true}}
 ```
 
-#### Common customType values in real sessions
+`complete: false` means the call list is incomplete. Individual records can omit arguments and retain `argumentsBytes` instead. A nested record's `status`, `error`, and duration are not a full tool-result body or exact start/end timestamp. Report these limits rather than inferring missing calls from JavaScript or shell text.[2]
 
-| customType | Entry type | Data fields | Notes |
-|------------|-----------|-------------|-------|
-| `agent-mode` | custom | `mode`, `planReviewPending`, `planReviewApproved` | Current agent mode (kuafu, plan, etc.) |
-| `subagents:record` | custom | `id`, `type`, `description`, `status`, `result`, `startedAt`, `completedAt` | Full subagent completion record |
-| `web-search-results` | custom | `id`, `timestamp`, `type`, `urls` | Search results metadata |
-| `subagent-notification` | custom_message | XML task notification content | Displayed as agent completion notification |
-| `ultrawork` | custom_message | Activation message content | Hidden (`display: false`) |
+Direct tool results associate with assistant tool calls through `toolCallId`; matching by tool name alone can pair the wrong invocation. For files/delegations/tasks, use the bundled scripts so direct and recorded nested calls share one extraction policy.
 
----
+## History, branches, and model context
 
-## Advanced jq Patterns
+Append order is not one conversation path. A new entry can point to an earlier parent, creating a branch. `pi-session-thread.sh --leaf ID` selects a root-to-entry history path; its default output covers the full file.[1]
 
-### Safe user content extraction
-User `.content` can be string or array — always handle both:
+Compaction does **not** delete earlier records. `firstKeptEntryId` identifies the retained range during context building; the latest compaction on the selected path supplies a summary and optional system checkpoint.[1]
+
+A `context_edit` affects future model context on its branch. `replacement: null` omits the target; non-null replacements change its context content. Original history, UI/export content, and accounting remain unchanged. Multiple edits to a target use the latest edit on the active branch.[1]
+
+The thread script displays context-edit and summary events without applying them to earlier text. For the exact model-visible conversation, use Pi's `SessionManager` context/projection APIs with the selected leaf. A plain concatenation of message records is not equivalent.[1]
+
+`custom` entries persist extension state without entering model context. `custom_message` entries can enter context; their `display` flag only controls terminal rendering. Names such as `agent-mode` or `subagents:record` and their payloads belong to extensions, not Pi's universal schema.[1]
+
+## Safe jq fallbacks
+
+Use these only when no bundled script covers the task. Pass patterns as `--arg` values, not interpolated jq source. Keep parse errors visible.
+
+### User text only
+
 ```bash
-jq -r 'select(.type=="message" and .message.role=="user") |
+jq -r 'select(.type == "message" and .message.role == "user") |
   .message.content |
   if type == "string" then .
-  elif type == "array" then map(select(.type=="text") | .text) | join("\n")
-  else "" end' session.jsonl
+  elif type == "array" then map(select(.type == "text") | .text) | join("\n")
+  else "" end' "$SESSION"
 ```
 
-### Extract all tool calls with full arguments (compact)
+### Direct tool calls with entry timestamps
+
+This intentionally excludes nested calls; use `pi-session-toolcalls.sh` for both.
+
 ```bash
-jq -c 'select(.type=="message" and .message.role=="assistant") |
-  .message.content[] | select(.type=="toolCall") |
-  {turn_ts: parent.timestamp, name, arguments}' session.jsonl
-# Note: parent. is jq 1.7+; use -s and reindex if on older jq
+jq -c 'select(.type == "message" and .message.role == "assistant") |
+  .timestamp as $ts |
+  .message.content[] | select(.type == "toolCall") |
+  {turn_ts: $ts, name, namespace, arguments}' "$SESSION"
 ```
 
-### Find all bash commands run
+jq has no implicit `parent` accessor. Bind the outer entry before descending.
+
+### Full recorded usage totals
+
 ```bash
-jq -r 'select(.type=="message" and .message.role=="toolResult" and .message.toolName=="bash") |
-  # Get the corresponding tool call to find the command
-  .message.toolCallId' session.jsonl
-# Better: extract from the assistant toolCall entries directly:
-jq -r 'select(.type=="message" and .message.role=="assistant") |
-  .message.content[] | select(.type=="toolCall" and .name=="bash") |
-  .arguments.command' session.jsonl
+jq -s '
+  [.[] |
+    if .type == "message" and (.message.role == "assistant" or .message.role == "toolResult") then .message.usage
+    elif .type == "usage" or .type == "compaction" or .type == "branch_summary" then .usage
+    else empty end |
+    select(. != null)] |
+  {tokens: (map(.totalTokens // 0) | add // 0),
+   cost: (map(.cost.total // 0) | add // 0)}' "$SESSION"
 ```
 
-### Reconstruct conversation with tool call/result pairs
+### Literal text search across user messages
+
 ```bash
-jq -r 'select(.type=="message") | 
-  if .message.role=="user" then
-    "\n--- USER [\(.timestamp)] ---\n" + (.message.content | if type=="string" then . else map(select(.type=="text")|.text)|join("") end)
-  elif .message.role=="assistant" then
-    "\n--- ASSISTANT [\(.timestamp)] model=\(.message.model) cost=$\(.message.usage.cost.total) ---\n" +
-    ([.message.content[] | 
-      if .type=="text" then .text
-      elif .type=="toolCall" then "\n[TOOL CALL: \(.name)]\n\(.arguments | tostring)"
-      else "" end
-    ] | join(""))
-  elif .message.role=="toolResult" then
-    "\n[TOOL RESULT: \(.message.toolName) error=\(.message.isError)]\n" +
-    ([.message.content[] | select(.type=="text") | .text] | join(""))
-  else empty end' session.jsonl
+jq -r --arg needle 'a phrase with "quotes"' '
+  select(.type == "message" and .message.role == "user") |
+  (.message.content | if type == "string" then . else map(select(.type == "text") | .text) | join("\n") end) |
+  select(contains($needle))' "$SESSION"
 ```
 
-### Token efficiency: how much is thinking?
-```bash
-jq -rs '
-  [.[] | select(.type=="message" and .message.role=="assistant") |
-    {
-      thinking_chars: ([.message.content[] | select(.type=="thinking") | .thinking | length] | add // 0),
-      text_chars: ([.message.content[] | select(.type=="text") | .text | length] | add // 0),
-      tool_chars: ([.message.content[] | select(.type=="toolCall") | .arguments | tostring | length] | add // 0)
-    }
-  ] | {
-    total_thinking: (map(.thinking_chars) | add),
-    total_text: (map(.text_chars) | add),
-    total_tool_args: (map(.tool_chars) | add)
-  }' session.jsonl
-```
+## Session locations and size
 
-### Find specific file edits across a session
-```bash
-jq -r 'select(.type=="message" and .message.role=="assistant") |
-  .message.content[] | select(.type=="toolCall" and (.name=="edit" or .name=="write")) |
-  .arguments.path' session.jsonl | sort -u
-```
+Default location: `~/.pi/agent/sessions/--<encoded-cwd>--/<timestamp>_<session-id>.jsonl`. Encoding removes the leading path separator and replaces `/`, `\`, and `:` with `-`. Ordinary hyphens make decoding ambiguous; read `.cwd` from the header instead.[1]
 
-### Cross-session: cost per project
-```bash
-find ~/.pi/agent/sessions -name "*.jsonl" | while read f; do
-  project=$(echo "$f" | sed 's|.*/--||;s|--/.*||;s|-|/|g')
-  cost=$(jq -rs '[.[] | select(.type=="message" and .message.role=="assistant") | .message.usage.cost.total // 0] | add // 0' "$f")
-  echo "$cost $project $f"
-done | awk '{sum[$2]+=$1} END {for(p in sum) print sum[p], p}' | sort -rn
-```
+Do not assume a maximum session size. The scripts use jq and some operations load the full file, so memory grows with history. For unusually large logs, select the needed session/extraction and inspect output limits; do not truncate JSONL arbitrarily or mistake an output preview for complete data.
 
-### Session directory path encoding
-Working directory → session directory name:
-```
-/Users/alice/projects/my-app  →  --Users-alice-projects-my-app--
-```
-Decode:
-```bash
-# From session dir name to path (approximate — only works for simple paths)
-echo "--Users-alice-projects-my-app--" | sed 's/^--//;s/--$//;s/-/\//g'
-```
-Encode from cwd:
-```bash
-SESSION_DIR="--$(pwd | sed 's|^/||;s|/|-|g')--"
-```
+## Sources
 
-### Multi-session grep: find when a file was last touched
-```bash
-grep -rl '"path":"src/my-file.ts"' ~/.pi/agent/sessions/**/*.jsonl 2>/dev/null |
-  xargs -I{} sh -c 'echo "$(jq -r ".timestamp" {} | head -1) {}"' | sort -r | head -5
-```
+[1] [Official Pi session format](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/session-format.md)
+[2] [Official Pi message types](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/message-types.md)
 
-### Compaction: what was preserved
-```bash
-jq -r 'select(.type=="compaction") | 
-  "Compacted \(.tokensBefore) tokens. First kept: \(.firstKeptEntryId)\nSummary: \(.summary[:400])"' session.jsonl
-```
-
-### Custom entry extraction by type
-```bash
-# List all custom entry types with counts
-jq -r 'select(.type=="custom" or .type=="custom_message") | .customType // "unknown"' session.jsonl | sort | uniq -c | sort -rn
-
-# Extract subagent completion records (agent type + duration)
-jq -r '
-  select(.type=="custom" and .customType=="subagents:record") |
-  .data | "\(.type) | \(.description) | \(.status) | " +
-  (if .completedAt and .startedAt then "\((.completedAt - .startedAt) / 1000 | round)s" else "?" end)
-' session.jsonl
-
-# Extract agent mode changes
-jq -r 'select(.type=="custom" and .customType=="agent-mode") | "[\(.timestamp)] mode=\(.data.mode)"' session.jsonl
-```
-
-### Per-turn cost analysis
-```bash
-# Cost per assistant turn (sorted by cost, most expensive first)
-jq -r 'select(.type=="message" and .message.role=="assistant" and .message.usage.cost.total != null) |
-  "$\(.message.usage.cost.total * 100 | round / 100)  \(.message.usage.totalTokens)tok  " +
-  ([.message.content[]? | if .type == "text" then .text[:60] elif .type == "toolCall" then "[\(.name)]" else empty end] | join(" "))[:100]
-' session.jsonl | sort -rn | head -10
-```
-
----
-
-## File Size vs. Content Guide
-
-From real session data (125 sessions, avg 210KB):
-
-| What you extract | Typical size | vs. raw file |
-|-----------------|-------------|-------------|
-| Full raw file | 200KB | 100% |
-| Full conversation (no thinking, no base64) | ~46% | saves ~54% |
-| User + assistant text only | ~8% | saves ~92% |
-| User messages only | ~1% | saves ~99% |
-| Token stats only | <1KB | saves ~99.9% |
-
-Thinking blocks alone account for 30–60% of a typical file's bytes.
-
----
-
-## Common Mistakes
-
-**Mistake: Using `jq --stream`**  
-Pi sessions are small (< 2MB). `--stream` adds complexity with no benefit. Plain line-by-line is always sufficient.
-
-**Mistake: Forgetting that user `.content` can be string or array**  
-Always guard both shapes — use the **Safe user content extraction** pattern above.
-
-**Mistake: Missing compaction when reconstructing thread**  
-If a session has compaction entries, the earliest messages before `firstKeptEntryId` are gone. Check:
-```bash
-jq -r 'select(.type=="compaction") | .firstKeptEntryId' session.jsonl
-```
-
-**Mistake: Assuming `.message.role` covers bashExecution**  
-`bashExecution` entries have their own top-level `role` field but `type="message"`. Filter:
-```bash
-jq 'select(.type=="message" and .message.role=="bashExecution")' session.jsonl
-```
+[1]: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/session-format.md
+[2]: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/message-types.md
