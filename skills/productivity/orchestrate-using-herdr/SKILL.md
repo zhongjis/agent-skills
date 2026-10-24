@@ -23,7 +23,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 - **`--track`:** file each task in the issue tracker before delegating it ([track.md](references/track.md)); combines with any mode. Without it, delegate directly with no ticket.
 
-- **Sticky:** orchestrator mode stays on for the session until `--off`, which ends the mode and this skill's rules. Later work requests go to workers (see Follow-ups); questions and status checks you answer yourself. A flag applies only to the invocation that names it.
+- **Sticky:** orchestrator mode stays on for the session until `--off`, which ends the mode and this skill's rules. Later work requests go to workers (see Worker Context Management); questions and status checks you answer yourself. A flag applies only to the invocation that names it.
 - **Authority:** invocation grants worktree creation, agent startup, dispatch, ticket creation under `--track`, and scoped local commits (implementation and dependency checkpoints) for workers; carry that permission into briefs. Honor read-only or no-commit requests, normal hooks, and unrelated work. Publication, merge outside `--auto`, deployment, and history rewrites keep their existing gates.
 
 ## Herdr check
@@ -47,16 +47,28 @@ Per task:
 
 A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence.
 
-## Follow-ups (Worker Context Management)
+## Worker Context Management
 
-Work related to a dispatched task goes to that task's worker. Steer an unfinished task in its session. Once the task is settled, pick the session context without asking (the user may override):
+Work related to a dispatched task goes to that task's worker.
+Before each work instruction—including steering, retries, and follow-ups—
+choose the session context from its relevance, remaining capacity, and
+the next task's phase and constraints. Choose without asking unless
+the user specifies otherwise:
 
 - **Keep** when the follow-up builds directly on the prior work (re-review the same PR).
 - **Compact** when the session is long but its context still matters.
 - **Handoff** when the task enters a new phase and most of the old context is noise (implementation done, now `address-comments`).
 - **New** when the old context would mislead; send a corrected full brief.
 
-Per-kind commands: [agent-quirks.md](references/agent-quirks.md).
+Keep active work in its session until a safe transition boundary.
+When changing context, use [agent-quirks.md](references/agent-quirks.md)
+for the worker's kind. Complete the transition before dispatch:
+for New or Handoff, verify the replacement session is active.
+Idle alone does not establish that the session changed.
+
+Dispatch is complete when the intended session has received the
+instruction and started work or reported a blocker. Inspect uncertain
+delivery before retrying.
 
 ## House rules
 
