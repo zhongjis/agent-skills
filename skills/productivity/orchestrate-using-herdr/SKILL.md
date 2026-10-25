@@ -12,7 +12,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 `/orchestrate-using-herdr [--watch | --auto] [--track] [tasks…]` · `/orchestrate-using-herdr --off`
 
-- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A **batch** is one agreed task repeated over several targets, one worker per target.
+- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: steps, phases, or checkpoints toward it stay inside that task (one ticket, one worktree, one worker, run in order); split an outcome into separate tasks only when the user agreed separate tasks or separate PRs. A **batch** is one agreed task repeated over several targets, one worker per target.
 - **Modes**, by what you do after dispatch:
 
   | Flag      | After dispatch                                                                                          |

@@ -177,6 +177,18 @@
         "Leaves session and tab labels unchanged."
       ],
       "files": []
+    },
+    {
+      "id": 16,
+      "name": "checkpoints-stay-in-one-task",
+      "prompt": "Use orchestrate-using-herdr --track for the agreed deploy-efficiency plan. The conversation agreed one outcome, faster and reliable Runtime and Network deployments, delivered through four ordered checkpoints: release timeout, build cache, image scope, and measured results. No ticket exists yet; the repository files issues in Linear.",
+      "expected_output": "Files one Linear ticket listing the four checkpoints as acceptance criteria, creates one worktree, and dispatches one worker that runs the checkpoints in order.",
+      "expectations": [
+        "Creates exactly one ticket, with the four checkpoints as acceptance criteria.",
+        "Creates one worktree and starts one worker; does not build a gh stack.",
+        "Does not split the checkpoints into separate tasks, tickets, or workers."
+      ],
+      "files": []
     }
   ]
 }
