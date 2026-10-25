@@ -65,6 +65,18 @@
         "Selects a runtime-neutral test runner such as Vitest rather than assuming bun test.",
         "Derives package execution commands from pnpm and does not introduce Bun-only runtime configuration."
       ]
+    },
+    {
+      "id": 6,
+      "name": "no-source-text-tests",
+      "prompt": "In a React + Vitest web app, move the workspace shell styles into a new workspace-layout.css imported from product.css, and change the label font-size token to 0.875rem. Add the tests you think this change needs.",
+      "expected_output": "Adds no test that reads source files or asserts copied literals; relies on rendered or visual checks for the style move and token change.",
+      "files": [],
+      "expectations": [
+        "Does not read .css, .tsx, or other source files in a test to assert they contain an import, class name, or token.",
+        "Does not assert a literal copied from the code under test, such as the 0.875rem token value.",
+        "Uses a rendered or visual check for the style change, or states that no test is needed."
+      ]
     }
   ]
 }

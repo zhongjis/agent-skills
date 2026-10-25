@@ -48,6 +48,7 @@ Choose the cheapest existing test rung that observes the changed behavior. A use
 - **Transitional code: test the seam only.** If code still ships but a planned follow-up deletes it, keep one test for each place it calls the new code, and delete its deeper behavior tests instead of rewriting them.
 - **No history.** Do not test backward compatibility (legacy formats, aliases, old schema versions, migrations, old-runtime fallbacks) or feature removal (a removed name, field, or mode stays absent or rejected). Git records history; delete a feature's tests with the feature.
 - **Mechanism, not catalog.** Feed synthetic inputs and assert the transformation. Never pin live repo data — model IDs, rosters, counts, config contents, prompt prose — that changes by editing data, not logic.
+- **Behavior, not source text.** Never read a source file (code, CSS, markup) to assert it contains a string, and never assert a literal copied from the code under test (a constant, token, class name, or import line). Render or execute the code and assert the outcome; a visual-only change gets visual QA, not a test.
 
 A negative assertion is valid only when it guards a current contract (security boundary, invalid-input class), never a removed name.
 
