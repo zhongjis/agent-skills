@@ -1,6 +1,6 @@
 ---
 name: programming
-description: "Applies strict, modern language practice (typed errors, exhaustive match, tests that can fail) for Python, Rust, TypeScript, and Go. Use for work on .py, .rs, .ts, or .go files."
+description: "Use when writing code. Must invoke for work on .py, .rs, .ts, or .go files."
 adaptedFrom:
   - "https://github.com/code-yeongyu/oh-my-openagent/tree/dev/packages/shared-skills/skills/programming"
 ---
