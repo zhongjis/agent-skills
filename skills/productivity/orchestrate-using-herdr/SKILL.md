@@ -26,9 +26,9 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 - **Sticky:** orchestrator mode stays on for the session until `--off`, which ends the mode and this skill's rules. Later work requests go to workers (see Worker Context Management); questions and status checks you answer yourself. A flag applies only to the invocation that names it.
 - **Authority:** invocation grants worktree creation, agent startup, dispatch, ticket creation under `--track`, and scoped local commits (implementation and dependency checkpoints) for workers; carry that permission into briefs. Honor read-only or no-commit requests, normal hooks, and unrelated work. Publication, merge outside `--auto`, deployment, and history rewrites keep their existing gates.
 
-## Herdr check
+## Start
 
-Run `command -v herdr >/dev/null && test "${HERDR_ENV:-}" = 1`. On failure, report that you are not inside Herdr and stop. Otherwise read `herdr --skill` once: it owns command syntax, pane and agent primitives, and lifecycle states. This skill adds only the orchestration layer.
+Run `scripts/orchestrate-init.sh <slug>`, where the slug names the overall work in at most 4 words. It checks that you are inside Herdr, marks your pane `[o]`, and prints `log=<path>`; keep that path for the session. On failure, report its message and stop. Otherwise read `herdr --skill` once: it owns command syntax, pane and agent primitives, and lifecycle states. This skill adds only the orchestration layer.
 
 ## Roles
 
@@ -72,7 +72,6 @@ delivery before retrying.
 
 ## House rules
 
-- **Mark your pane:** on invocation, read your pane's label (`herdr pane current --current`). No label: rename it to `[o] <slug>`, a slug of at most 4 words for the overall work. Label present: prefix it with `[o] ` unless it already starts with `[o]`.
 - **Pi by default** unless the user names another kind.
 - **Names:** lowercase, derived from the task (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents; on a collision add a short hyphenated discriminator. Prefix numeric IDs with `gh-`. The worktree basename and agent name share the stem: `<issue-id>-<slug>` when the task has a ticket, a concise slug otherwise.
 - **Hands off the user's space:** keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
@@ -90,4 +89,17 @@ Applies under `--watch` and `--auto`.
 
 ## Report
 
-Per task: target, worktree path, workspace, pane, agent name, mode, and, when supervised, status with evidence (PR URL, ticket URL, verified result) or the exact blocker and the decision needed. List queued tasks with their prerequisites. Then stop; leave workers and worktrees running unless the mode or the user calls for cleanup.
+Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, queued, re-instructed, settled, merged, blocked. Evidence is the IDs, URLs, and SHAs Herdr, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
+
+Report at each yield, when you are about to wait on workers or hand control back:
+
+| When                                           | Report                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A dispatch wave is done and you wait           | Per task: agent name, pane, worktree, state; queued tasks with their prerequisites; the mode and what you wait for. Without supervision, this is the final report.                                                                                                                       |
+| A question needs the user's decision           | The task, the one question, and its evidence.                                                                                                                                                                                                                                              |
+| A shared blocker                               | Dispatch paused, the affected tasks, and what the user must do.                                                                                                                                                                                                                            |
+| A supervised task settles                      | One line: the result with evidence (PR URL at head SHA, checks, ticket URL) or the exact blocker; dependents it launched.                                                                                                                                                                   |
+| Every task is settled                          | Per task: target, worktree path, workspace, pane, agent name, mode, and result with evidence or the exact blocker and the decision needed; queued tasks with their prerequisites; the log path. Then stop; leave workers and worktrees running unless the mode or the user calls for cleanup. |
+| The user asks for status                       | The latest row per task, re-checked live at the destination.                                                                                                                                                                                                                               |
+
+Worker progress, questions you answer from the brief, retries, and context transitions go to the log only.

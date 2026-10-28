@@ -168,13 +168,13 @@
     },
     {
       "id": 15,
-      "name": "marks-orchestrator-pane",
-      "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. Case A: `herdr pane current --current` returns no label. Case B: the pane is labeled `api work`. Case C: the pane is labeled `[o] api work` and the skill is invoked again.",
-      "expected_output": "Case A renames the pane to `[o] <slug>` with a slug of at most 4 words for the work. Case B renames it to `[o] api work`. Case C leaves the label unchanged.",
+      "name": "init-marks-orchestrator-pane",
+      "prompt": "Use orchestrate-using-herdr for the agreed cache-key validation fix. Case A: your pane has no label. Case B: your pane is labeled `api work`. Case C: your pane is labeled `[o] api work` and the skill is invoked again.",
+      "expected_output": "Runs scripts/orchestrate-init.sh with a slug of at most 4 words before any dispatch and keeps the printed log path. The script labels the pane `[o] <slug>` in Case A, `[o] api work` in Case B, and leaves it unchanged in Case C; the orchestrator does not rename panes or tabs itself.",
       "expectations": [
-        "Renames only its own pane via `herdr pane rename $HERDR_PANE_ID`.",
-        "Never produces a doubled `[o] [o]` prefix.",
-        "Leaves session and tab labels unchanged."
+        "Runs orchestrate-init.sh once at the start and keeps its log path.",
+        "Does not rename the pane, tab, or session by hand.",
+        "Never produces a doubled `[o] [o]` prefix."
       ],
       "files": []
     },
@@ -187,6 +187,18 @@
         "Creates exactly one ticket, with the four checkpoints as acceptance criteria.",
         "Creates one worktree and starts one worker; does not build a gh stack.",
         "Does not split the checkpoints into separate tasks, tickets, or workers."
+      ],
+      "files": []
+    },
+    {
+      "id": 17,
+      "name": "reports-at-yield-from-log",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its brief answers, and B needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. Describe what you log and what you report to the user, and when; do not run commands.",
+      "expected_output": "Logs every task event with scripts/log.sh. Reports the first dispatch wave (A and B working, C queued behind A) before waiting; answers A from the brief and compacts B silently, logging both; reports A settling as one line with PR #31 at def456 and C launched; ends with a final per-task report built from the log, including the log path.",
+      "expectations": [
+        "Reports the dispatch wave before waiting on workers.",
+        "Does not report the brief-answered question or the context transition; logs them.",
+        "Builds settle and final reports from log rows with returned evidence."
       ],
       "files": []
     }
