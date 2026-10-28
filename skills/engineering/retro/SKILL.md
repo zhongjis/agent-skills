@@ -25,17 +25,24 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 - **Tool economy**: did the agent make expensive tool calls that could be streamlined? Is there any custom tooling (CLI's, MCP's) that is particularly token-inefficient? _Use when_ the agent made an expensive tool call.
 - **No-ops**: look for instructions in steering files that don't modify the agent's behavior. _Use when_ the steering files are large and unwieldy.
 - **Information access**: look for opportunities to increase the agent's access to information. Teeing dev server logs, readonly access to third-party services. _Use when_ a crucial piece of information was not available to the agent.
-- **Steering sources**: did the agent follow an instruction into the wrong behavior, or did two sources conflict? Fix it at the owning source. _Use when_ the cause sits in a steering layer, skill, ticket or handoff rather than in the repo's code or checks. Locate the owning source by symptom: lead agent routed or accepted wrongly → mode prompt; worker misread its task → handoff, then its subagent definition; wrong in one repo → project `AGENTS.md` or a global rule clashing with it; wrong everywhere → global `AGENTS.md`. A finding on a shared project file is a proposal for the repo's owners; edit personal layers directly.
+- **Steering sources**: did the agent follow an instruction into the wrong behavior, or did two sources conflict? _Use when_ the cause sits in a steering layer, skill, ticket or handoff rather than in the repo's code or checks. Fix it at the owning source, found by symptom:
+  - Lead agent routed or accepted wrongly: its mode prompt.
+  - Worker got the wrong task: the handoff, then the worker's subagent definition.
+  - Lead misused a worker's result: the worker's return shape in its subagent definition, then how the lead reads results in its mode prompt.
+  - Wrong in one repo only: project `AGENTS.md`, or a global rule that conflicts with it.
+  - Wrong in every repo: global `AGENTS.md`.
+
+  A finding on a shared project file is a proposal for the repo's owners; edit personal layers directly.
 
 5. Present these candidates to the user, in order of severity, each with its owning source's file path.
 
 ## Reference
 
-### Implementation vs Review
+### Stages
 
-Remember that all work goes through two stages: implementation and review. The implementation agent has the most **context pressure**. They are responsible for exploration, writing code, and debugging failures.
+Work moves through exploration, optional planning, implementation, and review, often within one agent. **Context pressure** peaks in implementation (plan, code, debug output) and is lowest in review (a diff). Name the stage where a finding went wrong, and fix it at the earliest stage that could have caught it: a plan gap at planning, not code review. 
 
-The review agent has the least context pressure - it receives a diff, so no exploration needed. It often does not need to write code or debug.
+Rework (code reverted or restructured mid-implementation) is the signal: trace it to the missing exploration fact, unplanned decision, or lossy handoff that caused it.
 
 This means that the review agent should be responsible for imposing coding standards, not the implementation agent. A reviewer finding names the reviewer's subagent definition or the repo's `CODING_STANDARDS.md` as its owning source.
 
