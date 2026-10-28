@@ -7,3 +7,4 @@ The global `AGENTS.md` / `CLAUDE.md` branch of [`writing-for-agents`](../SKILL.m
 Global text loads in every session of every repository, so it carries the highest context load of any document. A line earns its place only when it holds across all of them.
 
 - A rule that holds only in some contexts states its condition in its first words ("In enterprise codebases, …"), so the agent skips it fast where it does not apply.
+- Global text is personal: other contributors' agents never read it. A repo contract held only here vanishes for them; it belongs in that repo's project file.

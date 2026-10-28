@@ -10,13 +10,15 @@ metadata:
 
 Reference for writing any document an agent consumes: a skill, an `AGENTS.md` / `CLAUDE.md`, a doc reached by a pointer. The packaging differs; the writing does not: the same levers make each one predictable, since the agent takes the same _process_ every run rather than producing the same output.
 
-Read the reference for the document you're writing:
+Read the reference for the document you're writing. Documents differ by who reads them and when they load:
 
-- A global `AGENTS.md` / `CLAUDE.md`: [`references/global-instructions.md`](references/global-instructions.md).
-- A project `AGENTS.md` / `CLAUDE.md`: [`references/project-instructions.md`](references/project-instructions.md).
-- An agent or subagent definition: [`references/agent-instructions.md`](references/agent-instructions.md).
-- A skill: [`references/skill-mechanics.md`](references/skill-mechanics.md) for frontmatter, invocation choice, and router skills.
-- A tool description, prompt guideline, or tool-injected prompt block: [`references/tool-descriptions.md`](references/tool-descriptions.md).
+| Document | Readers | Loads | Reference |
+| --- | --- | --- | --- |
+| Global `AGENTS.md` / `CLAUDE.md` | One user, every repo | Every turn | [`global-instructions.md`](references/global-instructions.md) |
+| Project `AGENTS.md` / `CLAUDE.md` | Every contributor and harness in the repo | Every turn in that repo | [`project-instructions.md`](references/project-instructions.md) |
+| Mode / system prompt, agent or subagent definition | One harness, one role | Every turn for that role, or each spawn | [`agent-instructions.md`](references/agent-instructions.md) |
+| Skill | Every agent where it is installed | Description every turn; body on invocation | [`skill-mechanics.md`](references/skill-mechanics.md): frontmatter, invocation choice, router skills |
+| Tool description, prompt guideline, or tool-injected prompt block | Every agent with the tool active | Every turn while the tool is active | [`tool-descriptions.md`](references/tool-descriptions.md) |
 
 ## Context pointers
 

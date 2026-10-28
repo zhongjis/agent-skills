@@ -1,6 +1,6 @@
 # Agent instructions
 
-The agent/subagent branch of [`writing-for-agents`](../SKILL.md): role/actor-scoped definitions for how one specific agent behaves. Everything else about writing it is the universal reference in `SKILL.md`.
+The agent branch of [`writing-for-agents`](../SKILL.md): role-scoped definitions for how one specific agent behaves, from a harness mode / system prompt for the lead agent to a subagent definition. Everything else about writing it is the universal reference in `SKILL.md`.
 
 ## Facts and policy
 
@@ -12,6 +12,7 @@ The harness owns **facts**: tool results, status reports, limits, and anything i
 ## Roles
 
 - Put each rule in the prompt of the agent that owns the decision. For example, a worker agent cannot resize its own assignment, so sizing rules live in the orchestrator/parent's prompt; the worker's prompt holds what the worker decides, such as stopping when an input is missing.
+- A rule every role needs belongs in global instructions, not copied into each role's prompt.
 - A term used in both the lead's and the worker's prompt needs one definition that both prompts share; each agent reads only its own prompt.
 
 ## Description

@@ -15,6 +15,10 @@ A contract states what must remain true; implementation describes how code curre
 - State the supported contract and link to its owner. Retain compatibility and safety requirements while they remain applicable.
 - High level is not vague. A command or convention the agent cannot guess stays concrete enough to check; what drops out is the walkthrough of code the agent can read.
 
+## Shared readers
+
+The file is committed: every contributor's agent reads it, each with its own global instructions and harness, or none. State every repo contract here even when a personal global file repeats it, name tools and roles in harness-neutral terms, and leave personal preferences in global instructions.
+
 ## Tooling
 
 Linters, formatters, type checkers, CI, and hooks enforce deterministic rules. The file holds only what tooling cannot enforce; a restated tool rule is a cache that drifts from the tool's config.
