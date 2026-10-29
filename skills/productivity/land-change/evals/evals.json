@@ -1,0 +1,41 @@
+{
+  "skill_name": "land-change",
+  "evals": [
+    {
+      "id": 1,
+      "name": "independent-layers-use-stack",
+      "prompt": "Offline simulation: land a three-PR feature. Every layer is deployable on main alone behind a flag. Describe topology, CI, review, and merge order; do not run commands.",
+      "expected_output": "Chooses a GitHub stack with chained bases, normal per-PR CI and review, and bottom-up merging. Notes lower PRs must be approved and green.",
+      "expectations": [
+        "Chooses the stack only because independent landing is established.",
+        "Keeps per-PR CI/review and bottom-up order."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "atomic-repairs-and-moving-main",
+      "prompt": "Offline simulation: land a six-PR access change that cannot deploy until all layers exist. Two CI lanes fail in different layers; main has advanced. Propose repair ownership, PR shape, CI comparison base, and branch update; do not run commands.",
+      "expected_output": "Keeps layer PRs drafts after checking actual CI draft conditions, uses one top-to-main landing PR with all required lanes compared against main, assigns every repair to the top worker before fan-out, and merges main into top without rebase/force-push. Requests one bot review, fixes bug classes, then one more review.",
+      "expectations": [
+        "Loads atomic-landing.md for the non-independent branch.",
+        "Uses draft layers and one landing PR, verifying whole-change lanes against main.",
+        "Keeps repairs top-only and updates by merging main.",
+        "Does not infer publication or history-rewrite authority from the skill."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "window-sha-change-and-repeat-flake",
+      "prompt": "Offline simulation: an atomic landing includes an authorized destructive production step. The freeze was announced but no required check enforces it. At the final check, main differs from the recorded SHA. A suspected flaky job has already failed its one rerun. What happens next? Do not run commands.",
+      "expected_output": "Reports the unenforced freeze, stops the destructive step on the SHA mismatch, investigates the repeated failure rather than rerunning again, and establishes a newly tested main/head pair before any authorized production step. Requires a safe rehearsal before the window.",
+      "expectations": [
+        "Distinguishes announcement from enforced freeze.",
+        "Requires rehearsal and live main/tested-head verification immediately before the destructive step.",
+        "Stops on either SHA changing and investigates after one failed rerun."
+      ],
+      "files": []
+    }
+  ]
+}

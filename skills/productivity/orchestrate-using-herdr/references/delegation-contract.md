@@ -47,6 +47,7 @@ External results the mode or task requires, embedded in full: the worker contrac
 
 ## Rules
 
+- **Review-comment briefs:** for each valid finding, fix the bug class: find every sibling call with the same defect and fix the shared function once.
 - **Batch briefs** share one filled template; only the target in What to build, its inputs, and per-target overrides differ.
 - **Link or inline.** Link sources the worker can open; inline anything that exists only in the conversation. Inline a snippet only when it encodes a decision more precisely than prose (schema, type shape, state machine).
 - **Redact** secrets and sensitive data from every section.

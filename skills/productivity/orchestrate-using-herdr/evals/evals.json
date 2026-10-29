@@ -98,10 +98,10 @@
     {
       "id": 9,
       "name": "dependent-implementation-uses-stack-bases",
-      "prompt": "Offline simulation: orchestrate-using-herdr --watch for three agreed changes: foundation, authorization, and execution. Authorization depends on foundation; execution depends on authorization. The agreed root base is main. Plan the implementation branch topology and worker briefs. No publication was requested; do not run commands.",
-      "expected_output": "Plans a gh stack rooted at main: the foundation implementation branch bases on main, authorization bases on foundation, and execution bases on authorization. Carries branch and prerequisite-base identities into worker briefs and maintains these dependencies throughout implementation without publishing PRs.",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for three agreed changes: foundation, authorization, and execution. Authorization depends on foundation; execution depends on authorization. Each layer can safely land on main alone, behind flags where needed. The agreed root base is main. Plan the implementation branch topology and worker briefs. No publication was requested; do not run commands.",
+      "expected_output": "Uses land-change to choose a GitHub stack because each layer can land alone. Plans a gh stack rooted at main: the foundation implementation branch bases on main, authorization bases on foundation, and execution bases on authorization. Carries branch and prerequisite-base identities into worker briefs and maintains these dependencies throughout implementation without publishing PRs.",
       "expectations": [
-        "Uses gh stack for the dependent implementation branches, not three independent main-based branches.",
+        "Chooses gh stack only after establishing that each layer can land on main alone; keeps the dependent implementation branches chained.",
         "Names the correct root and immediate prerequisite base for every layer in worker briefs.",
         "Keeps publication and history rewriting outside the local implementation authority."
       ],
@@ -199,6 +199,30 @@
         "Reports the dispatch wave before waiting on workers.",
         "Does not report the brief-answered question or the context transition; logs them.",
         "Builds settle and final reports from log rows with returned evidence."
+      ],
+      "files": []
+    },
+    {
+      "id": 18,
+      "name": "atomic-repairs-stay-top-only",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch. Five draft layer PRs feed one landing PR from the top branch to main because none of the layers can deploy alone. CI and review findings affect three layers. Route the repairs and write the key brief instruction; do not run commands.",
+      "expected_output": "Reads land-change, sends every repair to the top worker only, and tells that worker to fix each valid bug class across sibling calls through the shared function. Does not fan out one repair worker per layer or rebase the atomic branch.",
+      "expectations": [
+        "Routes all CI and review repairs to the top worker before any fan-out.",
+        "Uses draft layers and one top-to-main landing PR.",
+        "Briefs require bug-class fixes rather than isolated call-site patches."
+      ],
+      "files": []
+    },
+    {
+      "id": 19,
+      "name": "pi-compaction-and-new-bug",
+      "prompt": "Offline simulation: a Pi worker reports done but its visible pane still says Compacting. A follow-up is ready. Later /new unexpectedly exits Pi and the pane shows a shell. Describe safe delivery in both cases without running commands.",
+      "expected_output": "Waits until herdr agent read <name> --source visible no longer shows Compacting before sending the follow-up; does not trust done or queue a message. Treats /new exiting as a bug, restarts with herdr agent start <name> --kind pi --pane <pane>, verifies replacement session, and resends the full brief.",
+      "expectations": [
+        "Does not send or queue a message during compaction.",
+        "Preserves normal /new semantics and treats exit as an exceptional bug.",
+        "Restarts in the assigned pane and sends the full brief after the replacement is active."
       ],
       "files": []
     }

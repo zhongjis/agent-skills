@@ -91,6 +91,10 @@ gh pr update-branch "$UPPER_PR" --rebase
 
 ## Guardrails
 
+- A stack merge needs every lower PR approved and green; a red lower PR blocks the top. [8]
+- Preserve a native stack's chained bases. For a manual base change outside that chain, run `gh stack unstack <n>` first (`<n>` is the stack number). Merged or queued PRs cannot be unstacked, so their presence prevents dissolving the whole stack; other open, draft, or closed PRs can still be removed. The cited docs do not establish a blanket prohibition on base edits. [2][4]
+- Observed in `a2anteater/xiangxi` on 2026-10-29 (PRs #254–#258): after the top PR landed outside the stack, middle PRs stayed open and could not be retargeted ("no new commits"). In that situation, close them with a comment naming the merge commit. This is observed behavior, not a universal guarantee. [9]
+- Restack with `gh stack rebase --upstack` and `gh stack push`, rather than hand-written rebase loops. [2][4]
 - Native stacks require linear history and branches in one repository; cross-fork stacks and GitHub Desktop are unsupported. [3]
 - Changing a PR base can remove commits from the timeline and make review comments outdated. Verify the diff after retargeting. [6]
 - Server-side stack rebases create unsigned commits. Use local `gh stack rebase` when commit signatures must remain valid. [4]
@@ -106,3 +110,5 @@ gh pr update-branch "$UPPER_PR" --rebase
 [5] gh pr create manual (https://cli.github.com/manual/gh_pr_create)
 [6] gh pr edit manual (https://cli.github.com/manual/gh_pr_edit)
 [7] gh pr update-branch manual (https://cli.github.com/manual/gh_pr_update-branch)
+[8] Merging stacked pull requests (https://docs.github.com/en/enterprise-cloud@latest/pull-requests/how-tos/merge-and-close-pull-requests/merging-stacked-pull-requests)
+[9] User-supplied observation, a2anteater/xiangxi PRs #254–#258, 2026-10-29 (https://github.com/a2anteater/xiangxi/pull/254, https://github.com/a2anteater/xiangxi/pull/255, https://github.com/a2anteater/xiangxi/pull/256, https://github.com/a2anteater/xiangxi/pull/257, https://github.com/a2anteater/xiangxi/pull/258)

@@ -12,7 +12,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 `/orchestrate-using-herdr [--watch | --auto] [--track] [tasks…]` · `/orchestrate-using-herdr --off`
 
-- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: steps, phases, or checkpoints toward it stay inside that task (one ticket, one worktree, one worker, run in order); split an outcome into separate tasks only when the user agreed separate tasks or separate PRs. A **batch** is one agreed task repeated over several targets, one worker per target.
+- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: steps, phases, or checkpoints toward it stay inside that task (one ticket, one worktree, one worker, run in order); split an outcome into separate tasks only when the user agreed separate tasks or separate PRs. A **batch** is one agreed task repeated over several targets, one worker per target. For repairs on a multi-PR change (CI, review comments), the fix target comes from `land-change`; an atomic landing sends every repair to the top worker only.
 - **Modes**, by what you do after dispatch:
 
   | Flag      | After dispatch                                                                                          |
@@ -82,6 +82,10 @@ delivery before retrying.
 Applies under `--watch` and `--auto`.
 
 - Run until every task is settled.
+- When waiting for a worker to settle, use `scripts/watch-agent.sh <agent>`; it confirms a settled state after 30 seconds. For Pi compaction, also check [agent-quirks.md](references/agent-quirks.md).
+- When waiting on PR checks, use `scripts/watch-ci.sh <repo-dir> <pr>...`; it waits for checks, exits 2 on conflicts, and prints head SHAs and failing checks.
+- For an authorized history-rewriting push pinned to main, use `scripts/push-pinned.sh <worktree> <branch> <expected-main-sha> [-- <build-command> [args...]]`; pass the repository's package build command when it has one. This is not the atomic-landing update path; `land-change` owns that decision.
+- Run these Bash scripts directly instead of storing a command string in a zsh variable: zsh does not word-split that variable. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 - Herdr `idle`/`done` is a lifecycle signal, not success. Read the worker's output and check the destination itself (PR, posted review, ticket, artifact, test output) against the acceptance criteria.
 - Keep a queued task queued when a prerequisite failed.
 - Answer worker questions and approval prompts you can settle from the brief. Tell the user only when a question needs their decision; they can see `blocked` panes themselves.

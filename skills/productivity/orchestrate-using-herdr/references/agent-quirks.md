@@ -8,7 +8,8 @@ Read only the section for the agent kind you start or read.
 - **Alt screen.** pi renders on the terminal's alt screen: read it with `herdr agent read <name> --source visible`; `recent-unwrapped` returns empty.
 - **Skills by prompt.** Load a skill in the worker with `$skill:<name>` in the prompt.
 - **New session:** prompt `/new`, then send the full brief. The Herdr agent name survives; the session starts empty.
-- **Compact:** prompt `/compact [what to preserve]`; once the agent is `idle`, send the follow-up request.
+- **New session bug:** an unknown Pi bug sometimes makes `/new` exit Pi. If the pane falls back to a shell, restart with `herdr agent start <name> --kind pi --pane <pane>` and resend the full brief. Exiting is a bug, not the normal `/new` behavior.
+- **Compact:** prompt `/compact [what to preserve]`; status can read `done` while compaction runs, and a message queued during compaction is dropped. Send the follow-up only once `herdr agent read <name> --source visible` no longer shows "Compacting".
 - **Handoff:** prompt `/handoff <follow-up request> ulw`. Pi summarizes into a new session and **preloads** the summary plus request in the editor without submitting it; once the agent is `idle`, submit with `herdr agent send-keys <name> enter`. The agent name survives.
 
 ## claude
