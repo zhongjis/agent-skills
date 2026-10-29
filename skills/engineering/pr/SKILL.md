@@ -15,7 +15,7 @@ metadata:
 ## Core principles
 
 - PR title and description describe ONLY the final state at the head commit of the PR branch (after) vs Base branch (before), not individual commits or review rounds.
-- When creating a PR, including as a delegated worker, pass the complete title and body to `gh pr create` using `--title` and `--body` or `--body-file`, so the opening event carries the finished description.
+- When creating a PR, pass the complete title and body to `gh pr create` using `--title` and `--body` or `--body-file`, so the opening event carries the finished description.
 
 Use this template for writing the PR body:
 
