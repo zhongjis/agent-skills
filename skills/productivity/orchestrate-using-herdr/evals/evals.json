@@ -28,10 +28,11 @@
       "id": 3,
       "name": "track-files-ticket-first",
       "prompt": "Use orchestrate-using-herdr --track for the agreed import validation repair. No ticket exists yet; the repository files issues in Linear.",
-      "expected_output": "Creates one Linear ticket from the spec in Markdown before any worktree or dispatch, names the worktree and agent <issue-id>-<slug>, links the ticket in the brief with the close-out comment as a worker deliverable, then reports the handoff and stops because no supervision mode was given.",
+      "expected_output": "Creates one Linear ticket from the spec in Markdown before any worktree or dispatch. Names the agent <issue-id>-<slug> and chooses the branch by repository convention. Omits --path so Herdr selects the worktree directory and reads its actual location from .result.worktree.path. Links the ticket in the brief with the close-out comment as a worker deliverable, then reports the handoff and stops because no supervision mode was given.",
       "expectations": [
         "Creates the ticket before creating the worktree or dispatching.",
         "Does not supervise: --track is not a mode.",
+        "Never passes --path to herdr worktree create or creates a worktree inside the source checkout.",
         "Puts the ticket close-out in the brief as a worker deliverable."
       ],
       "files": []
@@ -162,6 +163,7 @@
       "expected_output": "Runs preflight per item: resolves the parent source, fetches and hard-resets the #41 worktree to origin head because --base is ignored for an existing local branch and confirms rev-parse, creates worktrees with --no-focus, starts pi workers named review-41/review-42 with retry on agent_pane_busy, dispatches bare prompts with escaped $skill, and confirms working.",
       "expectations": [
         "Does not review a stale local head for #41.",
+        "Uses create --branch for the existing branch without a worktree; open is only for existing worktrees.",
         "Confirms each worker moved to working before treating dispatch as done."
       ],
       "files": []

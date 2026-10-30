@@ -73,7 +73,7 @@ delivery before retrying.
 ## House rules
 
 - **Pi by default** unless the user names another kind.
-- **Names:** lowercase, derived from the task (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents; on a collision add a short hyphenated discriminator. Prefix numeric IDs with `gh-`. The worktree basename and agent name share the stem: `<issue-id>-<slug>` when the task has a ticket, a concise slug otherwise.
+- **Names:** lowercase, derived from the task (`a2a-140-cache-keys`, `review-457`), matching `[a-z][a-z0-9_-]{0,31}` and unique among live agents; on a collision add a short hyphenated discriminator. Prefix numeric IDs with `gh-`. Use `<issue-id>-<slug>` for the agent when the task has a ticket, a concise slug otherwise. Choose the branch by repository convention; Herdr derives the worktree directory from the branch.
 - **Hands off the user's space:** keep your own pane (`$HERDR_PANE_ID`) and the user's focus; create with `--no-focus`; never start a worker in your pane; leave session and tab labels unchanged.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 
