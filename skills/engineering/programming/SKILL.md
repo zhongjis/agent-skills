@@ -95,7 +95,9 @@ When adding or changing log lines, logger setup, service entrypoints, or boundar
 
 ### Step 1 — measure
 
-For every created or modified source file, measure pure LOC:
+For every created or modified source file, measure pure LOC. For TypeScript, use the checker below: it excludes comments and blank lines, warns at 200–250 pure LOC, and fails above 250 unless an allowed size exception applies. See [size measurement and exceptions](references/code-smells.md#measuring-pure-loc).
+
+For other languages, a quick estimate is:
 
 ```bash
 awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(\/\/|#|--)/' <file> | wc -l

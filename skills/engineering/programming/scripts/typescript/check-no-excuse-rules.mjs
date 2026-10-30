@@ -3,6 +3,7 @@
  * Check TypeScript files for no-excuse violations.
  *
  * Rules:
+ *   file-too-large        - more than 250 pure code lines without a size exception
  *   no-any-assertion       - `as any`
  *   no-unknown-assertion   - `as unknown`
  *   no-ts-ignore           - `@ts-ignore` comments
@@ -103,10 +104,41 @@ function getLineText(sourceFile, line) {
   return sourceFile.text.slice(start, end)
 }
 
+function isLiteralData(node) {
+  if (!node) return false
+  if (ts.isLiteralExpression(node) || [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].includes(node.kind)) return true
+  if (ts.isPrefixUnaryExpression(node)) return [ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken].includes(node.operator) && ts.isNumericLiteral(node.operand)
+  if (ts.isParenthesizedExpression(node) || ts.isSatisfiesExpression(node)) return isLiteralData(node.expression)
+  if (ts.isAsExpression(node)) return node.type.getText() === "const" && isLiteralData(node.expression)
+  if (ts.isArrayLiteralExpression(node)) return node.elements.every(isLiteralData)
+  if (ts.isObjectLiteralExpression(node)) return node.properties.every((property) => ts.isPropertyAssignment(property) && !ts.isComputedPropertyName(property.name) && isLiteralData(property.initializer))
+  return false
+}
+
 function analyzeFile(filePath) {
   const source = fs.readFileSync(filePath, "utf8")
   const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
   const violations = []
+  const codeLines = new Set()
+  let sizeJustified = false
+  function measure(node) {
+    if (ts.isJSDoc(node)) return
+    const children = node.getChildren(sourceFile)
+    if (children.length) return children.forEach(measure)
+    const start = node.getStart(sourceFile)
+    for (const range of [...ts.getLeadingCommentRanges(source, node.pos) ?? [], ...ts.getTrailingCommentRanges(source, node.pos) ?? []]) {
+      if (range.kind === ts.SyntaxKind.SingleLineCommentTrivia && /^\/\/\s*allow:\s*SIZE_OK\s*—\s*\S.*$/.test(source.slice(range.pos, range.end))) sizeJustified = true
+    }
+    source.slice(start, node.end).split(/\r\n|[\r\n\u2028\u2029]/).forEach((text, offset) => {
+      if (text.trim()) codeLines.add(sourceFile.getLineAndCharacterOfPosition(start).line + offset)
+    })
+  }
+  measure(sourceFile)
+  const pureData = sourceFile.statements.length > 0 && sourceFile.statements.every((statement) =>
+    ts.isVariableStatement(statement) && (statement.declarationList.flags & ts.NodeFlags.Const) &&
+    statement.declarationList.declarations.every((declaration) => ts.isIdentifier(declaration.name) && isLiteralData(declaration.initializer)))
+  if (codeLines.size >= 200 && codeLines.size <= 250) console.warn(`${filePath}: warning: ${codeLines.size} pure LOC; consider a cohesive split before adding lines.`)
+  if (codeLines.size > 250 && !sizeJustified && !pureData) violations.push({ ruleId: "file-too-large", filePath, line: 1, column: 1, message: `${codeLines.size} pure LOC exceeds 250; split by responsibility or justify an allowed size exception` })
 
   function pos(node) {
     const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile))

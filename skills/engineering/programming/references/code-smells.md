@@ -27,9 +27,13 @@ A file past this line is telling you:
 # Quick (line-comment + blank exclusion):
 awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(\/\/|#|--)/' <file> | wc -l
 
-# Authoritative (handles block comments correctly):
+# General measurement (handles block comments):
 cloc --by-file <file>   # the "code" column is the number
 ```
+
+For TypeScript, run the skill's `scripts/typescript/check-no-excuse-rules.mjs` by its absolute path while keeping the caller project as the working directory, so the checker can resolve that project's TypeScript dependency. It measures nonblank lines occupied by parsed tokens, preserving comment-like text in strings and templates. It reports 200–250 pure LOC as an informational warning and rejects more than 250 with `file-too-large`.
+
+The checker accepts an actual line comment `// allow: SIZE_OK — <reason>` with a nonempty reason, wherever it appears in the file. Reviewers must judge whether the unit is truly indivisible and the reason is adequate; the tool only checks the marker's syntax. It also recognizes files consisting entirely of simple named `const` declarations initialized with literal data: nested arrays and objects with noncomputed property assignments, including signed numbers, parentheses, `as const`, and `satisfies`. Other pure-data forms need human review and a justified marker. Neither exception disables syntax rules.
 
 ### Required behavior when detected
 

@@ -157,6 +157,7 @@ Violations caught by `../../scripts/typescript/check-no-excuse-rules.mjs`. Run w
 
 | Rule ID | Catches | Opt-out |
 |---|---|---|
+| `file-too-large` | More than 250 pure LOC, excluding comments and blank lines | [Justified size marker or literal-only data table](../code-smells.md#measuring-pure-loc); syntax checks still apply |
 | `no-any-assertion` | `as any` | None — redesign types |
 | `no-unknown-assertion` | `as unknown` | None — redesign types |
 | `no-ts-ignore` | `@ts-ignore` | None — fix the type |

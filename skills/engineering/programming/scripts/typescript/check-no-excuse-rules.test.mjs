@@ -45,6 +45,8 @@ describe("#given the no-excuse script is executed from an installed ~/.codex-sty
     symlinkSync(typescriptPackageDir, join(callerDir, "node_modules", "typescript"), "junction")
     writeFileSync(join(callerDir, "clean.ts"), "export const answer: number = 42\n")
     writeFileSync(join(callerDir, "violating.ts"), [
+      "// allow: SIZE_OK — All syntax-rule fixtures belong to one diagnostic sample.",
+      ...Array.from({ length: 251 }, () => "void 0"),
       "declare const value: unknown",
       "const anyAssertion = value as any",
       "const unknownAssertion = value as unknown",
@@ -103,6 +105,34 @@ describe("#given the no-excuse script is executed from an installed ~/.codex-sty
     }
     assert.match(result.stderr, /12 violation\(s\) in 1 file\(s\)\./)
   })
+
+  const codeLines = (count) => Array.from({ length: count }, () => "void 0").join("\n")
+  for (const [name, source, status, diagnostic] of [
+    ["250 code lines", codeLines(250), 0, /warning:.*250 pure LOC/],
+    ["251 code lines", codeLines(251), 1, /\[file-too-large\].*251 pure LOC/],
+    ["blank and comment lines", `${codeLines(250)}\n\n// comment\n/* block\nbody\n*/\n`, 0, /warning:.*250 pure LOC/],
+    ["inline block comments", `${codeLines(249)}\n/* before */ void 0 /* after */`, 0, /warning:.*250 pure LOC/],
+    ["JSDoc comments", `/**\n${" * documentation\n".repeat(251)} */\n${codeLines(250)}`, 0, /warning:.*250 pure LOC/],
+    ["comment-like strings", `${codeLines(250)}\nconst text = "/* not a comment */ // text"`, 1, /\[file-too-large\].*251 pure LOC/],
+    ["multiline template text", `${codeLines(247)}\nconst text = \`\n/* literal\n// literal\n*/\n\``, 1, /\[file-too-large\].*252 pure LOC/],
+    ["template interpolation", `${codeLines(249)}\nconst text = \`\${1 /* comment\ncomment */}\``, 1, /\[file-too-large\].*251 pure LOC/],
+    ["justified size exception", `// allow: SIZE_OK — One indivisible state-machine closure.\n${codeLines(251)}`, 0, /No violations/],
+    ["bare size marker", `// allow: SIZE_OK\n${codeLines(251)}`, 1, /\[file-too-large\]/],
+    ["empty justification", `// allow: SIZE_OK —   \n${codeLines(251)}`, 1, /\[file-too-large\]/],
+    ["marker inside a string", `const text = "// allow: SIZE_OK — not a comment"\n${codeLines(250)}`, 1, /\[file-too-large\]/],
+    ["pure literal data", `export const table = {\n${Array.from({ length: 251 }, (_, i) => `key${i}: ["value", -1, true, null],`).join("\n")}\n} as const`, 0, /No violations/],
+    ["data with executable value", `const table = [\n${Array.from({ length: 250 }, () => '"value",').join("\n")}\nrun()]`, 1, /\[file-too-large\]/],
+    ["data with executable binding", `const { value = run() } = {\n${Array.from({ length: 251 }, (_, i) => `key${i}: null,`).join("\n")}\n}`, 1, /\[file-too-large\]/],
+  ]) {
+    test(`#when checking ${name} #then size policy determines the CLI result`, () => {
+      const target = `${name.replaceAll(" ", "-")}.ts`
+      writeFileSync(join(callerDir, target), source)
+      const result = runNoExcuse(callerDir, target)
+      assert.equal(result.error, undefined)
+      assert.equal(result.status, status, result.stderr)
+      assert.match(result.stdout + result.stderr, diagnostic)
+    })
+  }
 
   test("#when the caller project genuinely lacks typescript #then it fails with a clear error and exit 2", { timeout: 60_000 }, () => {
     const result = runNoExcuse(callerWithoutTypescriptDir, "clean.ts")
