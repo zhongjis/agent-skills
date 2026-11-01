@@ -160,7 +160,7 @@
       "id": 14,
       "name": "batch-launch-uses-preflight",
       "prompt": "Offline simulation: orchestrate-using-herdr batch review of PRs #41 and #42 with code-review; the task is agreed. A local branch for #41 already exists from an earlier run. Describe the launch of each item without running commands.",
-      "expected_output": "Runs preflight per item: resolves the parent source, fetches and hard-resets the #41 worktree to origin head because --base is ignored for an existing local branch and confirms rev-parse, creates worktrees with --no-focus, starts pi workers named review-41/review-42 with retry on agent_pane_busy, dispatches bare prompts with escaped $skill, and confirms working.",
+      "expected_output": "Runs preflight per item: resolves the parent source, fetches and hard-resets the #41 worktree to origin head because --base is ignored for an existing local branch and confirms rev-parse, creates worktrees with --no-focus, starts pi workers named review-41/review-42 with scripts/start-worker.sh retrying agent_pane_busy, dispatches bare prompts with escaped $skill, and confirms working.",
       "expectations": [
         "Does not review a stale local head for #41.",
         "Uses create --branch for the existing branch without a worktree; open is only for existing worktrees.",

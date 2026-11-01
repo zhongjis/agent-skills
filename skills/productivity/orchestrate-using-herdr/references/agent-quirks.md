@@ -7,8 +7,10 @@ Read only the section for the agent kind you start or read.
 - **Prompts end with `ulw`** as the last token, after every contract section; it puts the worker in ultrawork mode so it runs to a finished result.
 - **Alt screen.** pi renders on the terminal's alt screen: read it with `herdr agent read <name> --source visible`; `recent-unwrapped` returns empty.
 - **Skills by prompt.** Load a skill in the worker with `$skill:<name>` in the prompt.
+- **Approval dialogs.** Pi stops on a numbered chooser (tool approval, a question with options) and its status can read `blocked` or `idle` while the dialog is up. Read it with `herdr agent read <name> --source visible`, answer with `herdr agent send-keys <name> <digit>` then `herdr agent send-keys <name> enter`, and confirm the status returns to `working`.
+- **Interrupt:** `herdr agent send-keys <name> escape` stops the current turn; the session and its context survive.
 - **New session:** prompt `/new`, then send the full brief. The Herdr agent name survives; the session starts empty.
-- **New session bug:** an unknown Pi bug sometimes makes `/new` exit Pi. If the pane falls back to a shell, restart with `herdr agent start <name> --kind pi --pane <pane>` and resend the full brief. Exiting is a bug, not the normal `/new` behavior.
+- **New session bug:** an unknown Pi bug sometimes makes `/new` exit Pi. If the pane falls back to a shell, restart with `scripts/start-worker.sh <name> <pane>`, confirm `herdr agent get <name>` shows `idle`, then resend the full brief. Exiting is a bug, not the normal `/new` behavior.
 - **Compact:** prompt `/compact [what to preserve]`; status can read `done` while compaction runs, and a message queued during compaction is dropped. Send the follow-up only once `herdr agent read <name> --source visible` no longer shows "Compacting".
 - **Handoff:** prompt `/handoff <follow-up request> ulw`. Pi summarizes into a new session and **preloads** the summary plus request in the editor without submitting it; once the agent is `idle`, submit with `herdr agent send-keys <name> enter`. The agent name survives.
 

@@ -37,7 +37,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 - **In scope:** what this task may touch.
 - **Out of scope:** exclusions, including work owned by sibling tasks.
 - **Authority:** local commits allowed unless the user restricted them; publication, merge, deployment, and history rewrites only as Deliverables grant.
-- **Resources:** before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
+- **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your pane; keep it. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, an unnamed migration or authority change, or a user decision.
 
 ## Deliverables

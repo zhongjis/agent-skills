@@ -22,6 +22,26 @@ check() {
 cat > "$tmp/bin/herdr" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $1 == pane || $2 == start ]]; then
+	echo "$*" >> "$FIXTURE/calls"
+fi
+if [[ $1 == pane ]]; then
+	[[ $MODE != pane-fail ]] || { echo '{"error":{"code":"pane_not_found"}}' >&2; exit 1; }
+	exit
+fi
+if [[ $2 == start ]]; then
+	case "$MODE" in
+		start-busy)
+			n=$(( $(cat "$FIXTURE/starts" 2>/dev/null || echo 0) + 1 ))
+			echo "$n" > "$FIXTURE/starts"
+			[[ $n -ge 3 ]] || { echo '{"error":{"code":"agent_pane_busy"}}' >&2; exit 1; } ;;
+		start-busy-forever) echo '{"error":{"code":"agent_pane_busy"}}' >&2; exit 1 ;;
+		start-notready) echo '{"error":{"code":"agent_not_ready"}}' >&2; exit 1 ;;
+		start-text) echo 'herdr: daemon unreachable' >&2; exit 1 ;;
+	esac
+	echo '{"result":{"agent":{"agent_status":"idle"}}}'
+	exit
+fi
 if [[ $2 == wait ]]; then
 	[[ $MODE != wait-error && $MODE != gone ]]
 	exit
@@ -71,6 +91,27 @@ check 0 'gone' env MODE=gone "$scripts/watch-agent.sh" worker
 check 1 'unauthorized' env MODE=auth "$scripts/watch-agent.sh" worker
 check 5 '' env MODE=malformed "$scripts/watch-agent.sh" worker
 check 1 'wait failed' env MODE=wait-error "$scripts/watch-agent.sh" worker
+
+# start-worker.sh: namespace export first, retry only on agent_pane_busy.
+check 0 'idle' env MODE=start-busy "$scripts/start-worker.sh" worker-a wF1:p1
+[[ $(cat "$tmp/starts") == 3 ]]
+[[ $(cat "$tmp/calls") == $'pane run wF1:p1 export AGENT_BROWSER_NAMESPACE=worker-a\nagent start worker-a --kind pi --pane wF1:p1\nagent start worker-a --kind pi --pane wF1:p1\nagent start worker-a --kind pi --pane wF1:p1' ]]
+[[ $(tail -n 2 "$tmp/sleeps" | tr '\n' ' ') == '4 4 ' ]]
+: > "$tmp/calls"
+check 2 'still busy' env MODE=start-busy-forever "$scripts/start-worker.sh" worker-a wF1:p1
+[[ $(grep -c 'agent start' "$tmp/calls") == 6 ]]
+[[ $(tail -n 5 "$tmp/sleeps" | tr '\n' ' ') == '4 4 4 4 4 ' ]]
+: > "$tmp/calls"
+check 1 'agent_not_ready' env MODE=start-notready "$scripts/start-worker.sh" worker-a wF1:p1 --kind claude
+[[ $(tail -n 1 "$tmp/calls") == 'agent start worker-a --kind claude --pane wF1:p1' ]]
+: > "$tmp/calls"
+check 1 'daemon unreachable' env MODE=start-text "$scripts/start-worker.sh" worker-a wF1:p1
+[[ $(grep -c 'agent start' "$tmp/calls") == 1 ]]
+: > "$tmp/calls"
+check 1 'pane_not_found' env MODE=pane-fail "$scripts/start-worker.sh" worker-a wF1:p1
+! grep -q 'agent start' "$tmp/calls"
+check 1 'invalid agent name' "$scripts/start-worker.sh" Worker_A wF1:p1
+check 1 'usage' "$scripts/start-worker.sh" worker-a
 
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
