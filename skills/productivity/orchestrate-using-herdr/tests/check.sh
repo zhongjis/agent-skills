@@ -127,4 +127,39 @@ check 0 'topic' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- build "$t
 [[ $(cat "$tmp/hook") == ran ]]
 [[ $(cat "$tmp/build output") == "literal ; \$(false)" ]]
 [[ $(git --git-dir="$tmp/remote" rev-parse refs/heads/topic) == "$head" ]]
+
+# reap-worker.sh: only the worker's namespace, Compose projects, and processes.
+cat > "$tmp/bin/agent-browser" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s %s\n' "$AGENT_BROWSER_NAMESPACE" "$*" >> "$FIXTURE/browser"
+MOCK
+cat > "$tmp/bin/docker" <<'MOCK'
+#!/usr/bin/env bash
+case "$1 $2" in
+	'ps -a') printf 'mine\t%s\ntheirs\t%s\n\t\n' "$FIXTURE/wt/apps/web" "$FIXTURE/wt-other" ;;
+	'ps -aq') echo "c-${4#*project=}" ;;
+	'volume ls'|'network ls') echo "$1-${5#*project=}" ;;
+	*) echo "$*" >> "$FIXTURE/docker" ;;
+esac
+MOCK
+cat > "$tmp/bin/ss" <<'MOCK'
+#!/usr/bin/env bash
+printf 'LISTEN 0 0 127.0.0.1:3456 *:* users:(("node",pid=%s,fd=3))\n' $(cat "$FIXTURE/listeners")
+MOCK
+chmod +x "$tmp/bin/"*
+mkdir -p "$tmp/wt/apps/web" "$tmp/wt-other"
+spawn() { (cd "$1" && exec tail -f /dev/null >/dev/null 2>&1) & echo $!; }
+dev=$(spawn "$tmp/wt/apps/web"); agent=$(spawn "$tmp/wt"); other=$(spawn "$tmp/wt-other")
+echo "$dev $other" > "$tmp/listeners"
+check 0 'processes under' "$scripts/reap-worker.sh" "$tmp/wt" worker-a --keep-agent
+! kill -0 "$dev" 2>/dev/null || [[ $(ps -o stat= -p "$dev") == Z* ]]
+kill -0 "$agent" && kill -0 "$other"
+[[ $(cat "$tmp/browser") == 'worker-a close --all' ]]
+[[ $(cat "$tmp/docker") == $'rm -f -v c-mine\nvolume rm -f volume-mine\nnetwork rm network-mine' ]]
+check 0 '1 stopped' "$scripts/reap-worker.sh" "$tmp/wt" worker-a
+! kill -0 "$agent" 2>/dev/null || [[ $(ps -o stat= -p "$agent") == Z* ]]
+kill -0 "$other"
+kill "$other"; wait "$dev" "$agent" "$other" 2>/dev/null || true
+check 1 'usage' "$scripts/reap-worker.sh" "$tmp/wt"
+check 1 'refusing' "$scripts/reap-worker.sh" / worker-a
 printf '%s CLI checks plus safety assertions passed\n' "$checks"
