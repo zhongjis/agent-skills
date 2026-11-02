@@ -165,9 +165,13 @@ case "$1 $2" in
 	*) echo "$*" >> "$FIXTURE/docker" ;;
 esac
 MOCK
-cat > "$tmp/bin/ss" <<'MOCK'
+# Fake only the TCP-listener query; cwd lookups use the real lsof.
+cat > "$tmp/bin/lsof" <<'MOCK'
 #!/usr/bin/env bash
-printf 'LISTEN 0 0 127.0.0.1:3456 *:* users:(("node",pid=%s,fd=3))\n' $(cat "$FIXTURE/listeners")
+case " $* " in
+	*' -iTCP '*) printf '%s\n' $(cat "$FIXTURE/listeners") ;;
+	*) PATH=${PATH#"$FIXTURE/bin:"} exec lsof "$@" ;;
+esac
 MOCK
 chmod +x "$tmp/bin/"*
 mkdir -p "$tmp/wt/apps/web" "$tmp/wt-other"

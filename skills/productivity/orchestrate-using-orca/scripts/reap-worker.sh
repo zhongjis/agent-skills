@@ -4,17 +4,21 @@
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
 # agent, its LSP and MCP children, and the worktree for follow-ups.
-# Linux only: matches processes by /proc/<pid>/cwd.
+# Finds processes with lsof, so it runs on macOS and Linux.
 set -euo pipefail
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 3 ] || { [ "$#" -eq 3 ] && [ "$3" != --keep-agent ]; }; then
 	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent]\n' >&2
 	exit 1
 fi
-root=$(realpath -m -- "$1")
+command -v lsof >/dev/null || {
+	printf 'lsof required\n' >&2
+	exit 1
+}
+root=$(cd -- "$1" && pwd -P)
 agent="$2"
 keep_agent="${3:-}"
-[ "$root" != / ] && [ "$root" != "$(realpath -m -- "$HOME")" ] || {
+[ "$root" != / ] && [ "$root" != "$(cd -- "$HOME" && pwd -P)" ] || {
 	printf 'refusing to reap %s\n' "$root" >&2
 	exit 1
 }
@@ -28,7 +32,10 @@ fi
 
 if command -v docker >/dev/null; then
 	while IFS=$'\t' read -r project dir; do
-		[ -n "$project" ] && inside "$dir" || continue
+		[ -n "$project" ] || continue
+		# Compare real paths: on macOS /var and /tmp are symlinks into /private.
+		real=$(cd -- "$dir" 2>/dev/null && pwd -P) || real="$dir"
+		inside "$real" || continue
 		filter="label=com.docker.compose.project=$project"
 		docker ps -aq --filter "$filter" | xargs -r docker rm -f -v >/dev/null
 		docker volume ls -q --filter "$filter" | xargs -r docker volume rm -f >/dev/null
@@ -38,24 +45,33 @@ if command -v docker >/dev/null; then
 fi
 
 # Never signal this script or the shell that called it.
-declare -A spare=()
+spare=" "
 p=$$
 while [ "$p" -gt 1 ]; do
-	spare[$p]=1
+	spare="$spare$p "
 	p=$(ps -o ppid= -p "$p" | tr -d ' ')
 done
 
+# --keep-agent narrows candidates to processes listening on TCP.
+only=""
 if [ "$keep_agent" = --keep-agent ]; then
-	candidates=$(ss -ltnpH | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
-else
-	candidates=$(ls /proc | grep -E '^[0-9]+$')
+	only=" $(lsof -nP -iTCP -sTCP:LISTEN -t 2>/dev/null | sort -u | tr '\n' ' ') "
 fi
 pids=()
-for pid in $candidates; do
-	[ -z "${spare[$pid]:-}" ] || continue
-	cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null) || continue
-	inside "${cwd% (deleted)}" && pids+=("$pid")
-done
+pid=""
+while IFS= read -r line; do
+	case "$line" in
+		p*) pid=${line#p} ;;
+		n*)
+			case "$spare" in *" $pid "*) continue ;; esac
+			if [ -n "$only" ]; then
+				case "$only" in *" $pid "*) ;; *) continue ;; esac
+			fi
+			n=${line#n}
+			inside "${n% (deleted)}" && pids+=("$pid")
+			;;
+	esac
+done < <(lsof -a -d cwd -Fpn 2>/dev/null || true)
 
 if [ "${#pids[@]}" -gt 0 ]; then
 	kill -TERM "${pids[@]}" 2>/dev/null || true
