@@ -17,7 +17,7 @@
       "id": 2,
       "name": "worktree-comes-from-launch",
       "prompt": "Use orchestrate-using-t3code for the agreed parser repair. Your own thread runs in the linked worktree /Users/me/.t3/worktrees/app/fix-parser. Describe how the worker's worktree is created and how you learn its path; do not run commands.",
-      "expected_output": "Lets t3_thread_launch create the worker worktree with workspaceStrategy type worktree, baseRef, and branch, so T3 creates it from the project checkout rather than the orchestrator's worktree. Reads the actual path from t3_worktree_list for the returned thread ID and confirms HEAD with git rev-parse.",
+      "expected_output": "Lets t3_thread_launch create the worker worktree with workspaceStrategy type worktree, baseRef, and branch, so T3 creates it from the project checkout rather than the orchestrator's worktree. Reads the actual path from thread.worktreePath in t3_thread_read for the returned thread ID and confirms HEAD with git rev-parse.",
       "expectations": [
         "Creates no worktree with shell git commands and puts no checkout setup in the brief.",
         "Reads the worktree path from T3 for the returned thread, never predicting it.",
@@ -161,7 +161,7 @@
       "id": 14,
       "name": "batch-launch-uses-preflight",
       "prompt": "Offline simulation: orchestrate-using-t3code batch review of PRs #41 and #42 with code-review; the task is agreed. A local branch for #41 already exists from an earlier run. Describe the launch of each item without running commands.",
-      "expected_output": "Runs preflight per item: launches Pi worker threads titled for each review with workspaceStrategy worktree and a stable clientRequestId, reads each worktree path from t3_worktree_list, fetches and hard-resets the #41 worktree to the origin head because its local branch already existed, confirms rev-parse, includes $skill:code-review and ulw in each brief, and confirms each run is in progress.",
+      "expected_output": "Runs preflight per item: launches Pi worker threads titled for each review with workspaceStrategy worktree and a stable clientRequestId, reads each worktree path from t3_thread_read, fetches and hard-resets the #41 worktree to the origin head because its local branch already existed, confirms rev-parse, includes $skill:code-review and ulw in each brief, and confirms each run is in progress.",
       "expectations": [
         "Does not review a stale local head for #41.",
         "Uses returned thread IDs and worktree paths, never predicted ones.",

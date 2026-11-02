@@ -11,15 +11,19 @@ fi
 t3="${T3CODE_CLI_PATH:-t3}"
 id="$1"
 settled_once=0
+seen=0
 while true; do
 	if ! snapshot=$("$t3" thread show --json --messages 0 "$id" 2>&1); then
-		if [[ $snapshot == *'is no longer available'* ]]; then
+		# T3 reports a deleted and a never-existing thread alike; only a thread
+		# this watcher saw before counts as gone.
+		if [ "$seen" -eq 1 ] && [[ $snapshot == *'is no longer available'* ]]; then
 			printf 'thread %s: gone\n' "$id"
 			exit 0
 		fi
 		printf '%s\n' "$snapshot" >&2
 		exit 1
 	fi
+	seen=1
 	status=$(jq -er '.thread.status | select(type == "string")' <<<"$snapshot")
 	pending=$(jq -r '.thread.pendingRequestCount // 0' <<<"$snapshot")
 	case "$status" in
