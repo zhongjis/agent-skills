@@ -227,6 +227,32 @@
         "Restarts in the assigned pane and sends the full brief after the replacement is active."
       ],
       "files": []
+    },
+    {
+      "id": 20,
+      "name": "watchers-notify-independently-and-rearm",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for two dispatched Pi workers, runtime-tests and web-tests. Your harness supports separate background tool tasks and notifies when each task exits. runtime-tests keeps working for another hour. web-tests becomes blocked on a numbered chooser asking to repair a test fixture explicitly allowed by its brief. Describe the watcher tool calls and how you handle the notification, including what happens after web-tests resumes. Then explain what changes if the chooser requests an action outside existing authority. Do not run commands or interact with live agents.",
+      "expected_output": "Starts one separate background tool task running scripts/watch-agent.sh per worker, with no sequential watcher chain or output pipeline. Receives web-tests notification independently of runtime-tests, reads its visible pane, answers the authorized fixture question using send-keys, confirms working, and starts a fresh watcher for web-tests. A question beyond existing authority goes to the user rather than being approved automatically.",
+      "expectations": [
+        "Launches each watcher in its own background tool task without an output pipeline or sequential watcher chain.",
+        "Inspects web-tests visible pane on notification without waiting for runtime-tests to finish.",
+        "Answers the pre-authorized chooser, confirms working, and re-arms web-tests with a new watcher.",
+        "Escalates a decision beyond existing authority rather than treating every chooser as pre-authorized."
+      ],
+      "files": []
+    },
+    {
+      "id": 21,
+      "name": "scope-follows-outcome-and-coordinates-overlap",
+      "prompt": "Offline simulation: orchestrate-using-herdr --watch for two agreed tasks: remove production-literal restatements from runtime tests and from web tests. The user requires unchanged production behavior, protected unrelated work, and no publication; they have not restricted edits to named directories. Supporting dependencies have not yet been fully investigated. Describe the Scope clauses and implementation ownership in the briefs. Later the web worker discovers that a necessary constant extraction overlaps a file the runtime worker is editing. Explain how you handle it. Also explain what happens if the needed edit crosses an explicit user exclusion. Do not run commands or interact with live agents.",
+      "expected_output": "Defines each task by its agreed outcome and necessary supporting edits while preserving the assigned worktree, unchanged production behavior, unrelated work, and no-publication restriction. Leaves investigation and implementation approach with workers rather than inventing directory fences. Grounds any file boundary in agreed scope or actual concurrent work. Coordinates discovered overlap between workers without silently allowing conflicting edits or requiring a user decision already covered by existing authority. Honors explicit user exclusions and escalates decisions that would exceed authority.",
+      "expectations": [
+        "Defines scope by the assigned outcome and necessary supporting edits without inventing unsupported directory restrictions.",
+        "Leaves investigation and implementation approach with workers while grounding file boundaries in agreed scope or actual concurrent work.",
+        "Coordinates discovered sibling overlap through the orchestrator rather than silently overwriting work or escalating routine coordination to the user.",
+        "Preserves assigned worktrees, protected work, explicit exclusions, and publication gates; escalates decisions beyond existing authority."
+      ],
+      "files": []
     }
   ]
 }
