@@ -1,0 +1,259 @@
+{
+  "skill_name": "orchestrate-using-t3code",
+  "evals": [
+    {
+      "id": 1,
+      "name": "default-fire-and-forget-single",
+      "prompt": "Use orchestrate-using-t3code for the agreed cache-key validation fix. We are in the repository's T3 project. We already agreed to validate keys in the save path and reuse the existing KeyError type. No flags.",
+      "expected_output": "Writes the spec as the brief (no ticket), carries the agreed save-path and KeyError details as binding, launches one Pi worker thread with t3_thread_launch in a new worktree from the agreed base, sends the brief ending with ulw as its message, confirms the run is in progress, reports the handoff with the thread link, and stops.",
+      "expectations": [
+        "Creates no issue-tracker ticket without --track.",
+        "Marks the agreed implementation details binding in the brief.",
+        "Stops after confirming the worker run started, without monitoring."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "worktree-comes-from-launch",
+      "prompt": "Use orchestrate-using-t3code for the agreed parser repair. Your own thread runs in the linked worktree /Users/me/.t3/worktrees/app/fix-parser. Describe how the worker's worktree is created and how you learn its path; do not run commands.",
+      "expected_output": "Lets t3_thread_launch create the worker worktree with workspaceStrategy type worktree, baseRef, and branch, so T3 creates it from the project checkout rather than the orchestrator's worktree. Reads the actual path from t3_worktree_list for the returned thread ID and confirms HEAD with git rev-parse.",
+      "expectations": [
+        "Creates no worktree with shell git commands and puts no checkout setup in the brief.",
+        "Reads the worktree path from T3 for the returned thread, never predicting it.",
+        "Confirms the worktree HEAD equals the intended base."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "track-files-ticket-first",
+      "prompt": "Use orchestrate-using-t3code --track for the agreed import validation repair. No ticket exists yet; the repository files issues in Linear.",
+      "expected_output": "Creates one Linear ticket from the spec in Markdown before any launch. Names the worker <issue-id>-<slug>, chooses the branch by repository convention, and gives the thread a friendly title. Launches the worker thread, reads its worktree path from T3, links the ticket in the brief with the close-out comment as a worker deliverable, then reports the handoff and stops because no supervision mode was given.",
+      "expectations": [
+        "Creates the ticket before launching the worker thread.",
+        "Does not supervise: --track is not a mode.",
+        "Puts the ticket close-out in the brief as a worker deliverable."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "batch-shares-one-brief",
+      "prompt": "Earlier in this conversation we agreed: review PRs #41, #42 and #43 with code-review, draft verdicts only, no posting. Now: orchestrate-using-t3code.",
+      "expected_output": "Launches one worker thread per PR immediately without asking to confirm a plan, using one shared brief that differs only in the target PR; carries the draft-only, no-posting decision into every brief.",
+      "expectations": [
+        "Does not ask for plan confirmation of already agreed work.",
+        "Uses one shared brief with only the target differing.",
+        "Carries the no-posting decision as a binding decision."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "auto-merge-fails-closed",
+      "prompt": "Offline simulation: orchestrate-using-t3code --auto. The worker reported PR #12 at head abc123. A watch_pull_request wake says required checks passed, but the configured AI reviewer has not responded to abc123 after the worker's last push. What do you do?",
+      "expected_output": "Treats the wake as a signal, not a merge decision. Leaves PR #12 open with evidence because the reviewer gate for the current head is not closed; does not merge or bypass protection; reports the exact blocker.",
+      "expectations": [
+        "Re-checks the head SHA before any merge.",
+        "Treats a silent reviewer as an open gate, not approval.",
+        "Does not treat a watch wake as merge readiness."
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "name": "watch-authorizes-local-dependency-checkpoints",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for three agreed implementation tickets. Tickets B and C depend on A. Mode and Git-skill defaults require explicit commit permission. No push, PR, or merge was requested. State the Git authority and relevant brief clauses; do not run commands.",
+      "expected_output": "Treats invocation as explicit authorization for scoped local implementation commits and dependency checkpoints. Includes that permission and permission to use subagents in worker briefs and does not ask separately for commit approval. Preserves normal hooks and unrelated work; does not authorize push, PR, merge, deployment, or history rewriting and does not edit global instructions or mode prompts.",
+      "expectations": [
+        "Allows local dependency checkpoints without another approval question.",
+        "Carries local-commit permission explicitly into implementation briefs.",
+        "Keeps publication, merge, deployment, and history rewriting outside this local permission.",
+        "Changes no global or mode authorization defaults."
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "name": "explicit-no-commit-overrides-default",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for the agreed parser fix, but leave all work uncommitted. Explain worker authority without running commands.",
+      "expected_output": "Carries the explicit no-commit restriction into the worker brief, leaves changes uncommitted, and does not reinterpret the skill's default as permission to commit or publish.",
+      "expectations": [
+        "Honors the explicit no-commit instruction.",
+        "Does not authorize commits, publication, or merge."
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "name": "review-followup-stays-worker-owned",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch. A Pi worker thread finished the implementation and published PR #198. Now address its review comments and an existing failing test gate. Most implementation context is noise for this phase. One comment needs only a short reply. Explain routing without running commands.",
+      "expected_output": "Uses Handoff for the new phase: asks the worker to write a handoff document and return its path, stops the old thread, and launches a replacement thread on the same worktree with existing_worktree that reads the path and runs the review-comment and test-gate workflow. The orchestrator checks returned evidence and destination state, returning missing evidence to the worker rather than performing repairs or posting the short reply itself.",
+      "expectations": [
+        "Keeps execution with a worker rather than taking over small tasks.",
+        "Uses Handoff through a replacement thread bound to the existing worktree.",
+        "Retains orchestrator acceptance and verification without duplicating worker execution."
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "name": "dependent-implementation-uses-stack-bases",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for three agreed changes: foundation, authorization, and execution. Authorization depends on foundation; execution depends on authorization. Each layer can safely land on main alone, behind flags where needed. The agreed root base is main. Plan the implementation branch topology and worker launches. No publication was requested; do not run commands.",
+      "expected_output": "Uses land-change to choose a GitHub stack because each layer can land alone. Launches foundation with baseRef main; queues authorization and execution until their prerequisite is verified, then launches each with its prerequisite branch as baseRef and startFromOrigin false. Carries branch and prerequisite-base identities into worker briefs without publishing PRs.",
+      "expectations": [
+        "Chooses gh stack only after establishing that each layer can land on main alone; keeps the dependent implementation branches chained.",
+        "Launches each dependent layer from its local prerequisite branch with startFromOrigin false.",
+        "Keeps publication and history rewriting outside the local implementation authority."
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "name": "publication-continues-implementation-stack",
+      "prompt": "Offline simulation: three worker threads completed and verified an existing gh stack in their worktrees: feature/foundation on main, feature/auth on feature/foundation, and feature/execution on feature/auth. The workers are idle and their worktrees clean. Publish these changes as three dependent PRs. Explain which threads, branches, and worktrees you use and how you preserve recovery points; do not run commands.",
+      "expected_output": "Routes authorized publication through the existing worker threads using the existing branches and worktrees, with PR bases main, feature/foundation, and feature/auth respectively. Preserves recovery points with backup refs if needed rather than creating a second publication stack. Keeps merge and history-rewrite authorization separate.",
+      "expectations": [
+        "Publishes from feature/foundation, feature/auth, and feature/execution in their existing worktrees with the correct chained PR bases.",
+        "Does not create replacement publication branches merely to preserve original worker branches as immutable.",
+        "Uses backup refs when recovery points are needed and retains worker execution ownership.",
+        "Does not infer merge or history-rewrite permission from publication permission."
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "name": "off-ends-mode",
+      "prompt": "Earlier this session you ran orchestrate-using-t3code. Now: orchestrate-using-t3code --off. Then: fix the typo in README.md.",
+      "expected_output": "Ends orchestrator mode, then fixes the typo directly under normal rules without launching a worker thread.",
+      "expectations": [
+        "Treats --off as ending the mode and the skill rules.",
+        "Launches no worker thread for the later task."
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "name": "sticky-mode-flag-scope",
+      "prompt": "Offline simulation: you ran orchestrate-using-t3code --watch for task A earlier this session; A is settled. The user now asks for an unrelated task B with no flags, then asks: what is the status of A? Explain routing without running commands.",
+      "expected_output": "Launches B as a new worker thread in its own worktree because the mode is sticky, and does not supervise B because --watch applied only to the earlier invocation; reports the handoff and stops.",
+      "expectations": [
+        "Routes B to a new worker thread rather than executing it directly.",
+        "Does not carry --watch over to B.",
+        "Answers a later status question directly instead of launching a worker."
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "name": "fire-and-forget-queues-dependent-tasks",
+      "prompt": "Offline simulation: orchestrate-using-t3code with no flags for three agreed tasks; B and C are blocked by A. Explain what you launch and report without running commands.",
+      "expected_output": "Launches only A, reports B and C as queued with their blocker, and stops without supervising or starting dependents on unverified work.",
+      "expectations": [
+        "Launches only the task with no prerequisites.",
+        "Reports dependent tasks as queued with their prerequisites.",
+        "Does not switch to supervision on its own."
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "name": "batch-launch-uses-preflight",
+      "prompt": "Offline simulation: orchestrate-using-t3code batch review of PRs #41 and #42 with code-review; the task is agreed. A local branch for #41 already exists from an earlier run. Describe the launch of each item without running commands.",
+      "expected_output": "Runs preflight per item: launches Pi worker threads titled for each review with workspaceStrategy worktree and a stable clientRequestId, reads each worktree path from t3_worktree_list, fetches and hard-resets the #41 worktree to the origin head because its local branch already existed, confirms rev-parse, includes $skill:code-review and ulw in each brief, and confirms each run is in progress.",
+      "expectations": [
+        "Does not review a stale local head for #41.",
+        "Uses returned thread IDs and worktree paths, never predicted ones.",
+        "Confirms each worker run started before treating dispatch as done."
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "name": "init-marks-orchestrator-thread",
+      "prompt": "Use orchestrate-using-t3code for the agreed cache-key validation fix. Case A: your thread is titled `api work`. Case B: your thread is titled `[o] api work` and the skill is invoked again.",
+      "expected_output": "Reads its own thread ID from t3_thread_list, runs scripts/orchestrate-init.sh with it before any launch, and keeps the printed log path. Renames the thread to `[o] api work` in Case A and leaves the title unchanged in Case B; pins the thread; changes no other thread's title or pin.",
+      "expectations": [
+        "Runs orchestrate-init.sh once at the start with its own thread ID and keeps its log path.",
+        "Never produces a doubled `[o] [o]` prefix.",
+        "Renames and pins only its own thread."
+      ],
+      "files": []
+    },
+    {
+      "id": 16,
+      "name": "checkpoints-stay-in-one-task",
+      "prompt": "Use orchestrate-using-t3code --track for the agreed deploy-efficiency plan. The conversation agreed one outcome, faster and reliable Runtime and Network deployments, delivered through four ordered checkpoints: release timeout, build cache, image scope, and measured results. No ticket exists yet; the repository files issues in Linear.",
+      "expected_output": "Files one Linear ticket listing the four checkpoints as acceptance criteria and launches one worker thread in one worktree that runs the checkpoints in order.",
+      "expectations": [
+        "Creates exactly one ticket, with the four checkpoints as acceptance criteria.",
+        "Launches one worker thread in one worktree; does not build a gh stack.",
+        "Does not split the checkpoints into separate tasks, tickets, or workers."
+      ],
+      "files": []
+    },
+    {
+      "id": 17,
+      "name": "reports-at-yield-from-log",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its brief answers, and B, a Pi worker, needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. Describe what you log and what you report to the user, and when; do not run commands.",
+      "expected_output": "Logs every task event with scripts/log.sh. Reports the first dispatch wave (A and B running with thread links, C queued behind A) before waiting; answers A from the brief with t3_pending_request and compacts B by sending /compact, logging both; reports A settling as one line with PR #31 at def456 and C launched; ends with a final per-task report built from the log, including the log path.",
+      "expectations": [
+        "Reports the dispatch wave before waiting on workers.",
+        "Does not report the brief-answered question or the context transition; logs them.",
+        "Builds settle and final reports from log rows with returned evidence."
+      ],
+      "files": []
+    },
+    {
+      "id": 18,
+      "name": "atomic-repairs-stay-top-only",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch. Five draft layer PRs feed one landing PR from the top branch to main because none of the layers can deploy alone. CI and review findings affect three layers. Route the repairs and write the key brief instruction; do not run commands.",
+      "expected_output": "Reads land-change, sends every repair to the top worker thread only, and tells that worker to fix each valid bug class across sibling calls through the shared function. Does not fan out one repair worker per layer or rebase the atomic branch.",
+      "expectations": [
+        "Routes all CI and review repairs to the top worker before any fan-out.",
+        "Uses draft layers and one top-to-main landing PR.",
+        "Briefs require bug-class fixes rather than isolated call-site patches."
+      ],
+      "files": []
+    },
+    {
+      "id": 19,
+      "name": "pr-linked-and-watched",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch. Worker cache-keys reports PR #57 at head 9f1c2e. Describe the tool calls you make for the PR and what you do when a later wake reports a failing check; do not run commands.",
+      "expected_output": "Links PR #57 to the worker's thread with link_pull_request and arms watch_pull_request on its own thread, logging both, then ends its turn if nothing else needs it. On the failing-check wake, reads the failure, sends the in-scope repair to the worker thread with t3_thread_send, and does not re-arm the watch.",
+      "expectations": [
+        "Links the PR to the worker thread, not the orchestrator thread.",
+        "Arms the PR watch once on its own thread and does not poll CI with a script.",
+        "Routes the repair to the worker instead of fixing it."
+      ],
+      "files": []
+    },
+    {
+      "id": 20,
+      "name": "watchers-notify-independently-and-rearm",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for two Pi worker threads, runtime-tests and web-tests. Your harness supports separate background tool tasks and notifies when each task exits. runtime-tests keeps running for another hour. web-tests stops on a question asking whether to repair a test fixture explicitly allowed by its brief. Describe the watcher tool calls and how you handle the notification, including what happens after web-tests resumes. Then explain what changes if the question needs a decision outside existing authority, and what changes if web-tests instead waits on a tool approval. Do not run commands or interact with live agents.",
+      "expected_output": "Starts one separate background tool task running scripts/watch-thread.sh per worker thread, with no sequential watcher chain or output pipeline. Receives the web-tests notification independently of runtime-tests, reads its thread, answers the authorized fixture question with t3_pending_request, confirms the run continues, and starts a fresh watcher for web-tests. A question beyond existing authority goes to the user. A tool approval is reported to the user with the thread link, because only the user can approve it in T3.",
+      "expectations": [
+        "Launches each watcher in its own background tool task without an output pipeline or sequential watcher chain.",
+        "Handles the web-tests notification without waiting for runtime-tests to finish.",
+        "Answers the pre-authorized question, confirms the run continues, and re-arms web-tests with a new watcher.",
+        "Escalates decisions beyond existing authority and every tool approval to the user."
+      ],
+      "files": []
+    },
+    {
+      "id": 21,
+      "name": "scope-follows-outcome-and-coordinates-overlap",
+      "prompt": "Offline simulation: orchestrate-using-t3code --watch for two agreed tasks: remove production-literal restatements from runtime tests and from web tests. The user requires unchanged production behavior, protected unrelated work, and no publication; they have not restricted edits to named directories. Supporting dependencies have not yet been fully investigated. Describe the Scope clauses and implementation ownership in the briefs. Later the web worker discovers that a necessary constant extraction overlaps a file the runtime worker is editing. Explain how you handle it. Also explain what happens if the needed edit crosses an explicit user exclusion. Do not run commands or interact with live agents.",
+      "expected_output": "Defines each task by its agreed outcome and necessary supporting edits while preserving the assigned worktree, unchanged production behavior, unrelated work, and no-publication restriction. Leaves investigation and implementation approach with workers rather than inventing directory fences. Grounds any file boundary in agreed scope or actual concurrent work. Coordinates discovered overlap between workers without silently allowing conflicting edits or requiring a user decision already covered by existing authority. Honors explicit user exclusions and escalates decisions that would exceed authority.",
+      "expectations": [
+        "Defines scope by the assigned outcome and necessary supporting edits without inventing unsupported directory restrictions.",
+        "Leaves investigation and implementation approach with workers while grounding file boundaries in agreed scope or actual concurrent work.",
+        "Coordinates discovered sibling overlap through the orchestrator rather than silently overwriting work or escalating routine coordination to the user.",
+        "Preserves assigned worktrees, protected work, explicit exclusions, and publication gates; escalates decisions beyond existing authority."
+      ],
+      "files": []
+    }
+  ]
+}

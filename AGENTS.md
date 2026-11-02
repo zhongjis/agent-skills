@@ -100,4 +100,4 @@ When the user requests a durable behavior change, record it here or in the relev
 - `packs/AGENTS.md` — bootstrap pack manifests, ordering, validation, and lock-ownership contracts
 - `tests/AGENTS.md` — repository verification (`selector.nix`, `packs.sh`, `check-updates.sh`)
 - `skills/AGENTS.md` — authored/adapted skill ownership, routing, and whole-tree contracts
-- Root-owned files: `README.md`, `LICENSE` (MIT), `flake.nix`, `skill-selection.nix`, `packs.sh`, `check-updates.sh`, `.gitignore`, and any other root-level project documentation or runner.
+- Root-owned files: `README.md`, `LICENSE` (MIT), `flake.nix`, `skill-selection.nix`, `packs.sh`, `check-updates.sh`, `.gitignore`, `docs/specs/` (design specs for skills, one Markdown file per spec), and any other root-level project documentation or runner.
