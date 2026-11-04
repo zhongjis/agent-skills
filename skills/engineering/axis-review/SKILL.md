@@ -1,5 +1,5 @@
 ---
-name: code-review
+name: axis-review
 description: "Multi-axis code review for local diffs (git/jj) and GitHub PRs — independent review axes reported as isolated passes so no axis masks another."
 disable-model-invocation: true
 adaptedFrom:
