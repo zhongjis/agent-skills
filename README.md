@@ -62,8 +62,8 @@ npx skills add zhongjis/agent-skills --skill caveman --skill splunk --agent clau
 Work Pi example:
 
 ```sh
-skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-jsonl-logs --agent pi --copy -y
-npx skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-jsonl-logs --agent pi --copy -y
+skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-session-logs --agent pi --copy -y
+npx skills add zhongjis/agent-skills --skill caveman --skill splunk --skill pi-session-logs --agent pi --copy -y
 ```
 
 Notes:

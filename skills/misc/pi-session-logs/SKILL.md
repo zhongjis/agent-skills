@@ -1,5 +1,5 @@
 ---
-name: pi-jsonl-logs
+name: pi-session-logs
 description: Parse and analyze pi agent session logs (JSONL format). Use this skill whenever you need to read or extract data from pi session files — including finding sessions for a project, extracting conversation threads, auditing tool usage, computing cost/token stats, or searching across sessions. Load this skill before touching any .jsonl file under ~/.pi/agent/sessions or similar session directories.
 ---
 
