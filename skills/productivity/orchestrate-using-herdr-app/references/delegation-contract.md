@@ -52,6 +52,7 @@ External results the mode or task requires, embedded in full: the worker contrac
 
 - **Scope:** use file boundaries when the agreed scope or concurrent work requires them, not as a substitute for understanding dependencies. Workers own the approach. Route discovered overlap to the orchestrator for coordination; ask the user only when a decision exceeds existing authority.
 - **Review-comment briefs:** for each valid finding, fix the bug class: find every sibling call with the same defect and fix the shared function once.
+- **Pre-PR stop:** under `--watch` or `--auto`, a brief whose Deliverables include a PR adds: push, report "ready to create PR" with the head SHA, fix the review findings the orchestrator sends, and open the PR only when it says to ([supervise.md](supervise.md)).
 - **Batch briefs** share one filled template; only the target in What to build, its inputs, and per-target overrides differ.
 - **Link or inline.** Link sources the worker can open; inline anything that exists only in the conversation. Inline a snippet only when it encodes a decision more precisely than prose (schema, type shape, state machine).
 - **Redact** secrets and sensitive data from every section.

@@ -253,6 +253,32 @@
         "Preserves assigned worktrees, protected work, explicit exclusions, and publication gates; escalates decisions beyond existing authority."
       ],
       "files": []
+    },
+    {
+      "id": 22,
+      "name": "peer-orchestrator-runs-in-visible-tab",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j, supervising A2A-466 in apps/network-connector-cli. The user says: file one ticket per Web regression batch, then pass all that work to another Claude Code thread (not a subagent) that runs /orchestrate-using-herdr-app --watch, so you two run in parallel. Describe the exact commands and checks.",
+      "expected_output": "Files the tickets, then starts the peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv claude and a brief opening with /orchestrate-using-herdr-app --watch, not as a hidden hc child or harness subagent; keeps the peer tasks disjoint, asks it to report via hc send t1j, and confirms it is working with no parent.",
+      "expectations": [
+        "Starts the peer with herdr-app do tab.new (space from herdr-app ls, folder at the source checkout, argv claude), not start-worker.sh, hc run, or the harness agent tool",
+        "The peer brief opens with /orchestrate-using-herdr-app --watch and lists only the Web regression tickets, disjoint from A2A-466",
+        "Asks the peer to report to t1j with hc send and leaves the peer to own its workers, worktrees, and reaping",
+        "Confirms with hc get that the peer terminal is working and has no parent before reporting"
+      ],
+      "files": []
+    },
+    {
+      "id": 23,
+      "name": "pre-pr-review-by-other-kind",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --auto. Pi worker a2a-448-web in ~/.herdr/worktrees/xiangxi/a2a-448-web (base origin/main, branch server-agent-web) reports: pushed, ready to create PR, head 3793f059. git diff --shortstat origin/main...HEAD (lockfiles excluded) shows 73 files changed, 4100 insertions, including a new Prisma migration. Describe what you do until the PR opens.",
+      "expected_output": "Sizes the diff, picks high (large and touches a migration), starts a claude reviewer named a2a-448-web-review in the same worktree with only /code-review high server-agent-web, answers the folder-trust dialog, watches it, routes findings to the Pi worker with hc send and re-reviews the next pushed head, removes the reviewer with hc kill and hc rm (never reap-worker.sh on the shared worktree), logs reviewed with shortstat, kind, level and result, and tells the worker to open the PR only after a clean review.",
+      "expectations": [
+        "Chooses level high from the shortstat and the migration, and logs a reviewed row with the shortstat, kind, level, and result",
+        "Starts the reviewer as a claude hc worker in the same worktree via start-worker.sh --kind claude with the brief /code-review high server-agent-web, no --fix or --comment, and handles folder trust",
+        "Routes findings to the Pi worker with hc send, waits for its new pushed head, and repeats the review before releasing the PR",
+        "Removes the reviewer with hc kill and hc rm, without reap-worker.sh on the shared worktree, and only then tells the worker to open the PR"
+      ],
+      "files": []
     }
   ]
 }

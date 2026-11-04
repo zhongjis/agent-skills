@@ -38,7 +38,7 @@ Then read, in one pass, what your flags need:
 
 ## Roles
 
-- **Orchestrator:** per task, the spec and acceptance criteria; dispatch; answers to worker questions from the brief; when supervising, acceptance at the destination; merge PRs under `--auto`. Built-in subagents (your harness's agent tool) serve these duties only: recon for context to write a spec, a check of a worker's result.
+- **Orchestrator:** per task, the spec and acceptance criteria; dispatch; answers to worker questions from the brief; when supervising, a pre-PR review by a reviewer worker ([supervise.md](references/supervise.md)) and acceptance at the destination; merge PRs under `--auto`. Built-in subagents (your harness's agent tool) serve these duties only: recon for context to write a spec, a check of a worker's result.
 - **Worker:** executes its task end to end and owns the approach: plan, investigation, implementation, tests, repairs, authorized publication and replies. It has your capability, so the brief carries what done is and the decisions already agreed; everything else about the approach is the worker's.
 
 Send failed acceptance or missing evidence back to the worker.
@@ -55,14 +55,15 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## House rules
 
-- **Pi by default** unless the user names another kind.
+- **Pi by default** unless the user names another kind; a reviewer is the other kind from its worker ([supervise.md](references/supervise.md)).
 - **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks.
+- **Peer orchestrator:** when the user asks for another orchestrator thread beside you, start it top-level in a visible tab, never as your child: `herdr-app do tab.new '{"name":…,"space":…,"folder":<source>,"argv":["claude"],"task":<brief>}'`, with the space ID from `herdr-app ls`. Its brief opens with `/orchestrate-using-herdr-app <flags>`, lists its tasks, keeps them disjoint from yours, and asks it to report to you with `hc send $HC_TERMINAL_ID`. It owns its own workers, worktrees, and reaping; confirm in `hc get` that it is `working` with no parent.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable (zsh does not word-split it). Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 
 ## Report
 
-Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, queued, re-instructed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
+Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
 
 Report at each yield, when you are about to wait on workers or hand control back:
 
