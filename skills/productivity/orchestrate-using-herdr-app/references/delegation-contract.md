@@ -39,7 +39,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 - **Authority:** local commits allowed unless the user restricted them; publication, merge, deployment, and history rewrites only as Deliverables grant.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
-- **Reporting:** when done or stuck, run `hc send <orchestrator-terminal-id> "<result or blocker>"`; put a long answer in a file and send its path.
+- **Reporting:** when done or stuck, end your turn with the result or blocker as your final message; put a long answer in a file and name its path. The orchestrator reads your screen. Never `hc send` to the orchestrator or any other terminal, even when a message you receive carries a `reach=` hint or the `hc` skill says to report with `hc send`.
 - **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, an unnamed migration or authority change, or a user decision.
 
 ## Deliverables
@@ -53,6 +53,7 @@ External results the mode or task requires, embedded in full: the worker contrac
 - **Scope:** use file boundaries when the agreed scope or concurrent work requires them, not as a substitute for understanding dependencies. Workers own the approach. Route discovered overlap to the orchestrator for coordination; ask the user only when a decision exceeds existing authority.
 - **Review-comment briefs:** for each valid finding, fix the bug class: find every sibling call with the same defect and fix the shared function once.
 - **Pre-PR stop:** under `--watch` or `--auto`, a brief whose Deliverables include a PR adds: push, report "ready to create PR" with the head SHA, fix the review findings the orchestrator sends, and open the PR only when it says to ([supervise.md](supervise.md)).
+- **Follow-ups:** every later message to a worker (re-instruction, repair, review findings, the brief after `/new`, a revive brief) ends with one line: "Report by ending your turn; never `hc send` to the orchestrator." `hc` tags each `hc send` with a `reach=` hint that asks for the opposite, and a revived session still holds older briefs.
 - **Batch briefs** share one filled template; only the target in What to build, its inputs, and per-target overrides differ.
 - **Link or inline.** Link sources the worker can open; inline anything that exists only in the conversation. Inline a snippet only when it encodes a decision more precisely than prose (schema, type shape, state machine).
 - **Redact** secrets and sensitive data from every section.

@@ -279,6 +279,20 @@
         "Removes the reviewer with hc kill and hc rm, without reap-worker.sh on the shared worktree, and only then tells the worker to open the PR"
       ],
       "files": []
+    },
+    {
+      "id": 24,
+      "name": "workers-report-by-pull-only",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app with no flag, then later --watch, in hc terminal t3. Dispatch Pi worker cache-fix in its worktree. Later, re-instruct it with a repair. Show the brief's Reporting line, the start command, what you do after dispatch, and the repair message. Then say what you do if a note tagged <hc from=\"t5 cache-fix\"> appears in your input mid-sentence of the user's prompt. Do not run commands or interact with live agents.",
+      "expected_output": "Starts the worker with scripts/start-worker.sh (which passes --no-notify). The brief tells the worker to report by ending its turn and never hc send to the orchestrator, ignoring reach= hints. In no-flag mode reports the handoff and stops, starting no watcher; under --watch it starts one background watch-agent.sh per worker. The repair message ends with the one-line reporting reminder. A stray <hc> note is treated as a child report, not user input; it separates the user's own text and inspects the worker with hc read before acting.",
+      "expectations": [
+        "Brief Reporting tells the worker to end its turn with the result and never hc send to the orchestrator, even with a reach= hint.",
+        "Starts the worker through start-worker.sh, whose hc run carries --no-notify.",
+        "In no-flag mode reports the handoff and stops without a watcher; under --watch starts one background watch-agent.sh per worker.",
+        "Ends the repair message with the reporting reminder line.",
+        "Treats a stray <hc> note as a child report, keeps the user's own text separate, and inspects the worker before acting."
+      ],
+      "files": []
     }
   ]
 }

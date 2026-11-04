@@ -93,7 +93,7 @@ printf 'Fix $skill:x ; $(false)\nulw' > "$tmp/brief"
 rm -f "$tmp/gets"
 check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(cat "$tmp/gets") == 3 ]]
-[[ $(head -n 1 "$tmp/calls") == "run --bg --json --name worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=worker-a pi Fix \$skill:x ; \$(false)" ]]
+[[ $(head -n 1 "$tmp/calls") == "run --bg --json --no-notify --name worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=worker-a pi Fix \$skill:x ; \$(false)" ]]
 [[ $(cat "$tmp/labels") == "label worker-a hibernate=ok" ]]
 : > "$tmp/calls"
 check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1

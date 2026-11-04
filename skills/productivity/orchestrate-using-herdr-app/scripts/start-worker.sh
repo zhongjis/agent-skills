@@ -51,8 +51,9 @@ if [ -n "$session" ]; then
 fi
 
 # hc terminals do not inherit this shell's environment, so pass the
-# namespace through env. The agent CLI submits the brief from its argv.
-hc run --bg --json --name "$name" --cwd "$worktree" --outlive-parent \
+# namespace through env. --no-notify keeps hc's notes about the worker out
+# of the orchestrator's input, where they would collide with the user's typing. The agent CLI submits the brief from its argv.
+hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
 	env "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$(cat "$brief")"
 hc label "$name" hibernate=ok >/dev/null
 
