@@ -1,0 +1,2 @@
+{"type":"user","uuid":"s1","parentUuid":null,"isSidechain":true,"agentId":"abc","sessionId":"S1","cwd":"/work/proj","timestamp":"2026-11-01T10:00:08.100Z","message":{"role":"user","content":"Locate tests SUBPROMPT"}}
+{"type":"assistant","uuid":"s2","parentUuid":"s1","isSidechain":true,"agentId":"abc","timestamp":"2026-11-01T10:00:08.200Z","message":{"id":"msg_s","model":"claude-haiku-5-5","role":"assistant","content":[{"type":"tool_use","id":"st1","name":"Grep","input":{"pattern":"describe","path":"/work/proj/test"}}],"usage":{"input_tokens":3,"output_tokens":4}}}

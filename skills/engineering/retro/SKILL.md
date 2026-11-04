@@ -14,7 +14,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 ## Steps
 
 1. Invoke the skill `writing-for-agents` for the writing style guide.
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. Locate session logs and steering files through the **Agent Environment** list; ask for a path only when it has no entry.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. Locate session logs and steering files through the **Agent Environment** list; ask for a path only when it has no entry. Read a session log through the harness's `*-session-logs` skill (`claude-session-logs`, `pi-session-logs`) when one exists.
 3. List the session's steering inputs: the four **steering layers** (global `AGENTS.md`, mode prompt, subagent prompts, project `AGENTS.md`), skills loaded or passed to workers, and the ticket and handoff prompt. Each finding names the **owning source**: the one input that produced the behavior.
 4. Look for candidates for improvement in these categories.
 
