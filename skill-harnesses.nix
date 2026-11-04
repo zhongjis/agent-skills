@@ -1,3 +1,1 @@
-{
-  pi-jsonl-logs = "pi";
-}
+{}
