@@ -28,6 +28,9 @@ case "$1" in
 		[[ $MODE != run-fail ]] || { echo '{"error":{"kind":"name_taken"}}' >&2; exit 1; }
 		echo '{"address":"t9","state":"live","turn":0}'
 		exit ;;
+	label)
+		printf '%s\n' "$*" >> "$FIXTURE/labels"
+		exit ;;
 	wait)
 		[[ $MODE != gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
 		[[ $MODE != wait-error ]] || { echo '{"error":{"kind":"io"}}' >&2; exit 1; }
@@ -91,6 +94,14 @@ rm -f "$tmp/gets"
 check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(cat "$tmp/gets") == 3 ]]
 [[ $(head -n 1 "$tmp/calls") == "run --bg --json --name worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=worker-a pi Fix \$skill:x ; \$(false)" ]]
+[[ $(cat "$tmp/labels") == "label worker-a hibernate=ok" ]]
+: > "$tmp/calls"
+check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1
+[[ $(head -n 1 "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a pi --session s-1 Fix'* ]]
+: > "$tmp/calls"
+check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude --resume u-1
+[[ $(head -n 1 "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a claude --resume u-1 Fix'* ]]
+check 1 'cannot resume' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind codex --resume x
 : > "$tmp/calls"
 check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind codex
 [[ $(head -n 1 "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a codex --no-daemon Fix'* ]]

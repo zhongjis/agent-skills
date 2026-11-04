@@ -1,6 +1,16 @@
 # Agent quirks
 
-Read only the section for the agent kind you start or read. `<name>` is the worker's `hc` terminal name.
+Read only the section for the agent kind you start or read, plus Hibernated workers. `<name>` is the worker's `hc` terminal name.
+
+## Hibernated workers
+
+herdr-app's Focus sidebar hibernates a Pi or Claude worker that stays idle for 15 minutes, to free the host. It exits the agent, and the terminal finishes with the labels `hibernated=<ms>` and `resume=<line>`. Its exit notice is that hibernation, not a crash. A `hc send` to it fails with exit 11 (finished).
+
+Before you send a hibernated worker more work, revive it:
+
+1. Read the session id from the `resume` label in `hc get <name> --json`: the value after `--session` (Pi) or `--resume` (Claude).
+2. `hc rm <name>`.
+3. `scripts/start-worker.sh <name> <worktree> <brief-file> --resume <session> [--kind <kind>]`, with the follow-up as the brief. It keeps the name, worktree, browser namespace, and session.
 
 ## pi
 
