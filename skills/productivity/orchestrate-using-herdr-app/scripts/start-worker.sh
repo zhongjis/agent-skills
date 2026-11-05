@@ -4,7 +4,9 @@
 # AGENT_BROWSER_NAMESPACE and the brief as its first message, then confirm
 # the agent took the brief. --resume continues that Pi or Claude session
 # (a hibernated worker's) instead of starting a new one. The terminal is
-# labelled hibernate=ok, so herdr-app's Focus sidebar may hibernate it.
+# labelled hibernate=ok, so herdr-app's Focus sidebar may hibernate it, and
+# space=<id> with the orchestrator's space, so herdr-app's spaces sidebar
+# still lists it there after the orchestrator's pane closes.
 # Rejects agent names outside [a-z][a-z0-9_-]{0,31}. A failed launch is
 # printed as hc returned it and never retried. Exit 2: the terminal started
 # but the brief is not confirmed (blocked, error, finished, or no turn after
@@ -55,7 +57,14 @@ fi
 # of the orchestrator's input, where they would collide with the user's typing. The agent CLI submits the brief from its argv.
 hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
 	env "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$(cat "$brief")"
-hc label "$name" hibernate=ok >/dev/null
+# The orchestrator's space: its own space label, else its pane's herdr.space.
+space=
+if [ -n "${HC_TERMINAL_ID:-}" ]; then
+	space=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null | jq -r '.labels.space // .labels["herdr.space"] // empty' 2>/dev/null) || space=
+fi
+labels=(hibernate=ok)
+[ -z "$space" ] || labels+=("space=$space")
+hc label "$name" "${labels[@]}" >/dev/null
 
 # `hc wait` can report idle before the argv brief is submitted, so confirm
 # by turn count or a live status instead.

@@ -8,6 +8,7 @@ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 export HOME="$tmp/home"
 mkdir -p "$HOME" "$tmp/bin"
 export FIXTURE="$tmp" PATH="$tmp/bin:$PATH"
+unset HC_TERMINAL_ID
 checks=0
 check() {
 	local expected="$1" needle="$2" out status=0
@@ -37,6 +38,7 @@ case "$1" in
 		echo '{"reason":"status"}'
 		exit ;;
 esac
+[[ $2 != orch ]] || { echo '{"labels":{"herdr.space":"sp1"}}'; exit; }
 n=$(( $(cat "$FIXTURE/gets" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$FIXTURE/gets"
 state=live status="${AGENT_STATUS:-idle}" turn=1
@@ -95,6 +97,8 @@ check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" worker-a "$tmp/w
 [[ $(cat "$tmp/gets") == 3 ]]
 [[ $(head -n 1 "$tmp/calls") == "run --bg --json --no-notify --name worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=worker-a pi Fix \$skill:x ; \$(false)" ]]
 [[ $(cat "$tmp/labels") == "label worker-a hibernate=ok" ]]
+check 0 '' env MODE=settled HC_TERMINAL_ID=orch "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(tail -n 1 "$tmp/labels") == "label worker-a hibernate=ok space=sp1" ]]
 : > "$tmp/calls"
 check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1
 [[ $(head -n 1 "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a pi --session s-1 Fix'* ]]

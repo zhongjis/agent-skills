@@ -51,7 +51,7 @@ Per task:
 2. **Launch** through [preflight.md](references/preflight.md), every ready task at once unless the conversation set a limit. A task whose prerequisites are unverified is **queued**: it launches once they are verified, with their outputs added to its brief; without supervision, report it as queued. **Done when** the task's worker is `working` or the task is queued.
 3. **Hand off or supervise** per the mode.
 
-A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md); without supervision, that happens when the user later reports the result or asks for cleanup.
+A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md), which keeps its terminal and worktree; without supervision, that happens when the user later reports the result. Remove terminals and worktrees only when the user asks for cleanup.
 
 ## House rules
 
@@ -73,7 +73,7 @@ Report at each yield, when you are about to wait on workers or hand control back
 | A question needs the user's decision | The task, the one question, and its evidence.                                                                                                                                                                  |
 | A shared blocker                     | Dispatch paused, the affected tasks, and what the user must do.                                                                                                                                                |
 | A supervised task settles            | One line: the result with evidence (PR URL at head SHA, checks, ticket URL) or the exact blocker; dependents it launched.                                                                                      |
-| Every task is settled                | Per task: target, agent name, terminal, worktree path, mode, and the result with evidence or the exact blocker and the decision needed; queued tasks with their prerequisites; the log path. Then stop. |
+| Every task is settled                | Per task: target, agent name, terminal, worktree path, mode, and the result with evidence or the exact blocker and the decision needed; queued tasks with their prerequisites; the kept worktrees, with an offer to clean them up; the log path. Then stop. |
 | The user asks for status             | The latest row per task, re-checked live at the destination.                                                                                                                                                   |
 
 Worker progress, questions you answer from the brief, retries, and context transitions go to the log only.

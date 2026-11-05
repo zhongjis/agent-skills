@@ -19,4 +19,4 @@ Merge through the repository's merge queue when it has one, otherwise its suppor
 
 ## After merge
 
-Read back the merged state and merge commit before reporting success. Then reap the finished task and remove its worktree ([reap.md](reap.md)). On any blocker, keep the PR, worktree, and evidence intact.
+Read back the merged state and merge commit before reporting success. Then reap the settled task ([reap.md](reap.md)); its worktree stays until the user asks for cleanup. On any blocker, keep the PR, worktree, and evidence intact.

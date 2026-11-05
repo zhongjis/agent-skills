@@ -4,7 +4,7 @@ Read only the section for the agent kind you start or read, plus Hibernated or f
 
 ## Hibernated or finished workers
 
-herdr-app's Focus sidebar hibernates a Pi or Claude worker that stays idle for 15 minutes, to free the host. It exits the agent, and the terminal finishes with the labels `hibernated=<ms>` and `resume=<line>`. Its exit is that hibernation, not a crash. A worker that finished another way (a restart: `stopped_by_restart`) has no `hibernated` label but keeps the `resume=<line>` label the sidebar set while it ran. A `hc send` to either fails with exit 11 (finished).
+herdr-app's Focus sidebar hibernates a Pi or Claude worker that stays idle for 5 minutes, to free the host. It exits the agent, and the terminal finishes with the labels `hibernated=<ms>` and `resume=<line>`. Its exit is that hibernation, not a crash. A worker that finished another way (a restart: `stopped_by_restart`) has no `hibernated` label but keeps the `resume=<line>` label the sidebar set while it ran. A `hc send` to either fails with exit 11 (finished).
 
 Before you send a finished worker with a `resume` label more work, revive it:
 
