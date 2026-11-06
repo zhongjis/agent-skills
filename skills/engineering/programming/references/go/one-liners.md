@@ -1,6 +1,6 @@
 # One-Liners and Disposable Scripts
 
-Production hygiene with throwaway ergonomics. Go scripts get the same strict lints, the same type discipline, the same 250 LOC ceiling. The difference: they live as single `.go` files invoked via `go run`, not as full modules.
+Production hygiene with throwaway ergonomics. Go scripts get the same strict lints, the same type discipline, the same responsibility discipline. The difference: they live as single `.go` files invoked via `go run`, not as full modules.
 
 Python has PEP 723 + `uv run`. Rust has `rust-script`. **Go has `go run` directly** — no extra tooling needed.
 
@@ -120,7 +120,7 @@ Even a 30-line script follows the philosophy:
 
 6. **slog for output if it must be parseable.** `fmt.Println` for one-shot terminal output is fine.
 
-7. **No more than 250 pure LOC.** If it grows, it stops being a script and becomes a subcommand of your CLI tool.
+7. **Keep one cohesive responsibility.** Promote independent commands to subcommands of your CLI tool.
 
 ---
 
@@ -177,7 +177,7 @@ If your script needs:
 - Help text more than a paragraph
 - Repeated invocations from CI
 
-... promote it to a real CLI tool via `cobra` — see `cobra-stack.md`. The boundary is fuzzy; trust your judgment, but **a 500-line "script" is not a script.**
+... promote it to a real CLI tool via `cobra` — see `cobra-stack.md`. Choose based on command responsibilities, not script length.
 
 ---
 
@@ -189,7 +189,7 @@ If your script needs:
 | `log.Fatal` inside a function the script imports | Crashes caller's process | Return error |
 | `panic(err)` for expected failures | Same as above | `log.Fatal` in `main`, error return elsewhere |
 | Skipping `defer resp.Body.Close()` because "it's a script" | Leaks fd | Always close |
-| One 800-LOC `main.go` "to keep it simple" | Now harder to read than a real CLI | Promote to `cmd/<name>/` with subcommands |
+| One `main.go` mixing independent commands "to keep it simple" | Now harder to read than a real CLI | Promote to `cmd/<name>/` with subcommands |
 | `// TODO: handle error` | Production-grade hygiene means production-grade hygiene | Handle now or document why ignored |
 
 ---

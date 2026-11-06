@@ -185,7 +185,7 @@ RUSTFLAGS="-D warnings" rust-script ./script.rs
 - It needs binary distribution to other machines → real crate with `cargo dist`.
 - It needs to be tested → real crate (scripts can technically run `#[test]`s under `cargo test`, but the workflow is awkward).
 
-A reasonable migration path: start as a script, when complexity grows past ~200 lines or you reach for a second `.rs` file, run `rust-script --emit ./script.rs` to dump a regular Cargo project skeleton and continue from there.
+A reasonable migration path: start as a script, when it needs a regular Cargo project’s module or dependency structure, run `rust-script --emit ./script.rs` to dump a regular Cargo project skeleton and continue from there.
 
 ## Inline tests in a script
 

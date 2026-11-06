@@ -24,9 +24,9 @@ require (
 ## Project structure
 
 ```
-cmd/server/main.go          # ≤ 50 LOC; flags → run.Execute(ctx)
+cmd/server/main.go          # flags → run.Execute(ctx)
 internal/
-  cmd/run.go                # ~150 LOC; signal handling, config load, server.Run
+  cmd/run.go                # signal handling, config load, server.Run
   config/config.go          # env-driven Config struct
   api/
     server.go               # gin.Engine setup, route mounting, http.Server

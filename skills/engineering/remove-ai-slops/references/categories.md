@@ -1,6 +1,6 @@
 # Slop Categories — What Counts, KEEP vs REFACTOR
 
-The ten categories the cleanup pass evaluates. The first three are stylistic, the next three structural, the next two about hidden cost, then behavior coverage, then module size. Each category lists what to remove, what to KEEP, and how to REFACTOR. The [detector table](#concrete-slop-patterns-detector-reference) at the end maps concrete, per-language tells to these categories.
+The ten categories the cleanup pass evaluates. The first three are stylistic, the next three structural, the next two about hidden cost, then behavior coverage, then responsibility ownership. Each category lists what to remove, what to KEEP, and how to REFACTOR. The [detector table](#concrete-slop-patterns-detector-reference) at the end maps concrete, per-language tells to these categories.
 
 ## Stylistic
 
@@ -72,32 +72,18 @@ Behavior-preserving optimizations that are provably equivalent but cheaper:
 
 Behavior in changed files not locked by any regression test. The fix is not to remove code but to ADD the narrowest test that pins the behavior. EXCEPTION: a PROSE file has no behavioral seam — do not add a text/word-count pin; cover only a machine-consumed value (a parsed field, a sentinel a runtime greps, a doc JSON sample through its real validator) or leave it to review.
 
-## Module size
+## Responsibility ownership
 
-### 10. Oversized modules
+### 10. Mixed responsibilities
 
-Any source file exceeding **250 pure LOC** (non-blank, non-comment). An architectural defect, not a style preference. Measure:
+A unit combines responsibilities that can own their state and behavior independently.
 
-```bash
-awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(#|\/\/)/' <file> | wc -l
-```
+- KEEP: a cohesive unit, including a self-contained script.
+- REFACTOR: extract a distinct responsibility with its ownership intact; name the new unit after its concept. Keep the unit whole when extraction would only add pass-through plumbing to the original owner. Verify behavior with tests, typecheck, and lint.
 
-When found, execute a full modular refactoring:
+## Overlap with the programming skill’s code smells
 
-1. Measure pure LOC across scope with the one-liner above to list every violation.
-2. For each oversized file, identify distinct responsibilities (single-responsibility principle).
-3. Plan the split: name each new file after the concept it owns (never `utils.py`, `helpers.py`, `common.py`, `part_1.py`).
-4. Present the split plan to the user before executing.
-5. Extract into clean modules with re-exports ONLY in the barrel (`__init__.py`, `mod.rs`, `index.ts`) — no logic there.
-6. Verify: re-measure — every file ≤250 pure LOC. Run tests, typecheck, lint.
-
-**Forbidden escapes:** counting blanks/comments toward budget; splitting by token count (`foo_1.py`); catch-all dump files; "it's generated" (valid only in a build-output directory); "230 LOC, close enough" (a file about to grow is already over).
-
-KEEP: a genuinely self-contained single-responsibility script. Opt out with `// allow: SIZE_OK — <reason>` in the first five lines; the marker without a justifying reason is itself slop.
-
-## Overlap with the programming skill's code smells
-
-When this skill runs inside a repository that also uses the `programming` skill, its `references/code-smells.md` is the canonical owner of the structural-smell thresholds (file size, parameter count, redundant verification after a destructive action, negative-form names). Defer to it there; the numbers above are the standalone defaults and are chosen to match it (250 pure LOC; group parameters at 4+).
+The programming skill’s [single-responsibility review](../../programming/SKILL.md#step-2--architectural-self-review) owns the shared extraction and linter-metric exception policy. Its [code-smells reference](../../programming/references/code-smells.md) owns parameter count, redundant verification after a destructive action, and negative-form names.
 
 ## Concrete slop patterns (detector reference)
 

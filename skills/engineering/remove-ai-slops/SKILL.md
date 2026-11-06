@@ -1,6 +1,6 @@
 ---
 name: remove-ai-slops
-description: "Remove AI-generated code smells (slop) from a branch diff or an explicit file list while preserving behavior: lock behavior with regression tests FIRST, run a categorized safe-to-risky cleanup pass, then verify with quality gates. Covers obvious comments, over-defensive code, excessive complexity, needless abstraction, boundary violations, dead code, duplication, behavior-preserving performance fixes, missing tests, and oversized modules, with concrete per-language slop patterns. MUST USE when asked to \"remove slop\", \"deslop\", \"clean AI code\", \"clean up AI-generated code\", \"remove AI slop\", \"strip slop\", or to clean AI-generated patterns from recent changes."
+description: "Remove AI-generated code smells (slop) from a branch diff or an explicit file list while preserving behavior: lock behavior with regression tests FIRST, run a categorized safe-to-risky cleanup pass, then verify with quality gates. Covers obvious comments, over-defensive code, excessive complexity, needless abstraction, boundary violations, dead code, duplication, behavior-preserving performance fixes, missing tests, and mixed responsibilities, with concrete per-language slop patterns. MUST USE when asked to \"remove slop\", \"deslop\", \"clean AI code\", \"clean up AI-generated code\", \"remove AI slop\", \"strip slop\", or to clean AI-generated patterns from recent changes."
 adaptedFrom:
   - "https://github.com/code-yeongyu/oh-my-openagent/blob/dev/packages/shared-skills/skills/remove-ai-slops/SKILL.md"
   - "https://github.com/scanaislop/aislop"
@@ -76,7 +76,7 @@ Produce an explicit per-file plan before removal: the ladder outcome, the catego
 
 **Intentional shortcuts:** if the plan deliberately keeps a bounded simplification (a naive scan fine under N rows, an O(n²) path), mark it in-code with a `debt:` comment naming the ceiling and the upgrade trigger — and where the project's linter recognises an inline-suppression marker (e.g. aislop's `// aislop-ignore-next-line <rule> -- reason`), pair it so the shortcut is not re-flagged as slop on the next scan. List it under "Remaining Risks / Deferred" in the report. A simplification with a known ceiling and no marker is indistinguishable from a bug.
 
-Order rule (safest → riskiest): comments → dead code → defensive → duplication → complexity → abstraction/boundary → performance → tests → oversized-modules.
+Order rule (safest → riskiest): comments → dead code → defensive → duplication → complexity → abstraction/boundary → performance → tests → responsibility ownership.
 
 ### Phase 4 — Remove slop, one focused pass per file
 

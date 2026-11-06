@@ -280,7 +280,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 `tea.Batch` runs commands concurrently. The framework collects their results in the order they arrive.
 
-When the model exceeds 250 LOC, split by sub-model into separate files:
+When sub-models own distinct state and behavior, extract those responsibilities into separate files:
 
 ```
 internal/ui/

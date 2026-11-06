@@ -72,12 +72,6 @@ Read these per-file references for the canonical patterns:
 - **Strict config** → `golangci-strict.md` — the canonical `.golangci.yml` with the full linter whitelist and per-linter rationale.
 - **One-liners** → `one-liners.md` — `go run` scripts with `//go:build ignore`, `gorun`-style invocation.
 
-## The 250 pure LOC ceiling
-
-Same rule as Python/Rust/TS: a `.go` file whose pure LOC (non-blank, non-comment) exceeds 250 is architecturally broken. Go encourages many small files in a single package, so this is *more* natural here than elsewhere — split by responsibility, keep one cohesive type and its methods per file.
-
-The `cmd/server/main.go` is the most common violator. Refactor it: `main.go` only wires `os.Args` → `cmd.Execute()`. Anything else lives in `internal/`.
-
 ## Canonical project layout
 
 A new Go service follows this tree. The value is the boundaries, not the exact names:
@@ -87,7 +81,7 @@ myservice/
 ├── go.mod / go.sum
 ├── Taskfile.yml            # task runner (fmt / lint / test / gen / migrate)
 ├── .golangci.yml           # see golangci-strict.md
-├── cmd/<binary>/main.go    # ONLY parse flags + call cmd.Execute(); ≤ 50 LOC
+├── cmd/<binary>/main.go    # ONLY parse flags + call cmd.Execute()
 ├── internal/               # the business code; other modules cannot import it
 │   ├── api/                # transport: routers, middleware, handlers
 │   ├── domain/             # parse-don't-validate types, smart constructors, no I/O
@@ -102,7 +96,7 @@ myservice/
 
 Rules:
 
-- `cmd/<binary>/main.go` is ≤ 50 pure LOC — wiring only; anything more lives in `internal/cmd/`.
+- `cmd/<binary>/main.go` owns wiring only; command behavior lives in `internal/cmd/`.
 - `internal/` is the business code; the Go compiler forbids other modules from importing it.
 - `pkg/` is only for code you genuinely want third parties to import. Empty until proven otherwise.
 - No `utils/`, `helpers/`, `common/`, `shared/`. **REJECT.** Name every package after the concept it owns; one package per directory, one responsibility per package.

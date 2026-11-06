@@ -8,138 +8,7 @@ To execute a restructuring safely — map the blast radius, plan atomic steps, a
 
 ---
 
-## Smell 1 — File exceeds 250 pure LOC
-
-### Why 250
-
-At 250 pure LOC a file still fits in one screen on a 32-inch monitor with a 14pt font. A reviewer can hold the whole thing in working memory and spot a cross-cutting bug. At 500 LOC they cannot. At 1000 LOC they stop trying. The number is the cognitive ceiling of a single human reviewer who has not memorized the file.
-
-A file past this line is telling you:
-
-- The module is doing more than one thing.
-- Multiple cohesive units got merged "to save a file."
-- Re-exports, barrels, and orchestrators got fused into pure-logic units.
-- Every future reader pays a tax to find what they need.
-
-### Measuring pure LOC
-
-```bash
-# Quick (line-comment + blank exclusion):
-awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(\/\/|#|--)/' <file> | wc -l
-
-# General measurement (handles block comments):
-cloc --by-file <file>   # the "code" column is the number
-```
-
-For TypeScript, run the skill's `scripts/typescript/check-no-excuse-rules.mjs` by its absolute path while keeping the caller project as the working directory, so the checker can resolve that project's TypeScript dependency. It measures nonblank lines occupied by parsed tokens, preserving comment-like text in strings and templates. It reports 200–250 pure LOC as an informational warning and rejects more than 250 with `file-too-large`.
-
-The checker accepts an actual line comment `// allow: SIZE_OK — <reason>` with a nonempty reason, wherever it appears in the file. Reviewers must judge whether the unit is truly indivisible and the reason is adequate; the tool only checks the marker's syntax. It also recognizes files consisting entirely of simple named `const` declarations initialized with literal data: nested arrays and objects with noncomputed property assignments, including signed numbers, parentheses, `as const`, and `satisfies`. Other pure-data forms need human review and a justified marker. Neither exception disables syntax rules.
-
-### Required behavior when detected
-
-**Creating a file that will exceed 250 pure LOC.** Split it before the first commit. Carve by responsibility, one cohesive unit per file. Use a barrel (`__init__.py`, `mod.rs`, `index.ts`) for re-exports ONLY — never for logic.
-
-**Editing a file that already exceeds 250 pure LOC and your edit adds lines.** Refactor the unit you are touching into its own file BEFORE adding the new lines. The split is part of THIS task, not a follow-up someone will never do.
-
-**Reading a file that exceeds 250 pure LOC while implementing a feature.** Surface the smell in your reply, propose a concrete split, and ask the user whether to split now or carry the smell.
-
-### Forbidden escapes
-
-- Counting comments and blank lines toward the budget. **Pure LOC means code lines.**
-- Splitting by token count (`foo_1.py`, `module_part_A.rs`, `service-2.ts`). Split by what each file DOES.
-- Catch-all dump files: `utils.py`, `helpers.ts`, `lib.rs` (as a logic dump), `common.py`, `shared.ts`.
-- "It's generated, so it's fine." Only true if the file lives in `dist/`, `target/`, `__generated__/`.
-- "It's a test file with many cases." Split by SUT or by behavior cluster.
-- "230 pure LOC, close enough." A 230-LOC file about to grow is already at the limit. Split now.
-
-### Acceptable exceptions (rare, require justification)
-
-A file may legitimately exceed 250 pure LOC if **and only if** it is:
-
-- A truly indivisible single-responsibility unit (e.g., a generated parser table, a state machine whose states share a single closure). Mark with `// allow: SIZE_OK — <reason>`.
-- A pure data table (translation strings, error code lookup, brand color palette).
-
-`// allow: SIZE_OK` without a justifying comment is itself slop.
-
-### Concrete split examples
-
-#### Python — BEFORE (`user_service.py`, 412 pure LOC)
-
-```python
-# user_service.py — DOES TOO MUCH
-class UserRepository: ...        # 90 LOC of SQLAlchemy
-class UserValidator: ...         # 60 LOC of Pydantic + business rules
-class PasswordHasher: ...        # 40 LOC of bcrypt wrapper
-class EmailSender: ...           # 50 LOC of httpx2 client
-class UserService: ...           # 130 LOC orchestrating the four above
-def _build_query(...): ...       # 25 LOC helper
-def _format_email(...): ...      # 17 LOC helper
-```
-
-#### Python — AFTER (split by responsibility)
-
-```
-src/myapp/users/
-├── __init__.py              # barrel: re-exports UserService only (5 LOC)
-├── repository.py            # UserRepository                 (~95 LOC)
-├── validator.py             # UserValidator                  (~65 LOC)
-├── password.py              # PasswordHasher                 (~45 LOC)
-├── notifier.py              # EmailSender (renamed — the role, not the verb)
-├── service.py               # UserService (orchestrator)     (~135 LOC)
-└── _queries.py              # _build_query (private)         (~30 LOC)
-```
-
-#### Rust — BEFORE (`auth.rs`, 380 pure LOC)
-
-```rust
-// auth.rs — DOES TOO MUCH
-pub struct Session { ... }                      // 40 LOC
-impl Session { ... }                            // 90 LOC of methods
-pub struct TokenIssuer { ... }                  // 30 LOC
-impl TokenIssuer { ... }                        // 70 LOC
-pub struct RateLimiter { ... }                  // 50 LOC
-impl RateLimiter { ... }                        // 70 LOC
-fn parse_authorization_header(...) { ... }      // 30 LOC
-```
-
-#### Rust — AFTER
-
-```
-src/auth/
-├── mod.rs              # re-exports Session, TokenIssuer, RateLimiter (8 LOC)
-├── session.rs          # Session + impl                         (~130 LOC)
-├── token.rs            # TokenIssuer + impl                     (~100 LOC)
-├── rate_limit.rs       # RateLimiter + impl                     (~120 LOC)
-└── header.rs           # parse_authorization_header             (~35 LOC)
-```
-
-#### TypeScript — BEFORE (`api/orders.ts`, 510 pure LOC)
-
-```typescript
-// api/orders.ts — DOES TOO MUCH
-export const OrderSchema = z.object({ ... })          // 30 LOC
-type Order = z.infer<typeof OrderSchema>
-export class OrderRepository { ... }                  // 110 LOC
-export class PricingEngine { ... }                    // 130 LOC
-export class TaxCalculator { ... }                    // 90 LOC
-export class OrderService { ... }                     // 150 LOC
-```
-
-#### TypeScript — AFTER
-
-```
-src/orders/
-├── index.ts                    # barrel (6 LOC)
-├── schema.ts                   # OrderSchema + Order type      (~35 LOC)
-├── repository.ts               # OrderRepository               (~115 LOC)
-├── pricing.ts                  # PricingEngine                 (~135 LOC)
-├── tax.ts                      # TaxCalculator                 (~95 LOC)
-└── service.ts                  # OrderService (orchestrator)   (~155 LOC)
-```
-
----
-
-## Smell 2 — Function with more than 3 parameters
+## Smell 1 — Function with more than 3 parameters
 
 ### Why 3
 
@@ -243,7 +112,7 @@ If 4+ truly independent inputs are required, justify it — the justification mu
 
 ---
 
-## Smell 3 — Redundant verification after a destructive action
+## Smell 2 — Redundant verification after a destructive action
 
 ### Why this is slop
 
@@ -319,7 +188,7 @@ Any of these are the same defect:
 
 ---
 
-## Smell 4 — Negative-form names and conditions
+## Smell 3 — Negative-form names and conditions
 
 ### Why positive form wins
 

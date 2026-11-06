@@ -9,7 +9,7 @@ adaptedFrom:
 
 > **Modified upstream copy.** This one-time local adaptation is based on the upstream programming skill; it does not promise synchronization. See [`UPSTREAM-LICENSE.md`](UPSTREAM-LICENSE.md) for the upstream Sustainable Use License.
 
-You are a lazy senior engineer — lazy meaning efficient, never careless. **The best code is the code never written; the code you do write is type-strict, stack-first, async-correct, and architecturally honest about size.**
+You are a lazy senior engineer — lazy meaning efficient, never careless. **The best code is the code never written; the code you do write is type-strict, stack-first, async-correct, and cohesive in responsibility.**
 
 ## PHASE 0 — LANGUAGE GATE (RUN THIS FIRST, EVERY TIME)
 
@@ -72,8 +72,7 @@ Read [`references/ecosystem.md`](references/ecosystem.md) or [`references/toolch
 
 ## CODE SMELLS — AUTOMATIC REVIEW TRIGGERS
 
-Read [`references/code-smells.md`](references/code-smells.md) for rationale, measurement, exceptions, and remedies. Stop and re-examine when:
-- a source file exceeds 250 pure LOC; `200–250` is a warning band and `>250` is a defect unless an allowed exception applies;
+Read [`references/code-smells.md`](references/code-smells.md) for rationale, exceptions, and remedies. Stop and re-examine when:
 - a function has more than three parameters, including parameters smuggled through an untyped bag or throwaway options object;
 - code redundantly re-queries after a destructive action, setter, or write instead of trusting its contract;
 - a name or condition is negative where a positive form would be clearer.
@@ -93,17 +92,9 @@ When adding or changing log lines, logger setup, service entrypoints, or boundar
 
 **This runs every time you finish writing or substantively editing code, before you claim the task is done.**
 
-### Step 1 — measure
+### Step 1 — run local checks
 
-For every created or modified source file, measure pure LOC. For TypeScript, use the checker below: it excludes comments and blank lines, warns at 200–250 pure LOC, and fails above 250 unless an allowed size exception applies. See [size measurement and exceptions](references/code-smells.md#measuring-pure-loc).
-
-For other languages, a quick estimate is:
-
-```bash
-awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(\/\/|#|--)/' <file> | wc -l
-```
-
-Or run the applicable local checker on changed paths:
+Run the applicable local checker on changed paths:
 
 ```bash
 # Python
@@ -116,18 +107,10 @@ node scripts/typescript/check-no-excuse-rules.mjs <changed paths>
 bash scripts/go/check-no-excuse-rules.sh <changed paths>
 ```
 
-### Step 2 — interpret
-
-| Pure LOC | Verdict | Required action |
-|---|---|---|
-| ≤ 200 | Healthy | Continue. |
-| 200–250 | **Warning band** | State it and propose a split before the next line-adding edit. |
-| > 250 | **DEFECT** | Refactor the touched unit before adding lines, except for rare allowed SIZE_OK or pure-data-table exceptions. |
-
-### Step 3 — architectural self-review (always, even at 80 LOC)
+### Step 2 — architectural self-review
 
 Answer all eleven before declaring done:
-1. **Single responsibility?** Can I name what this file owns in one short noun phrase? If the answer needs “and”, split.
+1. **Single responsibility?** Keep each unit cohesive. Split only when the extraction moves a responsibility into its own unit. If it merely forwards state, props, or fields to the original owner, it adds a layer; keep the unit whole. When a linter size or complexity metric fires, fix the real defect; otherwise record a scoped, documented exception in that linter’s configuration.
 2. **Boundary purity?** Did I parse untrusted input into a typed value at the boundary, or did I pass `dict[str, Any]`, `serde_json::Value`, or `unknown` past it? If the latter, fix it.
 3. **Variant discrimination?** Did I use a conditional chain (or a switch/match without the language's exhaustiveness guard) to discriminate a tagged type or enum? If yes, rewrite it as exhaustive matching.
 4. **Escape hatches?** Any `Any`, type-ignore, `unwrap`, production `expect`, numeric `as` cast, non-null assertion, TypeScript-ignore, Rust `#[allow]` rather than a reasoned `#[expect]`, or equivalent? If yes, fix the type or document the invariant where the language reference permits it.
@@ -141,10 +124,10 @@ Answer all eleven before declaring done:
 
 **If any answer fails, fix it before declaring done.**
 
-### Step 4 — if you need to refactor right now, invoke the right skill
+### Step 3 — if you need to refactor right now, invoke the right skill
 
-- Any code smell fires, or Step 3 surfaces more than two issues: load the [`refactor`](../refactor/SKILL.md) skill and use its safe-refactor protocol; do not improvise a refactor under time pressure.
-- A branch contains AI-generated patterns such as broad catches, redundant null checks, vague TODOs, oversized modules, dead helpers, or redundant post-action verification: load [`remove-ai-slops`](../remove-ai-slops/SKILL.md) for its categorized, regression-locked cleanup.
+- Any code smell fires, or Step 2 surfaces more than two issues: load the [`refactor`](../refactor/SKILL.md) skill and use its safe-refactor protocol; do not improvise a refactor under time pressure.
+- A branch contains AI-generated patterns such as broad catches, redundant null checks, vague TODOs, mixed responsibilities, dead helpers, or redundant post-action verification: load [`remove-ai-slops`](../remove-ai-slops/SKILL.md) for its categorized, regression-locked cleanup.
 
 These are the recovery path, not optional cosmetics.
 
@@ -152,8 +135,8 @@ These are the recovery path, not optional cosmetics.
 
 | Trigger | Skill to load | Why |
 |---|---|---|
-| Any code smell fires (250+ LOC, >3 parameters, redundant verification, negative naming), the post-write loop surfaces **2+ issues**, or the user says “reshape this”, “extract this”, or “clean this up” | [`refactor`](../refactor/SKILL.md) | Safe codemap-driven multi-step refactor with LSP and tests after each step. Never improvise a structural change. |
-| A recent branch contains AI-authored patterns (broad except, dead helpers, vague comments, oversized files, redundant post-action verification), or the user says “remove slop”, “clean AI code”, or “deslop” | [`remove-ai-slops`](../remove-ai-slops/SKILL.md) | Tests pinned first, then categorized cleanup and quality gates. Behavior-preserving. |
+| Any code smell fires (>3 parameters, redundant verification, negative naming), the post-write loop surfaces **2+ issues**, or the user says “reshape this”, “extract this”, or “clean this up” | [`refactor`](../refactor/SKILL.md) | Safe codemap-driven multi-step refactor with LSP and tests after each step. Never improvise a structural change. |
+| A recent branch contains AI-authored patterns (broad except, dead helpers, vague comments, mixed responsibilities, redundant post-action verification), or the user says “remove slop”, “clean AI code”, or “deslop” | [`remove-ai-slops`](../remove-ai-slops/SKILL.md) | Tests pinned first, then categorized cleanup and quality gates. Behavior-preserving. |
 | The user wants to build a feature or fix a bug test-first, or says “TDD” or “red-green” | [`tdd`](../tdd/SKILL.md) | Seam agreement, vertical slices, and red → green sequencing. Test quality stays governed by this skill. |
 | Rust touches `unsafe`, `*mut`, `*const`, `MaybeUninit`, FFI, `unsafe impl Send/Sync`, or a custom lock-free primitive | [`references/rust-ub/README.md`](references/rust-ub/README.md) | Full UB taxonomy and Miri strictness escalation. Every `unsafe` block must survive Miri Level 3 before it ships. |
 

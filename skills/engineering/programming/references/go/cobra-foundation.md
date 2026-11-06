@@ -15,7 +15,7 @@ Pin `cobra-cli` in repository tooling before scaffolding. Generated command file
 ```
 mytool/
 ├── go.mod
-├── main.go                  # ≤ 40 LOC, assembles logger + root command
+├── main.go                  # assembles logger + root command
 ├── cmd/
 │   ├── root.go              # NewRootCmd constructor, persistent flags
 │   ├── server.go            # NewServerCmd constructor
@@ -138,6 +138,6 @@ func NewServerCmd(logger *slog.Logger) *cobra.Command {
 }
 ```
 
-The subcommand is a thin shim — flags + log line + delegate to `internal/server`. Anything bigger violates the 250-LOC ceiling and belongs in `internal/`.
+The subcommand is a thin shim — flags + log line + delegate to `internal/server`. Service behavior belongs in `internal/`.
 
 ---

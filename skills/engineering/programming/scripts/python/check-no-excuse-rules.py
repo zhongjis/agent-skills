@@ -3,7 +3,6 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-# noqa: SIZE_OK  — single self-contained checker, splitting adds import ceremony for no readability gain
 """Check Python files for no-excuse violations.
 
 The python-programmer skill enforces these rules. Run after editing.
@@ -32,8 +31,6 @@ Rules:
                          Opt out: trailing `# noqa: OBJECT_OK`
   if-elif-on-variant   - isinstance/enum-comparison if/elif chain (should be match/case)
                          Opt out: trailing `# noqa: IF_VARIANT_OK`
-  oversized-module     - file exceeds 250 pure LOC (non-blank, non-comment)
-                         Opt out: `# noqa: SIZE_OK` in first 10 lines
   broad-except         - `except Exception` / `except BaseException` (too broad)
                          Opt out: trailing `# noqa: BROAD_EXCEPT_OK`
 
@@ -88,10 +85,7 @@ MATCH_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*MATCH_OK")
 GENERIC_ERR_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*GENERIC_ERR_OK")
 OBJECT_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*OBJECT_OK")
 IF_VARIANT_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*IF_VARIANT_OK")
-SIZE_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*SIZE_OK")
 BROAD_EXCEPT_OK_RE: re.Pattern[str] = re.compile(r"#\s*noqa:\s*BROAD_EXCEPT_OK")
-
-PURE_LOC_LIMIT: int = 250
 
 
 @dataclass(frozen=True, slots=True)
@@ -603,30 +597,6 @@ def find_broad_except_violations(
     return violations
 
 
-def find_oversized_module_violations(
-    source_lines: list[str], file: Path,
-) -> list[Violation]:
-    """Check if file exceeds 250 pure LOC (non-blank, non-comment)."""
-    # File-level opt-out in first 10 lines (shebang + script metadata can push it down)
-    for line in source_lines[:10]:
-        if SIZE_OK_RE.search(line):
-            return []
-
-    pure_loc = sum(
-        1 for line in source_lines
-        if line.strip() and not line.strip().startswith("#")
-    )
-    if pure_loc > PURE_LOC_LIMIT:
-        return [Violation(
-            rule="oversized-module",
-            file=file,
-            line=1,
-            col=1,
-            message=f"{pure_loc} pure LOC (limit: {PURE_LOC_LIMIT}) \u2014 split by responsibility",
-        )]
-    return []
-
-
 def check_file(file: Path) -> list[Violation]:
     source = file.read_text(encoding="utf-8")
     try:
@@ -651,7 +621,6 @@ def check_file(file: Path) -> list[Violation]:
         *find_generic_exception_violations(tree, source_lines, file),
         *find_object_annotation_violations(tree, source_lines, file),
         *find_if_elif_variant_violations(tree, source_lines, file),
-        *find_oversized_module_violations(source_lines, file),
         *find_broad_except_violations(tree, source_lines, file),
     ]
 

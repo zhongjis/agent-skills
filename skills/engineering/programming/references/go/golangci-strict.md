@@ -44,7 +44,7 @@ linters:
     - ineffassign        # ineffective assignments
     - dupword            # duplicate words ("the the")
 
-    # ── Architecture — file size, complexity, dead code ─────────
+    # ── Architecture — complexity, dead code ─────────
     - gocognit           # cognitive complexity per function (threshold 25)
     - gocyclo            # cyclomatic complexity per function (threshold 15)
     - funlen             # function length (90 lines, 60 statements)
@@ -201,7 +201,7 @@ formatters:
 | `govet/fieldalignment` | Struct field order wasting memory | Cheap correctness signal. Disable per-file when JSON tag order matters for OpenAPI. |
 | `copyloopvar` + `intrange` | Pre-1.22 loop-var capture and old `for i := 0; i < N; i++` | The language modernized; the lint enforces it. |
 | `usetesting` | `os.Setenv` / `os.Mkdir` in tests instead of `t.Setenv` / `t.TempDir` | Avoids test isolation bugs. |
-| `gocognit` / `gocyclo` / `funlen` | Functions exceeding cognitive thresholds | Direct architectural signal — same purpose as the 250 LOC ceiling, at function granularity. |
+| `gocognit` / `gocyclo` / `funlen` | Functions exceeding cognitive thresholds | Review responsibility and control flow; apply the programming skill’s scoped linter-metric exception rule when no real defect exists. |
 | `gosec` | CWE patterns — SQL injection, weak crypto, path traversal | Production must pass this. |
 | `testifylint` | `assert.Equal` where `require.Equal` was meant; `ObjectsAreEqual` misuse | Subtle test-correctness bugs. |
 | `perfsprint` | `fmt.Sprintf("%d", n)` instead of `strconv.Itoa(n)` | 5–10x faster in tight loops, lints catch the lazy form. |
