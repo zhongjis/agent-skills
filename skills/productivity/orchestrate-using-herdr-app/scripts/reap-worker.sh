@@ -3,7 +3,8 @@
 # Stop what a worker started in <worktree>: its agent-browser namespace,
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
-# agent, its LSP and MCP children, and the worktree for follow-ups.
+# agent, its LSP and MCP children, and the worktree for follow-ups, then
+# labels the settled worker hibernate=ok after cleanup.
 # Linux only: matches processes by /proc/<pid>/cwd.
 set -euo pipefail
 
@@ -46,7 +47,7 @@ while [ "$p" -gt 1 ]; do
 done
 
 if [ "$keep_agent" = --keep-agent ]; then
-	candidates=$(ss -ltnpH | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u)
+	candidates=$(ss -ltnpH | { grep -o 'pid=[0-9]*' || [ "$?" -eq 1 ]; } | cut -d= -f2 | sort -u)
 else
 	candidates=$(ls /proc | grep -E '^[0-9]+$')
 fi
@@ -68,3 +69,4 @@ if [ "${#pids[@]}" -gt 0 ]; then
 	for pid in "${pids[@]}"; do kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true; done
 fi
 printf 'processes under %s: %s stopped\n' "$root" "${#pids[@]}"
+if [ "$keep_agent" = --keep-agent ]; then hc label "$agent" hibernate=ok >/dev/null; fi

@@ -4,15 +4,15 @@ Read only the section for the agent kind you start or read, plus Hibernated or f
 
 ## Hibernated or finished workers
 
-herdr-app's Focus sidebar hibernates a Pi or Claude worker that stays idle for 5 minutes, to free the host. It exits the agent, and the terminal finishes with the labels `hibernated=<ms>` and `resume=<line>`. Its exit is that hibernation, not a crash. A worker that finished another way (a restart: `stopped_by_restart`) has no `hibernated` label but keeps the `resume=<line>` label the sidebar set while it ran. A `hc send` to either fails with exit 11 (finished).
+Workers start without `hibernate=ok`. After a task settles and its resources are reaped, `reap-worker.sh --keep-agent` sets `hc label <name> hibernate=ok`; only then may herdr-app's Focus sidebar hibernate a Pi or Claude worker that stays idle for 5 minutes, to free the host. It exits the agent, and the terminal finishes with the labels `hibernated=<ms>` and `resume=<line>`. Its exit is that hibernation, not a crash. A worker that finished another way (a restart: `stopped_by_restart`) has no `hibernated` label but keeps the `resume=<line>` label the sidebar set while it ran. A `hc send` to either fails with exit 11 (finished).
 
 Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <brief-file>`. It sends to a live worker and revives a finished one from its `resume` label (`hc rm`, then `start-worker.sh --resume` with the same name, worktree, kind, browser namespace, and session). Exit 2 means the worker is blocked on a dialog or has no resumable session; read its screen.
 
 ## pi
 
 - **Prompts end with `ulw`** as the last token, after every contract section; it puts the worker in ultrawork mode so it runs to a finished result.
-- **Skills by prompt.** Load a skill in the worker with `$skill:<name>` in the prompt.
-- **Status races startup.** Right after launch, `hc wait` can return `idle` at turn 0 before Pi submits the argv brief; `scripts/start-worker.sh` confirms by turn count instead.
+- **Skills by prompt.** Load a skill in the worker with `$skill:<name>` in the prompt. `start-worker.sh` sends a short prompt to read the absolute brief path, copies the brief's literal `$skill:<name>` tokens into that initial prompt, and ends it with `ulw`; keeping the triggers only inside the file would not activate them.
+- **Status races startup.** Right after launch, `hc wait` can return `idle` at turn 0 before Pi submits the argv prompt; `scripts/start-worker.sh` confirms by turn count instead.
 - **Approval dialogs.** Pi stops on a numbered chooser (tool approval, a question with options) and its status can read `blocked` or `idle` while the dialog is up. Read it with `hc read <name>`, answer with `hc keys <name> <digit> enter`, and confirm with `hc get <name>` that the status returns to `working`. `hc send` refuses a `blocked` terminal; never use `--force` to bypass a permission decision.
 - **Interrupt:** `hc interrupt <name>` stops the current turn; the session and its context survive.
 - **New session:** `hc send <name> /new`, then send the full brief. The terminal name survives; the session starts empty.
