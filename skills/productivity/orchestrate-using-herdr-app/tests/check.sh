@@ -32,6 +32,10 @@ case "$1" in
 	label)
 		printf '%s\n' "$*" >> "$FIXTURE/labels"
 		exit ;;
+	send|rm)
+		printf '%s\n' "$*" >> "$FIXTURE/calls"
+		[[ $1 != rm ]] || touch "$FIXTURE/removed"
+		exit ;;
 	wait)
 		[[ $MODE != gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
 		[[ $MODE != wait-error ]] || { echo '{"error":{"kind":"io"}}' >&2; exit 1; }
@@ -50,8 +54,9 @@ case "$MODE" in
 	resume) [[ $n -ge 2 ]] || status=working ;;
 	start-turn) [[ $n -ge 3 ]] || turn=0 ;;
 	start-never) turn=0 ;;
+	hibernated) [[ -e $FIXTURE/removed ]] || state=finished ;;
 esac
-printf '{"state":"%s","status":{"state":"%s"},"turn":%s}\n' "$state" "$status" "$turn"
+printf '{"state":"%s","status":{"state":"%s"},"turn":%s,"labels":{"resume":"%s"}}\n' "$state" "$status" "$turn" "${RESUME:-}"
 MOCK
 cat > "$tmp/bin/sleep" <<'MOCK'
 #!/usr/bin/env bash
@@ -122,6 +127,26 @@ check 1 'no worktree' "$scripts/start-worker.sh" worker-a "$tmp/missing" "$tmp/b
 check 1 'unreadable brief' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/missing"
 check 1 'usage' "$scripts/start-worker.sh" worker-a "$tmp/wt-a"
 [[ ! -s $tmp/calls ]]
+
+# send-followup.sh: hc send to a live worker; revive a resumable finished one.
+check 0 'sent' env MODE=settled "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(cat "$tmp/calls") == "send worker-a Fix \$skill:x ; \$(false)"* ]]
+: > "$tmp/calls"
+check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ ! -s $tmp/calls ]]
+rm -f "$tmp/removed"
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='env AGENT_BROWSER_NAMESPACE=worker-a pi --session s-9' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(head -n 1 "$tmp/calls") == "rm worker-a" ]]
+[[ $(sed -n 2p "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a pi --session s-9 Fix'* ]]
+: > "$tmp/calls"
+rm -f "$tmp/removed"
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='claude --resume u-9' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(sed -n 2p "$tmp/calls") == *'AGENT_BROWSER_NAMESPACE=worker-a claude --resume u-9 Fix'* ]]
+: > "$tmp/calls"
+check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ ! -s $tmp/calls ]]
+check 1 'unreadable brief' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/missing"
+check 1 'usage' "$scripts/send-followup.sh" worker-a "$tmp/wt-a"
 
 # orchestrate-init.sh: requires an hc terminal; log keyed by terminal id.
 check 1 'not inside' env -u HC_TERMINAL_ID -u XDG_STATE_HOME "$scripts/orchestrate-init.sh" api
