@@ -65,7 +65,7 @@ Final report: list commit hashes, messages, and any remaining uncommitted files.
 History rewriting is a shared-impact operation.
 
 - Never rebase or rewrite `main`, `master`, `dev`, release branches, or a protected branch unless the user explicitly named that exact operation.
-- If commits may already be pushed, ask before force-pushing. Use `--force-with-lease`, never plain `--force`.
+- Ask before force-pushing pushed commits, unless your task already authorizes rewriting that branch; then push with `--force-with-lease` against the head you last pushed.
 - If the worktree is dirty, preserve it intentionally before rebasing. Do not stash-pop over conflicts without checking what changed.
 - For fixups, prefer `git commit --fixup=<hash>` followed by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <base>`.
 - For conflicts, read the conflicting files and resolve by intent. Do not choose ours/theirs blindly.

@@ -23,7 +23,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 - **`--track`:** file each task in the issue tracker before delegating it ([track.md](references/track.md)); combines with any mode. Without it, delegate directly with no ticket.
 - **Sticky:** orchestrator mode stays on for the session until `--off`, which ends the mode and this skill's rules. Later work requests go to workers, in the session context chosen per [worker-context.md](references/worker-context.md); questions and status checks you answer yourself. A flag applies only to the invocation that names it.
-- **Authority:** invocation grants worktree creation, agent startup, dispatch, ticket creation under `--track`, and scoped local commits (implementation and dependency checkpoints) for workers; carry that permission into briefs. Honor read-only or no-commit requests, normal hooks, and unrelated work. Publication, merge outside `--auto`, deployment, and history rewrites keep their existing gates.
+- **Authority:** invocation grants worktree creation, agent startup, dispatch, ticket creation under `--track`, and scoped own-branch work for workers per [delegation-contract.md](references/delegation-contract.md); carry that permission into briefs. Honor read-only or no-commit requests, normal hooks, and unrelated work. Publication, merge outside `--auto`, deployment, and shared-branch rewrites keep their existing gates.
 
 ## Start
 

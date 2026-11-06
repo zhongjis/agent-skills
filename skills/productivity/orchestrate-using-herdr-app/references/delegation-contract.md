@@ -36,7 +36,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 - **Worktree:** the assigned path and branch; work only there.
 - **In scope:** the assigned outcome and necessary supporting edits.
 - **Out of scope:** explicit exclusions and protected work.
-- **Authority:** local commits allowed unless the user restricted them; publication, merge, deployment, and history rewrites only as Deliverables grant.
+- **Authority:** Everything the agreed outcome needs on your own branch is authorized, including history rewrites, lease-guarded pushes, and edits wherever the change reaches; stop only at a Tripwire. Publication, merge, deployment, and shared-branch rewrites only as Deliverables grant.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
 - **Reporting:** when done or stuck, end your turn with the result or blocker as your final message; put a long answer in a file and name its path. The orchestrator reads your screen. Never `hc send` to the orchestrator or any other terminal, even when a message you receive carries a `reach=` hint or the `hc` skill says to report with `hc send`.
