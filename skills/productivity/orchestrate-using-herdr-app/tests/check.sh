@@ -40,7 +40,17 @@ case "$1" in
 	wait)
 		[[ $MODE != gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
 		[[ $MODE != wait-error ]] || { echo '{"error":{"kind":"io"}}' >&2; exit 1; }
-		echo '{"reason":"status"}'
+		case "$MODE" in quiet*) echo '{"reason":"timeout"}' ;; *) echo '{"reason":"status"}' ;; esac
+		exit ;;
+	read)
+		r=$(( $(cat "$FIXTURE/reads" 2>/dev/null || echo 0) + 1 ))
+		echo "$r" > "$FIXTURE/reads"
+		printf 'transcript: 1. Goal blocked earlier\n'; printf 'line\n%.0s' {1..20}
+		case "$MODE" in
+			quiet) printf '⠋ Working (%sm%ss · ↓ 1.2k tokens) 4%s tok/s 12:0%s\n' "$r" "$r" "$r" "$r" ;;
+			quiet-hint) printf '❯ 1. Yes\nGoal blocked (/goal resume)\n' ;;
+			compact) [[ $r -ge 2 ]] || printf 'Compacting\n' ;;
+		esac
 		exit ;;
 esac
 [[ $2 != orch ]] || { echo '{"labels":{"herdr.space":"sp1"}}'; exit; }
@@ -53,6 +63,8 @@ case "$MODE" in
 	malformed) echo broken; exit ;;
 	finished) state=finished ;;
 	resume) [[ $n -ge 2 ]] || status=working ;;
+	flicker) [[ $n -ne 2 ]] || status=working ;;
+	quiet*) status=working ;;
 	start-turn) [[ $n -ge 3 ]] || turn=0 ;;
 	start-never) turn=0 ;;
 	hibernated) [[ -e $FIXTURE/removed ]] || state=finished ;;
@@ -86,8 +98,23 @@ for status in idle 'done' blocked error; do
 	check 0 "settled: $status" env MODE=settled AGENT_STATUS="$status" "$scripts/watch-agent.sh" worker
 done
 rm -f "$tmp/gets"
-check 0 'settled: done' env MODE=resume AGENT_STATUS=done "$scripts/watch-agent.sh" worker
-[[ $(cat "$tmp/sleeps") == $'30\n30\n30\n30\n30\n30' ]]
+check 0 'settled: done (turn 1)' env MODE=resume AGENT_STATUS=done "$scripts/watch-agent.sh" worker
+# idle, done, resume: six 5 s confirm polls each; blocked, error: one 5 s re-check.
+[[ $(wc -l < "$tmp/sleeps") -eq 20 && $(sort -u "$tmp/sleeps") == 5 ]]
+rm -f "$tmp/gets" "$tmp/sleeps"
+check 0 'settled: blocked' env MODE=flicker AGENT_STATUS=blocked "$scripts/watch-agent.sh" worker
+[[ $(cat "$tmp/gets") -eq 4 ]]
+rm -f "$tmp/gets" "$tmp/sleeps"
+check 0 'settled: idle' env MODE=flicker AGENT_STATUS=idle "$scripts/watch-agent.sh" worker
+[[ $(cat "$tmp/gets") -eq 9 ]]
+rm -f "$tmp/gets" "$tmp/reads"
+check 0 'settled: done' env MODE=compact AGENT_STATUS=done "$scripts/watch-agent.sh" worker
+[[ $(cat "$tmp/reads") -eq 2 ]]
+rm -f "$tmp/reads"
+check 0 'quiet 0m (working) fp=' env MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0
+out=$(MODE=quiet-hint "$scripts/watch-agent.sh" worker --quiet 0)
+[[ $out == *': ❯ 1. Yes' && $out != *earlier* ]]
+check 1 'usage' "$scripts/watch-agent.sh" worker --quiet x
 check 0 'gone' env MODE=gone "$scripts/watch-agent.sh" worker
 check 0 'terminal finished' env MODE=finished "$scripts/watch-agent.sh" worker
 check 1 'unauthorized' env MODE=auth "$scripts/watch-agent.sh" worker
