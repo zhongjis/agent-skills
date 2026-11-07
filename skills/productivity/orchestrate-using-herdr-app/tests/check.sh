@@ -24,6 +24,7 @@ cat > "$tmp/bin/hc" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
+	ls) cat "${FIXTURE}/terminals.json"; exit ;;
 	run)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
 		printf '%s\0' "$@" > "$FIXTURE/argv"
@@ -93,6 +94,7 @@ fi
 printf '{"mergeable":"%s","headRefOid":"head-%s","statusCheckRollup":[{"status":"%s","conclusion":"FAILURE","name":"unit"},{"state":"ERROR","context":"deploy"}]}\n' "$mergeable" "$3" "$status"
 MOCK
 chmod +x "$tmp/bin/"*
+printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 for status in idle 'done' blocked error; do
 	rm -f "$tmp/gets"
 	check 0 "settled: $status" env MODE=settled AGENT_STATUS="$status" "$scripts/watch-agent.sh" worker
@@ -169,6 +171,24 @@ check 1 'unreadable brief' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp
 check 1 'usage' "$scripts/start-worker.sh" worker-a "$tmp/wt-a"
 [[ ! -s $tmp/calls ]]
 
+# Reviewer startup uses hc ls's observed string status, not hc get's object.
+ln -s "$tmp/wt-a" "$tmp/wt-alias"
+printf '{"terminals":[{"address":"t1","name":"worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
+: > "$tmp/calls"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+[[ ! -s $tmp/calls ]]
+for terminal in 'live idle worker-a' 'finished working worker-a' 'live working other-review'; do
+	read -r state status name <<< "$terminal"
+	printf '{"terminals":[{"address":"t1","name":"%s","cwd":"%s","state":"%s","status":"%s"}]}\n' "$name" "$tmp/wt-a" "$state" "$status" > "$tmp/terminals.json"
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+done
+printf '{"terminals":[{"address":"t1","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-a" > "$tmp/terminals.json"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+printf '{"terminals":[{"address":"t1","name":"worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp" > "$tmp/terminals.json"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+printf '{"terminals":[]}\n' > "$tmp/terminals.json"
+: > "$tmp/calls"
+
 # send-followup.sh: hc send to a live worker; revive a resumable finished one.
 check 0 'sent' env MODE=settled "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(cat "$tmp/calls") == "send worker-a $(cat "$tmp/brief")" ]]
@@ -191,6 +211,12 @@ check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.
 check 1 'unreadable brief' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/missing"
 check 1 'usage' "$scripts/send-followup.sh" worker-a "$tmp/wt-a"
 
+# A later reviewer round cannot bypass the base gate, even on resume.
+: > "$tmp/calls"
+check 3 'requires --last-reviewed' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/wt-a" "$tmp/brief"
+check 3 'requires --last-reviewed' env MODE=finished "$scripts/send-followup.sh" task-review "$tmp/wt-a" "$tmp/brief"
+[[ ! -s $tmp/calls ]]
+
 # orchestrate-init.sh: requires an hc terminal; log keyed by terminal id.
 check 1 'not inside' env -u HC_TERMINAL_ID -u XDG_STATE_HOME "$scripts/orchestrate-init.sh" api
 check 0 "log=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
@@ -208,6 +234,22 @@ git -C "$tmp/work" switch -qc topic
 git -C "$tmp/work" push -q origin topic
 git -C "$tmp/work" commit -qm feature --allow-empty
 head=$(git -C "$tmp/work" rev-parse HEAD)
+# Review scope must resolve to a commit in this worktree's HEAD history.
+: > "$tmp/calls"
+check 3 'not a commit' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/brief" --last-reviewed missing
+[[ ! -s $tmp/calls ]]
+review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
+printf '%s' "$review_body" > "$tmp/review-brief"
+check 0 'sent' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+[[ $(cat "$tmp/calls") == *"$main..HEAD"* ]]
+[[ $(cat "$tmp/calls") == *"$review_body" ]] || { echo 'FAIL: live reviewer prompt must preserve the reporting footer and final ulw'; exit 1; }
+# Same reviewer name and session survive finished-terminal revival.
+rm -f "$tmp/removed"
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$head"
+mapfile -d '' -t argv < "$tmp/argv"
+[[ ${argv[*]} == *'--name task-review'* && ${argv[*]} == *'pi --session review-9'* ]]
+[[ $(cat "$tmp/review-brief") == *"$head..HEAD"* ]]
+[[ $(cat "$tmp/review-brief") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: resumed reviewer brief and prompt must retain final ulw'; exit 1; }
 check 0 $'11 head-11 FAIL: deploy, unit\n22 head-22 FAIL: deploy, unit' env MODE=pending "$scripts/watch-ci.sh" "$tmp/work" 11 22
 [[ $(tail -n 1 "$tmp/sleeps") == 90 ]]
 check 2 'PR 22 CONFLICTING' env MODE=conflict "$scripts/watch-ci.sh" "$tmp/work" 11 22
@@ -219,6 +261,9 @@ check 1 'not on branch' "$scripts/push-pinned.sh" "$tmp/work" other "$main" -- t
 check 3 'expected wrong' "$scripts/push-pinned.sh" "$tmp/work" topic wrong -- touch "$tmp/built"
 git -C "$tmp/work" switch -q --orphan unrelated
 git -C "$tmp/work" commit -qm unrelated --allow-empty
+: > "$tmp/calls"
+check 3 'not an ancestor' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+[[ ! -s $tmp/calls ]]
 check 3 'not an ancestor' "$scripts/push-pinned.sh" "$tmp/work" unrelated "$main" -- touch "$tmp/built"
 [[ ! -e $tmp/built ]]
 git -C "$tmp/work" switch -q topic

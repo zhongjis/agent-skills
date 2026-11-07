@@ -40,7 +40,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
 - **Reporting:** when done or stuck, end your turn with the result or blocker as your final message; put a long answer in a file and name its path. The orchestrator reads your screen. Never `hc send` to the orchestrator or any other terminal, even when a message you receive carries a `reach=` hint or the `hc` skill says to report with `hc send`.
-- **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, an unnamed migration or authority change, or a user decision.
+- **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, an unnamed migration or authority change, or a user decision. Every choice should follow from What to build and the acceptance criteria; when two reasonable choices both meet them but give the user a different result, that is a user decision: ask before choosing.
 
 ## Deliverables
 
@@ -52,7 +52,9 @@ External results the mode or task requires, embedded in full: the worker contrac
 
 - **Scope:** use file boundaries when the agreed scope or concurrent work requires them, not as a substitute for understanding dependencies. Workers own the approach. Route discovered overlap to the orchestrator for coordination; ask the user only when a decision exceeds existing authority.
 - **Review-comment briefs:** for each valid finding, fix the bug class: find every sibling call with the same defect and fix the shared function once.
-- **Pre-PR stop:** under `--watch` or `--auto`, a brief whose Deliverables include a PR adds: push, report "ready to create PR" with the head SHA, fix the review findings the orchestrator sends, and open the PR only when it says to ([supervise.md](supervise.md)).
+- **Pre-PR stop:** under `--watch` or `--auto`, a brief whose Deliverables include a PR adds: commit locally, report "ready for local review" with the head SHA before pushing, fix the review findings the orchestrator sends, and push and open the PR only when it says to ([supervise.md](supervise.md)). Non-blocking findings are "fix or list in the PR body".
+- **QA:** name the changed screens to QA in the brief; the worker's own mode chooses QA depth, rather than imposing a full viewport × theme matrix on every screen in every round.
+- **Wave audit:** after all tickets in a wave are written and before any dispatch, read them side by side and against the spec: no item belongs to two tickets; no criterion is stricter or looser than the spec; every "none remains" criterion includes its search command and allowed exceptions. Correct mismatches before dispatch.
 - **Follow-ups:** every later message to a worker (re-instruction, repair, review findings, the brief after `/new`, a revive brief) ends with one line: "Report by ending your turn; never `hc send` to the orchestrator." `hc` tags each `hc send` with a `reach=` hint that asks for the opposite, and a revived session still holds older briefs.
 - **Batch briefs** share one filled template; only the target in What to build, its inputs, and per-target overrides differ.
 - **Link or inline.** Link sources the worker can open; inline anything that exists only in the conversation. Inline a snippet only when it encodes a decision more precisely than prose (schema, type shape, state machine).

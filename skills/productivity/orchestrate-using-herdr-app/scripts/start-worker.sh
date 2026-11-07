@@ -38,6 +38,19 @@ if ! [[ $name =~ ^[a-z][a-z0-9_-]{0,31}$ ]]; then
 fi
 [ -d "$worktree" ] || { printf 'no worktree %s\n' "$worktree" >&2; exit 1; }
 [ -r "$brief" ] || { printf 'unreadable brief %s\n' "$brief" >&2; exit 1; }
+# Reviewers share the worker's checkout; never inspect it mid-edit.
+if [[ $name == *-review ]]; then
+	worktree=$(realpath -- "$worktree")
+	terminals=$(hc ls --json)
+	candidates=$(jq -r '.terminals[] | select(.state == "live" and .status == "working") | select(((.name // "") | endswith("-review")) | not) | [.address, .cwd] | @tsv' <<<"$terminals")
+	while IFS=$'\t' read -r address cwd; do
+		[ -n "$address" ] || continue
+		if [ "$(realpath -- "$cwd")" = "$worktree" ]; then
+			printf 'refusing reviewer %s: terminal %s working in worktree %s\n' "$name" "$address" "$worktree" >&2
+			exit 3
+		fi
+	done <<<"$candidates"
+fi
 brief=$(realpath -- "$brief")
 printf -v prompt 'Read the brief file at %q and follow it.' "$brief"
 if [ "$kind" = pi ]; then

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Usage: send-followup.sh <agent> <worktree> <brief-file>
+# Usage: send-followup.sh <agent> <worktree> <brief-file> [--last-reviewed <commit>]
+# Reviewer follow-ups require an ancestor base; prepend its resolved scope to
+# the durable brief before either live delivery or same-session revival. Exit 3:
+# missing/invalid review base. The brief file must be writable for reviewers.
 # Deliver a follow-up brief to an existing worker. A live worker gets it
 # through hc send. A finished worker with a resume label (hibernated, or
 # stopped_by_restart) is removed and restarted with start-worker.sh
@@ -9,15 +12,41 @@
 set -euo pipefail
 
 usage() {
-	printf 'usage: send-followup.sh <agent> <worktree> <brief-file>\n' >&2
+	printf 'usage: send-followup.sh <agent> <worktree> <brief-file> [--last-reviewed <commit>]\n' >&2
 	exit 1
 }
 
-[ "$#" -eq 3 ] && [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ] || usage
+[ "$#" -ge 3 ] && [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ] || usage
 name="$1"
 worktree="$2"
 brief="$3"
 [ -r "$brief" ] || { printf 'unreadable brief %s\n' "$brief" >&2; exit 1; }
+shift 3
+base=
+if [ "$#" -gt 0 ]; then
+	[ "$#" -eq 2 ] && [ "$1" = --last-reviewed ] && [ -n "$2" ] || usage
+	base="$2"
+fi
+if [[ $name == *-review ]]; then
+	[ -n "$base" ] || { printf 'reviewer follow-up requires --last-reviewed <commit>\n' >&2; exit 3; }
+	base=$(git -C "$worktree" rev-parse --verify --end-of-options "$base^{commit}" 2>/dev/null) || {
+		printf 'last-reviewed is not a commit\n' >&2; exit 3;
+	}
+	git -C "$worktree" merge-base --is-ancestor "$base" HEAD || {
+		printf 'last-reviewed %s is not an ancestor of HEAD\n' "$base" >&2; exit 3;
+	}
+	scoped_brief=$(mktemp)
+	trap 'rm -f -- "$scoped_brief"' EXIT
+	{
+		printf 'Review scope for this round (supersedes any scope in the following brief): %s..HEAD\n\n' "$base"
+		cat -- "$brief"
+	} > "$scoped_brief"
+	cat -- "$scoped_brief" > "$brief"
+	rm -f -- "$scoped_brief"
+	trap - EXIT
+elif [ -n "$base" ]; then
+	usage
+fi
 
 snapshot=$(hc get "$name" --json)
 fields=$(jq -er '[.state, (.status.state // "none"), (.labels.resume // "")] | @tsv' <<<"$snapshot")
