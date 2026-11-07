@@ -109,6 +109,8 @@ Apply the mode rule to this plan. If material new scope appears, prepare a plan 
 
 Make only authorized local edits. Run the planned narrow local checks and fix failures. For every `PR-introduced` required-check failure, fix it, rerun affected local checks, and include its repair in the authorized publication plan. Other CI/deployment repairs require the Step 2 scope amendment; do not silently include them in required-check work. Do not repair `base/pre-existing`, confirmed `flaky`, or `infrastructure` failures; retain their evidence and leave them open.
 
+Before committing a fix that changes when something prompts, blocks or saves, list the cases that worked before and confirm each still does. A regression test must fail on the pre-fix commit; run it there once.
+
 ### 6. Commit and publish authorized code
 
 After local verification passes, create the authorized descriptive commit and push it. Confirm that the commit is visible on the PR branch. If publication was not authorized or fails, post no reply that reports an unpublished change, and do not claim completion.
