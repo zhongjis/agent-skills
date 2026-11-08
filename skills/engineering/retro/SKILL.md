@@ -11,6 +11,8 @@ metadata:
 
 The user has asked for a **retrospective**. You are suggesting improvements to the coding agent's **environment** to improve future runs.
 
+**Invocation:** `/retro [--interactive] [session]`. `--interactive` changes only step 5, the way you present findings. Every other step is the same.
+
 ## Steps
 
 1. Invoke the skill `writing-for-agents` for the writing style guide.
@@ -34,7 +36,12 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
   A finding on a shared project file is a proposal for the repo's owners; edit personal layers directly.
 
-5. Present these candidates to the user, in order of severity, each with its owning source's file path.
+5. Present these candidates to the user, in order of severity. Each finding has a plain-language title, its owning source's file path and three sections:
+   - **What happened:** what the session hit, with a real example and the exact error text.
+   - **Why:** the root cause, naming the owning source.
+   - **Fix proposal:** the change, and your recommendation.
+
+   Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 
 ## Reference
 

@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Retro findings",
+  "description": "Data for one interactive retro. scripts/retro.mjs render validates it and inlines it into assets/template.html.",
+  "type": "object",
+  "required": [
+    "title",
+    "intro",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Page heading, e.g. \"Devtools session retro\"."
+    },
+    "intro": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One or two plain sentences: which session, what it delivered, how many findings."
+    },
+    "steering": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Steering inputs from step 3, one per line. Shown folded on the Start view."
+    },
+    "handoff": {
+      "type": "string",
+      "description": "Shown once every finding is decided: what happens to approved findings."
+    },
+    "findings": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Render orders findings high, medium, low; within a severity it keeps this order, so list the costlier finding first.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "severity",
+          "category",
+          "scope",
+          "status",
+          "happened",
+          "why",
+          "fix",
+          "owner",
+          "rev"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$",
+            "description": "Stable key, e.g. f1. Decisions are stored under it; never renumber."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Plain-language statement of what went wrong."
+          },
+          "severity": {
+            "enum": [
+              "high",
+              "med",
+              "low"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "description": "Retro category, e.g. Automated check, Steering source."
+          },
+          "scope": {
+            "enum": [
+              "Repo proposal",
+              "Personal edit",
+              "Owner decision"
+            ]
+          },
+          "status": {
+            "enum": [
+              "gap",
+              "proposal",
+              "mostly",
+              "covered"
+            ],
+            "description": "gap: nothing handles it; proposal: a fix is proposed; mostly: largely fixed already; covered: already fixed, shown for the record."
+          },
+          "cost": {
+            "type": "string",
+            "description": "What it cost the session, e.g. \"20 min · 1 extra review round\"."
+          },
+          "happened": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What happened: what the session hit, with a real example and exact error text."
+          },
+          "why": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Why: the root cause, naming the owning source."
+          },
+          "fix": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Fix proposal: the change, in one or two sentences."
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Owning source file path."
+          },
+          "stage": {
+            "type": "string",
+            "description": "Stage where it went wrong: exploration, planning, implementation or review."
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Log rows, commits, file:line references."
+          },
+          "rec": {
+            "type": "string",
+            "description": "Your recommendation, starting with Approve, Later or Skip."
+          },
+          "thread": {
+            "type": "array",
+            "description": "Earlier rounds: each user note and your answer. Empty in round 1.",
+            "items": {
+              "type": "object",
+              "required": [
+                "who",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "who": {
+                  "enum": [
+                    "agent",
+                    "user"
+                  ]
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "rev": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Round number. Bump it when you answer a note."
+          },
+          "outcome": {
+            "type": "string",
+            "description": "What was done after the decision. Empty until something lands."
+          },
+          "visuals": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Optional show-me visual for each section, rendered right below that section's text. Use the smallest view that makes the point.",
+            "properties": {
+              "happened": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "body"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "diff",
+                      "tree",
+                      "code",
+                      "log"
+                    ],
+                    "description": "diff: lines starting with +, - or a space; tree: a call, file or component tree; code: pseudocode or a snippet; log: exact error or command output."
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Optional one-line label, e.g. the file name."
+                  }
+                }
+              },
+              "why": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "body"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "diff",
+                      "tree",
+                      "code",
+                      "log"
+                    ],
+                    "description": "diff: lines starting with +, - or a space; tree: a call, file or component tree; code: pseudocode or a snippet; log: exact error or command output."
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Optional one-line label, e.g. the file name."
+                  }
+                }
+              },
+              "fix": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "body"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "diff",
+                      "tree",
+                      "code",
+                      "log"
+                    ],
+                    "description": "diff: lines starting with +, - or a space; tree: a call, file or component tree; code: pseudocode or a snippet; log: exact error or command output."
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Optional one-line label, e.g. the file name."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
