@@ -1,6 +1,6 @@
 ---
 name: orchestrate-using-herdr-app
-description: Orchestrate agreed tasks through herdr-app workers, each a full agent in its own herdr-core (`hc`) terminal and worktree; `--track` files a ticket per task first, `--watch` supervises, `--auto` merges ready PRs, `--off` ends the mode.
+description: Orchestrate agreed tasks through herdr-app workers, each a full agent in its own herdr-core (`hc`) terminal and worktree; `--track` files a ticket per task first, `--watch` supervises, `--auto` merges ready PRs, `--handoff` passes the tasks to a peer orchestrator, `--off` ends the mode.
 disable-model-invocation: true
 ---
 
@@ -10,7 +10,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 ## Invocation
 
-`/orchestrate-using-herdr-app [--watch | --auto] [--track] [tasks…]` · `/orchestrate-using-herdr-app --off`
+`/orchestrate-using-herdr-app [--handoff] [--watch | --auto] [--track] [tasks…]` · `/orchestrate-using-herdr-app --off`
 
 - **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: its steps, phases, and checkpoints stay inside one ticket, one worktree, one worker, run in order; split an outcome only when the user agreed separate tasks or separate PRs. A **batch** is one agreed task repeated over several targets, one worker per target. Repairs on a multi-PR change (CI, review comments) go where `land-change` says; an atomic landing sends every repair to the top worker only.
 - **Modes**, by what you do after dispatch:
@@ -21,6 +21,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
   | `--watch` | Supervise every worker to a verified result.                                                            |
   | `--auto`  | Supervise as `--watch`; merge each PR when its gates close ([auto-merge.md](references/auto-merge.md)). |
 
+- **`--handoff`:** start one peer orchestrator in a new conversation, your own agent kind unless the user names another, and hand it the tasks; typically a side issue that came up mid-conversation and needs its own context ([handoff.md](references/handoff.md)). `--watch`, `--auto`, and `--track` pass through to the peer. You report the handoff and drop the tasks.
 - **`--track`:** file each task in the issue tracker before delegating it ([track.md](references/track.md)); combines with any mode. Without it, delegate directly with no ticket.
 - **Sticky:** orchestrator mode stays on for the session until `--off`, which ends the mode and this skill's rules. Later work requests go to workers, in the session context chosen per [worker-context.md](references/worker-context.md); questions and status checks you answer yourself. A flag applies only to the invocation that names it.
 - **Authority:** invocation grants worktree creation, agent startup, dispatch, ticket creation under `--track`, and scoped own-branch work for workers per [delegation-contract.md](references/delegation-contract.md); carry that permission into briefs. Honor read-only or no-commit requests, normal hooks, and unrelated work. Publication, merge outside `--auto`, deployment, and shared-branch rewrites keep their existing gates.
@@ -35,6 +36,7 @@ Then read, in one pass, what your flags need:
 - `--track`: [track.md](references/track.md)
 - `--watch` or `--auto`: [supervise.md](references/supervise.md) and [reap.md](references/reap.md)
 - `--auto`: also [auto-merge.md](references/auto-merge.md)
+- `--handoff`: instead of all of the above, [handoff.md](references/handoff.md), [delegation-contract.md](references/delegation-contract.md), and your own kind's section of [agent-quirks.md](references/agent-quirks.md); the peer reads the rest itself
 
 ## Roles
 
@@ -57,19 +59,19 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 - **Pi by default** unless the user names another kind; a reviewer is the other kind from its worker ([supervise.md](references/supervise.md)).
 - **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks.
-- **Peer orchestrator:** when the user asks for another orchestrator thread beside you, start it top-level in a visible tab, never as your child: `herdr-app do tab.new '{"name":…,"space":…,"folder":<source>,"argv":["claude"],"task":<brief>}'`, with the space ID from `herdr-app ls`. Its brief opens with `/orchestrate-using-herdr-app <flags>`, lists its tasks, keeps them disjoint from yours, and tells it never to `hc send` to you. Watch it with `scripts/watch-agent.sh <name>` and read its yield reports with `hc read <name>`. It owns its own workers, worktrees, and reaping; confirm in `hc get` that it is `working` with no parent.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable (zsh does not word-split it). Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 
 ## Report
 
-Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
+Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, handed-off, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
 
 Report at each yield, when you are about to wait on workers or hand control back:
 
 | When                                 | Report                                                                                                                                                                                                         |
 | ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A dispatch wave is done and you wait | Per task: agent name, terminal, worktree, state; queued tasks with their prerequisites; the mode and what you wait for. Without supervision, this is the final report.                                             |
+| A handoff is done                    | Peer tab and terminal, the tasks it took, and that the user continues with it there. Final for those tasks.                                                                                                   |
 | A question needs the user's decision | The task, the one question, and its evidence.                                                                                                                                                                  |
 | A shared blocker                     | Dispatch paused, the affected tasks, and what the user must do.                                                                                                                                                |
 | A supervised task settles            | One line: the result with evidence (PR URL at head SHA, checks, ticket URL) or the exact blocker; dependents it launched.                                                                                      |

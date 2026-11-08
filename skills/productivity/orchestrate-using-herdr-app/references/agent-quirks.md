@@ -19,6 +19,7 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
 - **New session bug:** an unknown Pi bug sometimes makes `/new` exit Pi, which finishes the terminal. If `hc get <name>` shows `finished`, `hc rm <name>`, restart with `scripts/start-worker.sh <name> <worktree> <brief-file>` carrying the full brief, and confirm it is `working`. Exiting is a bug, not the normal `/new` behavior.
 - **Compact:** `hc send <name> "/compact [what to preserve]"`; status can read `done` while compaction runs, and a message queued during compaction is dropped. Send the follow-up only once `hc read <name>` no longer shows "Compacting".
 - **Handoff:** `hc send <name> "/handoff <follow-up request> ulw"`. Pi summarizes into a new session and **preloads** the summary plus request in the editor without submitting it; once the agent is `idle`, submit with `hc keys <name> enter`. The terminal name survives.
+- **Peer orchestrator** ([handoff.md](handoff.md)): argv `["pi"]`; the brief opens with `$skill:orchestrate-using-herdr-app <flags>` and ends with `ulw`.
 - **Reviewer** ([supervise.md](supervise.md)): the brief is `$skill:axis-review` for a local whole-branch review of `<base>...HEAD` (later rounds: only `<last-reviewed>..HEAD`, focusing on correctness bugs, real runtime or security risks, and unfixed earlier blockers). Write all findings, including non-blocking ones, to `<briefs>/raw-review-<ticket>-<round>.md` outside the worktree (task slug without a ticket), and end the turn with that absolute path, never `hc send`. This output file is the only permitted write: no code edits, commits, or remote comments, reviews, or replies. Keep the session across rounds and bot fallback. End the brief with `ulw`.
 
 ## claude
@@ -30,6 +31,7 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
   1. `hc send <name> "/handoff <follow-up focus>"`; the worker writes a handoff document to `$TMPDIR` and prints its path.
   2. Take only the path from the worker's output; do not read the document yourself.
   3. `hc send <name> /new`, then prompt the worker to read that path and continue with the follow-up request.
+- **Peer orchestrator** ([handoff.md](handoff.md)): argv `["claude"]`; the brief opens with `/orchestrate-using-herdr-app <flags>`. Expect the folder-trust dialog in an untrusted folder.
 - **Reviewer** ([supervise.md](supervise.md)): start the brief with `/code-review <level> <branch>`, Claude Code's built-in review, without `--fix` or `--comment`, for the initial whole branch. Later rounds say: "Review only commits `<last-reviewed>..HEAD`; focus on correctness bugs, real runtime or security risks, and unfixed earlier blockers." In every brief require all findings, including non-blocking ones, in `<briefs>/raw-review-<ticket>-<round>.md` outside the worktree (task slug without a ticket), ending the turn with that absolute path, never `hc send`. Only that output file may be written: no code edits, commits, or remote comments, reviews, or replies. Keep the session across rounds and bot fallback. A worktree a Pi worker made is new to Claude, so expect the folder-trust dialog.
 
 ## codex

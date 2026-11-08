@@ -258,14 +258,14 @@
     },
     {
       "id": 22,
-      "name": "peer-orchestrator-runs-in-visible-tab",
-      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j, supervising A2A-466 in apps/network-connector-cli. The user says: file one ticket per Web regression batch, then pass all that work to another Claude Code thread (not a subagent) that runs /orchestrate-using-herdr-app --watch, so you two run in parallel. Describe the exact commands and checks.",
-      "expected_output": "Files the tickets, then starts the peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv claude and a brief opening with /orchestrate-using-herdr-app --watch, not as a hidden hc child or harness subagent; keeps the peer tasks disjoint, asks it to report via hc send t1j, and confirms it is working with no parent.",
+      "name": "handoff-starts-peer-in-visible-tab",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (hc get shows agent: claude-code), supervising A2A-466 in apps/network-connector-cli. Mid-conversation a Web regression side issue comes up; the user agrees one ticket per regression batch and that Settings pages stay out of scope, then runs /orchestrate-using-herdr-app --handoff --watch --track for it. Describe the exact commands and checks.",
+      "expected_output": "Files the tickets, reads its own kind from hc get t1j, then starts one peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv [\"claude\"] and a brief opening with /orchestrate-using-herdr-app --watch --track that carries the side issue, the agreed decisions, and the out-of-scope Settings pages; confirms it is working with no parent, logs handed-off, reports the handoff, and has no further contact with the peer.",
       "expectations": [
-        "Starts the peer with herdr-app do tab.new (space from herdr-app ls, folder at the source checkout, argv claude), not start-worker.sh, hc run, or the harness agent tool",
-        "The peer brief opens with /orchestrate-using-herdr-app --watch and lists only the Web regression tickets, disjoint from A2A-466",
-        "Asks the peer to report to t1j with hc send and leaves the peer to own its workers, worktrees, and reaping",
-        "Confirms with hc get that the peer terminal is working and has no parent before reporting"
+        "Reads its own kind from hc get $HC_TERMINAL_ID and starts the peer with herdr-app do tab.new (space from herdr-app ls, folder at the source checkout, argv [\"claude\"]), not start-worker.sh, hc run, or the harness agent tool",
+        "The peer brief opens with /orchestrate-using-herdr-app --watch --track (no --handoff) and carries the side issue, the decisions already agreed, and that Settings pages stay out of scope, disjoint from A2A-466",
+        "Starts no watcher, hc read, hc send, or SendMessage toward the peer; the peer owns its workers, worktrees, reaping, and reports to the user in its own tab",
+        "Confirms with hc get that the peer terminal is working and has no parent, then logs handed-off and reports the handoff as final for those tasks"
       ],
       "files": []
     },
@@ -294,6 +294,29 @@
         "In no-flag mode reports the handoff and stops without a watcher; under --watch starts one background watch-agent.sh per worker.",
         "Ends the repair message with the reporting reminder line.",
         "Treats a stray <hc> note as a child report, keeps the user's own text separate, and inspects the worker before acting."
+      ],
+      "files": []
+    },
+    {
+      "id": 25,
+      "name": "handoff-inherits-pi-kind",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app is active in hc terminal t3p, and hc get t3p shows agent: pi. The user runs /orchestrate-using-herdr-app --handoff --auto for a CI flake side issue without naming an agent. Describe the peer launch.",
+      "expected_output": "Starts the peer as Pi, inherited from its own kind: herdr-app do tab.new with argv [\"pi\"] and a brief opening with $skill:orchestrate-using-herdr-app --auto and ending with ulw.",
+      "expectations": [
+        "Reads its own kind from hc get t3p and starts the peer with argv [\"pi\"], not claude",
+        "The brief opens with $skill:orchestrate-using-herdr-app --auto, omits --handoff, and ends with ulw"
+      ],
+      "files": []
+    },
+    {
+      "id": 26,
+      "name": "handoff-transfers-live-worker",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (agent: claude-code). Worker a2a-466 is live in terminal t7k, worktree ~/.herdr/worktrees/repo/a2a-466-fix, branch a2a-466-fix, with a watch-agent.sh watcher running. The user runs /orchestrate-using-herdr-app --handoff --watch A2A-466 to move that work to its own conversation. Describe what you do.",
+      "expected_output": "Names t7k, the worktree, and the branch in the peer brief as transferred, stops its own watcher, logs them handed-off, launches the peer, and never reads, sends to, or reaps t7k again.",
+      "expectations": [
+        "The peer brief transfers terminal t7k, the worktree path, and branch a2a-466-fix to the peer by name",
+        "Stops its own watch-agent.sh watcher for a2a-466 and logs the worker as handed off",
+        "After launch, never runs hc read, hc send, send-followup.sh, or reap-worker.sh on t7k"
       ],
       "files": []
     }
