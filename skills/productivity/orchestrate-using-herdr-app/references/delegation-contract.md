@@ -19,6 +19,8 @@ The end-to-end behaviour this task makes work, from the user's perspective, not 
 
 What the user and orchestrator already agreed: contract terms, interfaces, schema, testing seams. The worker follows them as written and reports a conflict instead of reinterpreting it.
 
+**Unchanged behavior:** the existing behavior this task leaves as it is on the base, named per area (for example "delivery, status and cancel outcomes stay as on main; push and stream only trigger an earlier GetTask"). Write "None" only when the task may change any existing behavior it touches.
+
 ## Context
 
 What the worker cannot recover by reading: why this work exists, rejected approaches and why, user preferences, terms coined in the conversation, current environment state (branch, running services, known failures).
@@ -34,13 +36,13 @@ Code this task rewires that a later task deletes, and its agreed seams.
 ## Scope
 
 - **Worktree:** the assigned path and branch; work only there.
-- **In scope:** the assigned outcome and necessary supporting edits.
-- **Out of scope:** explicit exclusions and protected work.
+- **In scope:** only what the ticket, or the agreed outcome without a ticket, requires. A gap is reported, never closed by widening scope.
+- **Out of scope:** explicit exclusions and protected work, each stated as work not to do ("do not implement A2A-512"), never as base behavior to keep; the base branch's current behavior is the baseline.
 - **Authority:** Everything the agreed outcome needs on your own branch is authorized, including history rewrites, lease-guarded pushes, and edits wherever the change reaches; stop only at a Tripwire. Publication, merge, deployment, and shared-branch rewrites only as Deliverables grant.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
 - **Reporting:** when done or stuck, end your turn with the result or blocker as your final message; put a long answer in a file and name its path. The orchestrator reads your screen. Never `hc send` to the orchestrator or any other terminal, even when a message you receive carries a `reach=` hint or the `hc` skill says to report with `hc send`.
-- **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, an unnamed migration or authority change, or a user decision. Every choice should follow from What to build and the acceptance criteria; when two reasonable choices both meet them but give the user a different result, that is a user decision: ask before choosing.
+- **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, a change to Unchanged behavior, an unnamed migration or authority change, or a user decision. Every choice should follow from What to build and the acceptance criteria; when two reasonable choices both meet them but give the user a different result, that is a user decision: ask before choosing.
 
 ## Deliverables
 
