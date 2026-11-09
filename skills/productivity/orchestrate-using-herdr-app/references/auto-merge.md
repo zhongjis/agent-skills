@@ -21,4 +21,4 @@ Merge through the repository's merge queue when it has one, otherwise its suppor
 
 ## After merge
 
-Read back the merged state and merge commit before reporting success. Then reap the settled task ([reap.md](reap.md)); its worktree stays until the user asks for cleanup. On any blocker, keep the PR, worktree, and evidence intact.
+Read back the merged state and merge commit before reporting success. When the repository deploys on merge, watch that merge's release run to completion. The task is settled only when every deploy job succeeded at the merge SHA. A failed release is a shared blocker ([supervise.md](supervise.md)): merge nothing more until it is understood. Report a merged change as live only with that evidence. Then reap the settled task ([reap.md](reap.md)); its worktree stays until the user asks for cleanup. On any blocker, keep the PR, worktree, and evidence intact.

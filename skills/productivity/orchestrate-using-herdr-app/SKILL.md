@@ -60,7 +60,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 - **Pi by default** unless the user names another kind; a reviewer is the other kind from its worker ([supervise.md](references/supervise.md)).
 - **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
-- **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable (zsh does not word-split it). Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
+- **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 
 ## Report
 
@@ -76,6 +76,6 @@ Report at each yield, when you are about to wait on workers or hand control back
 | A shared blocker                     | Dispatch paused, the affected tasks, and what the user must do.                                                                                                                                                |
 | A supervised task settles            | One line: the result with evidence (PR URL at head SHA, checks, ticket URL) or the exact blocker; dependents it launched.                                                                                      |
 | Every task is settled                | Per task: target, agent name, terminal, worktree path, mode, and the result with evidence or the exact blocker and the decision needed; queued tasks with their prerequisites; the kept worktrees, with an offer to clean them up; the log path. Then stop. |
-| The user asks for status             | The latest row per task, re-checked live at the destination.                                                                                                                                                   |
+| The user asks for status             | The latest row per task, re-checked live in the same turn: `hc get` for each named worker, and `gh pr view`/`gh run view` for each named PR or release. State no worker or deploy state without that check.        |
 
 Worker progress, questions you answer from the brief, retries, and context transitions go to the log only.
