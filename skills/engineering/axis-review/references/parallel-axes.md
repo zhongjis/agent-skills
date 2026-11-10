@@ -32,4 +32,4 @@ An isolated pass that times out, stalls, or returns empty is not "no findings" �
 
 When the passes return, assemble them per the **Aggregation** rules in `SKILL.md`.
 
-Isolation is the point: because each pass ran in its own context, no axis could see or be colored by another. That separation is already enforced by the isolation — carry it through into the report rather than re-judging across axes. Carrying separation through is not the same as trusting reported severities verbatim: you still validate each finding within its axis (SKILL.md § Aggregation).
+Isolation is the point: because each pass ran in its own context, no axis could see or be colored by another. That separation is already enforced by the isolation — carry it through into the report rather than re-judging across axes. Carrying separation through is not the same as trusting reported severities verbatim: you still validate each finding's impact against the Authority, and merge findings that share one root cause (SKILL.md § Aggregation).

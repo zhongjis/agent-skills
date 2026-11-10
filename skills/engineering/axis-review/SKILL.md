@@ -27,7 +27,7 @@ A review runs as a set of independent **axes** — each a single lens (correctne
 
 Run these steps in order. Steps 1-3 run once, inline, in the main reviewing context and build the shared **foundation brief** — a fixed-field record every axis reads verbatim:
 
-> **Mode** · **Risk** · **Behavior delta** · **Security depth** · **Active axes**
+> **Mode** · **Risk** · **Authority** · **Behavior delta** · **Security depth** · **Active axes**
 
 1. **Pin scope, mode + risk.** Select the requested comparison, note the mode, and classify the change's **Risk** — Trivial / Standard / Risky (see Risk dial; use the selected diff's stat and touched paths).
    - Local Git: unstaged `git diff` / `git diff --stat`; staged `git diff --cached` / `git diff --cached --stat`; combined tracked uncommitted `git diff HEAD` / `git diff HEAD --stat`; committed `git diff <base>...HEAD` / `git diff <base>...HEAD --stat` (against the merge-base). Preserve any requested path filters in both commands.
@@ -38,6 +38,7 @@ Run these steps in order. Steps 1-3 run once, inline, in the main reviewing cont
    - Confirm the selected diff command succeeds and the selected scope is non-empty, including any in-scope untracked files, before going further — an invalid comparison or empty scope fails here, not inside an axis.
 2. **Gather context + fetch links.** Read each changed file in full, not just the hunks. For every changed symbol, find its callers. Follow any links you encounter — the PR description, commit messages, linked issues or tickets, a path the user passed — and fetch the ones your environment can reach, so behavior and intent rest on real context. Follow `references/context-gathering.md` for dependency contracts and caller / history / churn gathering, scaled to the Risk you pinned.
 3. **Build the foundation brief.** Fill the record once:
+   - **Authority** — the source that decides correct behavior, highest first: explicit spec (PR body, ticket, linked docs) > a reference the spec names (another system, a legacy path, a standard) > base-branch behavior > reviewer judgment. Name the highest source that speaks to this change and, for a reference, how to get its output. Every axis grades against it; a finding that rests on a lower source and contradicts a higher one is not a finding.
    - **Behavior delta** — what observable behavior the change adds, removes, or alters. Descriptive, not a finding; it feeds every axis.
    - **Security depth** — whether the diff touches a **security surface** (input boundary, auth/authz, secrets, deserialization, SQL / shell / HTML sinks, network, file paths). This sets Security's depth and may **upgrade** the Risk you pinned in step 1.
    - **Active axes** — from the Axis registry, every always-on axis plus each conditional axis whose trigger the triage hit.
@@ -93,9 +94,9 @@ Assign severity **within each axis**. `[BLOCKER]` and `[MAJOR]` are blocking; th
 
 ## Aggregation
 
-**Re-check dispatched findings first.** Independently verify each dispatched finding against the code and its contract and re-severitize before assembling — dispatched severities are inputs, not final. This is within-axis validation against ground truth, not cross-axis re-judging: keep each axis's grouping intact, and a severity you overturn is also reason to lower that axis's confidence. Tighten each finding's prose in the same pass — active voice, no filler, no puffery (§ Feedback craft); a finding that reads loose isn't done.
+**Re-check dispatched findings first.** Independently verify each dispatched finding against the code and its contract and re-severitize before assembling — dispatched severities are inputs, not final. This is validation against ground truth, not cross-axis re-judging: a severity you overturn is also reason to lower that axis's confidence. For every `[BLOCKER]` or `[MAJOR]`, state its impact before keeping the severity: what the user sees, how often the input occurs, and how head compares with base and with the Authority. A finding that reproduces but changes only cosmetics drops a level. Tighten each finding's prose in the same pass — active voice, no filler, no puffery (§ Feedback craft); a finding that reads loose isn't done.
 
-Copy the re-checked findings into the report unchanged, under that axis's heading. Build the findings table by grouping stably on (axis, severity), keeping every axis's rows distinct.
+Copy the re-checked findings into the report under their axis heading. One root cause is one finding: file it under the axis it hurts most, and have the other axes reference its ID in their group instead of adding rows, so no axis's result disappears. Build the findings table by grouping stably on (axis, severity).
 
 - **Completion criteria** — two gates, both required to keep one axis from masking another:
   1. Each active axis ran in its own isolated pass whenever an isolation mechanism was available; only the Trivial or no-isolation fallback runs axes inline in one shared context.
