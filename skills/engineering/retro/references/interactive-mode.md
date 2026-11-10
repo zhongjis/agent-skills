@@ -1,6 +1,6 @@
 # Interactive mode
 
-With `--interactive`, step 5 presents the findings on a local decision page instead of in chat. The user reviews one finding at a time. For each one they choose **Approve**, **Later** or **Skip**, write a note, or both. A note without a choice is a question, a request for more context, or a change request. The user sends everything to you in one batch, and you answer every note on the page in a new round.
+With `--interactive`, step 6 presents the findings on a local decision page instead of in chat. The user reviews one finding at a time. For each one they choose **Approve**, **Later** or **Skip**, write a note, or both. A note without a choice is a question, a request for more context, or a change request. The user sends everything to you in one batch, and you answer every note on the page in a new round.
 
 The page is a fixed template. Only its data changes: you write `findings.json`, and `scripts/retro.mjs` validates it and renders `retro.html`. Never edit `assets/template.html` or the rendered HTML by hand. `<skill-dir>` below is the directory that contains this skill's `SKILL.md`.
 
@@ -16,7 +16,7 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
 ## Start
 
 1. Write `findings.json` against `schemas/findings.schema.json`. `render` orders findings high, medium, low and keeps your order within a severity, so list the costlier finding first.
-   - Each finding has the step 5 sections as `happened`, `why` and `fix`, plus `owner` (the owning source path), `rec`, and `rev: 1`.
+   - Each finding has the step 6 sections as `happened`, `why` and `fix`, plus `owner` (the owning source path), `rec`, and `rev: 1`.
    - Add a show-me visual under `visuals.happened`, `visuals.why` or `visuals.fix` only where it makes the point faster than prose. Use `diff` for a change, `tree` for a call, file or component tree, `code` for pseudocode or a snippet, and `log` for exact error text. Keep only the lines the point needs.
    - Set `status` to `covered` or `mostly` for a finding that is already fixed, so the user sees that before deciding.
    - Put the step 3 steering inputs in `steering`.

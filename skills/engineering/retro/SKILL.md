@@ -11,14 +11,14 @@ metadata:
 
 The user has asked for a **retrospective**. You are suggesting improvements to the coding agent's **environment** to improve future runs.
 
-**Invocation:** `/retro [--interactive] [session]`. `--interactive` changes only step 5, the way you present findings. Every other step is the same.
+**Invocation:** `/retro [--interactive] [session]`. `--interactive` changes only step 6, the way you present findings. Every other step is the same.
 
 ## Steps
 
 1. Invoke the skill `writing-for-agents` for the writing style guide.
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. Locate session logs and steering files through the **Agent Environment** list; ask for a path only when it has no entry. Read a session log through the harness's `*-session-logs` skill (`claude-session-logs`, `pi-session-logs`) when one exists.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine. If the user doesn't specify a session, default to the current one. Locate session logs and steering files through the **Agent Environment** list; ask for a path only when it has no entry. Read a session log through the harness's `*-session-logs` skill (`claude-session-logs`, `pi-session-logs`) when one exists. From the log, extract the **divergences**: the user's goal and done condition, every user correction, rejection or repeated request, every rework (code reverted or restructured), and the final outcome. Each divergence is expected vs actual, with its cost. Divergences are the input to step 4; a candidate with no divergence behind it is not a finding.
 3. List the session's steering inputs: the four **steering layers** (global `AGENTS.md`, mode prompt, subagent prompts, project `AGENTS.md`), skills loaded or passed to workers, and the ticket and handoff prompt. Each finding names the **owning source**: the one input that produced the behavior.
-4. Look for candidates for improvement in these categories.
+4. For each divergence, trace it to its owning source, then file it under one of these categories.
 
 - **Navigation**: how easy was it for the agent to find the right files? Are there hidden dependencies between files? Would a **navigation pointer** make it easier? _Use when_ the session took a long time to find a piece of information.
 - **Automated checks**: are there automated checks that could catch errors the agent made? Linting, typing, tests, filesystem linters? Read the repo's own check command first (its `package.json`/build-tool `lint`/`check` scripts, its CI workflow), so a check that already exists but sits unwired or silently broken is the finding, not a reinvention. A repo with no **guardrail** (no pre-commit hook and no CI job running its lint/typecheck/test command) is itself a finding: an un-linted repo is a standing missed opportunity, not a neutral default. _Use when_ the agent made a mistake an automated check could have caught, or the repo has no guardrail at all.
@@ -36,10 +36,15 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
   A finding on a shared project file is a proposal for the repo's owners; edit personal layers directly.
 
-5. Present these candidates to the user, in order of severity. Each finding has a plain-language title, its owning source's file path and three sections:
+5. Check every candidate before presenting it. Drop or downgrade it when it fails:
+   - **Already covered:** search the owning source and its parent layers for the rule. If the rule exists and was ignored, the finding is why it was ignored, not "add it".
+   - **Counterfactual:** name the log turn where the agent, with the fix in context, would have acted differently. No such turn means no finding.
+   - **Real owner:** read the owning file before proposing an edit to it. Never propose a file the setup does not read.
+
+6. Present these candidates to the user, in order of severity. Each finding has a plain-language title, its owning source's file path and three sections:
    - **What happened:** what the session hit, with a real example and the exact error text.
    - **Why:** the root cause, naming the owning source.
-   - **Fix proposal:** the change, and your recommendation.
+   - **Fix proposal:** the change, the log turn it would have changed, and your recommendation.
 
    Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 
@@ -51,7 +56,7 @@ Work moves through exploration, optional planning, implementation, and review, o
 
 Rework (code reverted or restructured mid-implementation) is the signal: trace it to the missing exploration fact, unplanned decision, or lossy handoff that caused it.
 
-This means that the review agent should be responsible for imposing coding standards, not the implementation agent. A reviewer finding names the reviewer's subagent definition or the repo's `CODING_STANDARDS.md` as its owning source.
+This means that the review stage should be responsible for imposing coding standards, not the implementation agent. A reviewer finding names the file the review actually reads as its owning source: the review skill or reviewer brief, the standards skill, or the project `AGENTS.md`. Name `CODING_STANDARDS.md` only when the repo has one.
 
 ### Files
 
