@@ -49,6 +49,16 @@ bash "$SCRIPTS/pi-session-thread.sh" "$SESSION" --leaf entry-id --tools
 
 `--head`/`--tail` count displayed events. `--no-empty` skips assistants without visible text or tool calls. System changes, custom messages, summaries, and context-edit events remain distinguishable from ordinary messages. Image bodies and thinking text are not printed.
 
+### Prompts
+
+```bash
+bash "$SCRIPTS/pi-session-prompts.sh" "$SESSION" --head 10
+bash "$SCRIPTS/pi-session-prompts.sh" "$SESSION" --tail 5 --max-chars 120
+bash "$SCRIPTS/pi-session-prompts.sh" "$SESSION" --max-chars 0
+```
+
+Lists human `user` messages and direct `bashExecution` commands as `timestamp | id | user|bash | text`, with image counts but no image bodies or Bash output. `--max-chars` defaults to 300; 0 means unlimited. `--head`/`--tail` count displayed messages across the whole file.
+
 ### Agent delegations
 
 ```bash
@@ -58,7 +68,7 @@ bash "$SCRIPTS/pi-session-subagents.sh" "$SESSION" --prompt-len 0
 bash "$SCRIPTS/pi-session-subagents.sh" "$SESSION" --prompt-len -1
 ```
 
-Extracts current `agent` calls, including recorded nested calls. The current tool supplies fields such as `subagent_type`, `description`, `run_in_background`, and `inherit_context`; individual extension tool schemas are not part of Pi's session-format contract.
+Extracts case-insensitive `agent`/`subagent` calls, including recorded nested calls, with `subagent_type`, `description`, `run_in_background`, `inherit_context`, and `skills` when present. Direct calls join the latest `subagents:record` by result `details.agentId` to show final status, a 300-character result preview, and elapsed milliseconds. Without a record, result status/text remain visible; result `toolUses`/`durationMs` are used only for foreground delivery. `--prompt-len` controls the delegated prompt (0 hides it; -1 shows it in full). `details.outputFile` identifies a temporary sidechain transcript with top-level role types and `isSidechain:true`, not a Pi session these scripts can parse. Individual extension schemas are not part of Pi's session-format contract.
 
 ### Tool calls and results
 
@@ -99,7 +109,7 @@ bash "$SCRIPTS/pi-session-files.sh" "$SESSION" --op edit
 bash "$SCRIPTS/pi-session-files.sh" "$SESSION" --unique
 ```
 
-Extracts deduplicated path arguments from direct and recorded nested file tools. This is not a filesystem trace: paths used inside Bash commands or unrecorded nested calls are not inferred.
+Extracts deduplicated path arguments from direct and recorded nested file tools. `--unique` prints `Nx op1,op2 path` per path: N counts recorded calls and operations are deduplicated. Default output remains grouped by operation. This is not a filesystem trace: paths used inside Bash commands or unrecorded nested calls are not inferred.
 
 ### Tasks
 

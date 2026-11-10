@@ -6,7 +6,7 @@
 #
 # Options:
 #   --op TYPE   Filter by operation: read, write, edit (default: all)
-#   --unique    Just print unique file paths, no grouping
+#   --unique    Print Nx op1,op2 path per unique file path
 
 set -euo pipefail
 

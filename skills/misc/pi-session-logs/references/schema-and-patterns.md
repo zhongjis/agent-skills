@@ -60,6 +60,8 @@ Tool results can record bounded metadata:[2]
 
 Direct tool results associate with assistant tool calls through `toolCallId`; matching by tool name alone can pair the wrong invocation. For files/delegations/tasks, use the bundled scripts so direct and recorded nested calls share one extraction policy.
 
+For observed subagent extension calls, join result `.message.details.agentId` to the latest `custom` entry with `customType:"subagents:record"` and matching `data.id`; `data.status`, `data.result`, and epoch-millisecond `data.startedAt`/`data.completedAt` describe the final worker outcome, unlike background launch metrics.
+
 ## History, branches, and model context
 
 Append order is not one conversation path. A new entry can point to an earlier parent, creating a branch. `pi-session-thread.sh --leaf ID` selects a root-to-entry history path; its default output covers the full file.[1]

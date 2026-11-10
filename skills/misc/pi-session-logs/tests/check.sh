@@ -155,5 +155,61 @@ check 'call-only event retained' '[TOOL:agent]' "$s/pi-session-thread.sh" "$f" -
 absent 'thinking-only still omitted' '| thinking |' "$s/pi-session-thread.sh" "$f" --no-empty
 jq -nc '{type:"message",message:{role:"toolResult",toolName:"read",isError:true,content:[{type:"text",text:"READ_FAILED"}]}}' > "$tmp/failed-result"
 check 'thread preserves tool failure metadata' 'toolResult:read error=true' "$s/pi-session-thread.sh" "$tmp/failed-result" --tools
+# Delegations join final extension records by agentId, not tool name or order.
+jq -nc '
+  {type:"message",message:{role:"assistant",content:[
+    {type:"toolCall",id:"fg",name:"subagent",arguments:{subagent_type:"builder",description:"Foreground",prompt:"Build it",skills:["programming"]}},
+    {type:"toolCall",id:"bg",name:"Agent",arguments:{subagent_type:"reviewer",description:"Background",run_in_background:true,prompt:"Review it"}}]}},
+  {type:"message",message:{role:"toolResult",toolCallId:"fg",content:"FOREGROUND_RESULT",details:{agentId:"worker-fg",delivery:"foreground",status:"completed",toolUses:7,durationMs:4321}}},
+  {type:"message",message:{role:"toolResult",toolCallId:"bg",content:"BACKGROUND_ACK",details:{agentId:"worker-bg",delivery:"background",status:"background",toolUses:0,durationMs:3,outputFile:"/tmp/sidechain.jsonl"}}},
+  {type:"custom",customType:"subagents:record",data:{id:"unrelated",status:"failed",result:"WRONG_RESULT",startedAt:1000,completedAt:2000}},
+  {type:"custom",customType:"subagents:record",data:{id:"worker-bg",status:"running",result:"STALE_RESULT",startedAt:1000}},
+  {type:"custom",customType:"subagents:record",data:{id:"worker-bg",status:"completed",result:("FINAL_HANDOFF " + ("x" * 310) + "HIDDEN_RESULT_END"),startedAt:1000,completedAt:9500}}
+' > "$tmp/delegations"
+check 'foreground details' 'status=completed durationMs=4321 toolUses=7 result=FOREGROUND_RESULT' "$s/pi-session-subagents.sh" "$tmp/delegations" --type builder
+check 'delegated skills' 'skills=["programming"]' "$s/pi-session-subagents.sh" "$tmp/delegations"
+check 'background final record' 'status=completed durationMs=8500 result=FINAL_HANDOFF' "$s/pi-session-subagents.sh" "$tmp/delegations" --type reviewer --prompt-len 0
+check 'capitalized agent summary' '1 reviewer' "$s/pi-session-subagents.sh" "$tmp/delegations"
+check 'temporary transcript limitation' 'temporary sidechain transcript (not parseable by these scripts; top-level role types, isSidechain:true): /tmp/sidechain.jsonl' "$s/pi-session-subagents.sh" "$tmp/delegations"
+absent 'background launch metrics excluded' 'toolUses=0' "$s/pi-session-subagents.sh" "$tmp/delegations"
+absent 'background acknowledgement superseded' BACKGROUND_ACK "$s/pi-session-subagents.sh" "$tmp/delegations"
+absent 'unrelated worker result excluded' WRONG_RESULT "$s/pi-session-subagents.sh" "$tmp/delegations"
+absent 'latest worker record used' STALE_RESULT "$s/pi-session-subagents.sh" "$tmp/delegations"
+absent 'result preview bounded' HIDDEN_RESULT_END "$s/pi-session-subagents.sh" "$tmp/delegations"
+jq -nc '
+  {type:"message",id:"human",timestamp:"2026-01-01T00:00:00Z",message:{role:"user",content:"Please rework this"}},
+  {type:"message",id:"image",timestamp:"2026-01-01T00:00:01Z",message:{role:"user",content:[{type:"text",text:(("x" * 310) + "FULL_PROMPT_END")},{type:"image",data:"SECRET_IMAGE"}]}},
+  {type:"message",id:"assistant",message:{role:"assistant",content:[{type:"text",text:"ASSISTANT_ONLY"}]}},
+  {type:"custom_message",content:"CUSTOM_ONLY"},
+  {type:"message",id:"shell",timestamp:"2026-01-01T00:00:02Z",message:{role:"bashExecution",command:"git status",exitCode:1,output:"BASH_OUTPUT_ONLY"}}
+' > "$tmp/prompts"
+check 'typed human prompt' '2026-01-01T00:00:00Z | human | user | Please rework this' "$s/pi-session-prompts.sh" "$tmp/prompts"
+check 'human bash command' '2026-01-01T00:00:02Z | shell | bash | ! git status exit=1' "$s/pi-session-prompts.sh" "$tmp/prompts" --tail 1
+check 'prompt images counted' '[images: 1]' "$s/pi-session-prompts.sh" "$tmp/prompts"
+check 'unlimited prompt' FULL_PROMPT_END "$s/pi-session-prompts.sh" "$tmp/prompts" --max-chars 0
+check 'prompt truncation' '| user | Ple' "$s/pi-session-prompts.sh" "$tmp/prompts" --max-chars 3 --head 1
+absent 'default prompt preview bounded' FULL_PROMPT_END "$s/pi-session-prompts.sh" "$tmp/prompts"
+absent 'prompt no image data' SECRET_IMAGE "$s/pi-session-prompts.sh" "$tmp/prompts" --max-chars 0
+absent 'prompt no assistant text' ASSISTANT_ONLY "$s/pi-session-prompts.sh" "$tmp/prompts"
+absent 'prompt no custom text' CUSTOM_ONLY "$s/pi-session-prompts.sh" "$tmp/prompts"
+absent 'prompt no bash output' BASH_OUTPUT_ONLY "$s/pi-session-prompts.sh" "$tmp/prompts"
+absent 'prompt head selects humans' '| shell |' "$s/pi-session-prompts.sh" "$tmp/prompts" --head 1
+absent 'prompt tail zero' '| user |' "$s/pi-session-prompts.sh" "$tmp/prompts" --tail 0
+for option in --max-chars --head --tail; do
+  reject "prompts missing $option" "$s/pi-session-prompts.sh" "$tmp/prompts" "$option"
+  reject "prompts invalid $option" "$s/pi-session-prompts.sh" "$tmp/prompts" "$option" '1+1'
+done
+reject 'prompts ambiguous limit' "$s/pi-session-prompts.sh" "$tmp/prompts" --head 1 --tail 1
+jq -nc '
+  {type:"message",message:{role:"assistant",content:[
+    {type:"toolCall",id:"r1",name:"read",arguments:{path:"/rework"}},
+    {type:"toolCall",id:"r2",name:"read",arguments:{path:"/rework"}},
+    {type:"toolCall",id:"e1",name:"edit",arguments:{path:"/rework"}},
+    {type:"toolCall",id:"w1",name:"write",arguments:{path:"/new"}}]}},
+  {type:"message",message:{role:"toolResult",toolCallId:"batch",nestedCalls:{calls:[{id:"e2",name:"edit",arguments:{path:"/rework"},status:"ok"}],complete:true}}}
+' > "$tmp/rework"
+check 'file rework counts and unique ops' '4x edit,read /rework' "$s/pi-session-files.sh" "$tmp/rework" --unique
+check 'single file count' '1x write /new' "$s/pi-session-files.sh" "$tmp/rework" --unique
+check 'filtered file count' '2x read /rework' "$s/pi-session-files.sh" "$tmp/rework" --unique --op read
 [[ $failures == 0 ]]
 printf '%s checks passed\n' "$checks"

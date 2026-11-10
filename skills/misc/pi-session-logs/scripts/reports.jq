@@ -52,9 +52,21 @@ elif $cli == "toolcalls" then
   warnings
 elif $cli == "subagents" then
   resultmap as $rm |
-  [calls | select(.name == "agent") | select($type == "" or .arguments.subagent_type == $type)] as $cs |
-  ($cs[] | "[\(.ts)] \(.arguments.subagent_type // "agent graph/unspecified (not an individual agent)") | \(.arguments.description // "no desc") | bg=\(.arguments.run_in_background // false) inherit_context=\(.arguments.inherit_context // false) | \(callmeta)" +
-    (if (.nested | not) and $rm[.id] != null then " resultError=\($rm[.id].isError // false) result=\($rm[.id].content | text | one | .[:300])" else "" end) +
+  (reduce (.[] | select(.type == "custom" and .customType == "subagents:record") | .data) as $r
+    ({}; .[$r.id] = $r)) as $records |
+  [calls | select(.name | test("^(sub)?agent$"; "i")) | select($type == "" or .arguments.subagent_type == $type)] as $cs |
+  ($cs[] | $rm[.id] as $result | $result.details as $d | $records[$d.agentId // ""] as $record |
+    "[\(.ts)] \(.arguments.subagent_type // "agent graph/unspecified (not an individual agent)") | \(.arguments.description // "no desc") | bg=\(.arguments.run_in_background // false) inherit_context=\(.arguments.inherit_context // false) | \(callmeta)" +
+    (if .arguments.skills != null then " skills=\(.arguments.skills | tojson)" else "" end) +
+    (if (.nested | not) and $result != null then
+       " resultError=\($result.isError // false)" +
+       (if ($record.status // $d.status) != null then " status=\($record.status // $d.status)" else "" end) +
+       (if $record.startedAt != null and $record.completedAt != null then " durationMs=\($record.completedAt - $record.startedAt)"
+        elif $d.delivery == "foreground" and $d.durationMs != null then " durationMs=\($d.durationMs)" else "" end) +
+       (if $d.delivery == "foreground" and $d.toolUses != null then " toolUses=\($d.toolUses)" else "" end) +
+       " result=\(($record.result // ($result.content | text)) | one | .[:300])" +
+       (if $d.outputFile != null then "\n  temporary sidechain transcript (not parseable by these scripts; top-level role types, isSidechain:true): \($d.outputFile)" else "" end)
+     else "" end) +
     (if $prompt == 0 then "" else "\n  prompt: " + ((.arguments.prompt // "") | if $prompt == -1 then . else .[:$prompt] end) end)),
   "--- Summary ---", ($cs | group_by(.arguments.subagent_type)[] | "  \(length) \(.[0].arguments.subagent_type // "agent graph/unspecified")"), warnings
 elif $cli == "tasks" then
@@ -78,7 +90,8 @@ elif $cli == "tasks" then
 elif $cli == "files" then
   [calls | select(.name | IN("read", "write", "edit", "grep", "find", "ls")) |
     select($op == "" or .name == $op)] as $cs |
-  (if $unique then [$cs[].arguments.path // empty] | unique[]
+  (if $unique then [$cs[] | select(.arguments.path != null)] | group_by(.arguments.path)[] |
+     "\(length)x \(map(.name) | unique | join(",")) \(.[0].arguments.path)"
    else $cs | group_by(.name)[] | "=== \(.[0].name) ===",
      ([.[].arguments.path // empty] | unique | (.[] | "  " + .), "  (\(length) unique files)") end),
   ($cs[] | select(.arguments == null) | "WARNING: path unavailable; \(.name) \(callmeta)"), warnings
@@ -95,6 +108,15 @@ elif $cli == "custom" then
        (.content | text | if $data then . else .[:150] end) end) |
     if $compact then one else . end),
   "--- Summary ---", ($cs | group_by(.customType)[] | "  \(length) \(.[0].customType // "unknown")"), "  total: \($cs | length)"
+elif $cli == "prompts" then
+  ([.[] | select(.type == "message") | .message as $m |
+    select($m.role == "user" or $m.role == "bashExecution") |
+    (if $m.role == "bashExecution" then "! \($m.command // "") exit=\($m.exitCode // "unknown")"
+     else ($m.content | text) end | one | if $max == 0 then . else .[:$max] end) as $body |
+    (if ($m.content | type) == "array" then [$m.content[] | select(.type == "image")] | length else 0 end) as $images |
+    "\(.timestamp) | \(.id) | \(if $m.role == "user" then "user" else "bash" end) | \($body)" +
+    (if $images > 0 then " [images: \($images)]" else "" end)] |
+    if $head >= 0 then .[:$head][] elif $tail == 0 then empty elif $tail > 0 then .[-$tail:][] else .[] end)
 elif $cli == "thread" then
   (if $leaf == "" then . else path($leaf) end) |
   "=== Raw audit history (\(if $leaf == "" then "all branches, append order" else "parentId path to " + $leaf end)); not model-visible context ===",

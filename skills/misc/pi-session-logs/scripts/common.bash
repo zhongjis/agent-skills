@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared argument validation and jq runner for the nine session reports.
+# Shared argument validation and jq runner for the ten session reports.
 set -euo pipefail
 fail() { printf 'Error: %s\n' "$*" >&2; exit 2; }
 CLI=${0##*/pi-session-}
@@ -23,9 +23,9 @@ while (($#)); do
     files:--op) value "$@"; OP=$2; [[ $OP =~ ^(read|write|edit|grep|find|ls)$ ]] || fail "unknown op: $OP"; shift 2 ;;
     files:--unique) UNIQUE=true; shift ;;
     thread:--leaf) value "$@"; LEAF=$2; shift 2 ;;
-    thread:--max-chars) value "$@"; number "$1" "$2"; MAX=$2; shift 2 ;;
-    thread:--head) value "$@"; number "$1" "$2"; HEAD=$2; shift 2 ;;
-    thread:--tail) value "$@"; number "$1" "$2"; TAIL=$2; shift 2 ;;
+    thread:--max-chars|prompts:--max-chars) value "$@"; number "$1" "$2"; MAX=$2; shift 2 ;;
+    thread:--head|prompts:--head) value "$@"; number "$1" "$2"; HEAD=$2; shift 2 ;;
+    thread:--tail|prompts:--tail) value "$@"; number "$1" "$2"; TAIL=$2; shift 2 ;;
     thread:--tools) TOOLS=true; shift ;;
     thread:--no-empty) NOEMPTY=true; shift ;;
     timing:--from|timing:--from-tool|timing:--from-tool-arg)
