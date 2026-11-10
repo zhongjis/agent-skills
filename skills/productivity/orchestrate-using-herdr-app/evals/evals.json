@@ -260,12 +260,13 @@
       "id": 22,
       "name": "handoff-starts-peer-in-visible-tab",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (hc get shows agent: claude-code), supervising A2A-466 in apps/network-connector-cli. Mid-conversation a Web regression side issue comes up; the user agrees one ticket per regression batch and that Settings pages stay out of scope, then runs /orchestrate-using-herdr-app --handoff --watch --track for it. Describe the exact commands and checks.",
-      "expected_output": "Files the tickets, reads its own kind from hc get t1j, then starts one peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv [\"claude\"] and a brief opening with /orchestrate-using-herdr-app --watch --track that carries the side issue, the agreed decisions, and the out-of-scope Settings pages; confirms it is working with no parent, logs handed-off, reports the handoff, and has no further contact with the peer.",
+      "expected_output": "Files no tickets itself (the peer owns --track), reads its own kind from hc get t1j, then starts one peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv [\"claude\"] and a brief opening with /orchestrate-using-herdr-app --watch --track that carries the side issue, the agreed decisions, and the out-of-scope Settings pages; confirms it is working with no parent, logs handed-off, reports the handoff, and has no further contact with the peer.",
       "expectations": [
         "Reads its own kind from hc get $HC_TERMINAL_ID and starts the peer with herdr-app do tab.new (space from herdr-app ls, folder at the source checkout, argv [\"claude\"]), not start-worker.sh, hc run, or the harness agent tool",
         "The peer brief opens with /orchestrate-using-herdr-app --watch --track (no --handoff) and carries the side issue, the decisions already agreed, and that Settings pages stay out of scope, disjoint from A2A-466",
         "Starts no watcher, hc read, hc send, or SendMessage toward the peer; the peer owns its workers, worktrees, reaping, and reports to the user in its own tab",
-        "Confirms with hc get that the peer terminal is working and has no parent, then logs handed-off and reports the handoff as final for those tasks"
+        "Confirms with hc get that the peer terminal is working and has no parent, then logs handed-off and reports the handoff as final for those tasks",
+        "Files no tickets itself; --track goes to the peer, which files them"
       ],
       "files": []
     },
@@ -317,6 +318,18 @@
         "The peer brief transfers terminal t7k, the worktree path, and branch a2a-466-fix to the peer by name",
         "Stops its own watch-agent.sh watcher for a2a-466 and logs the worker as handed off",
         "After launch, never runs hc read, hc send, send-followup.sh, or reap-worker.sh on t7k"
+      ],
+      "files": []
+    },
+    {
+      "id": 27,
+      "name": "bare-handoff-starts-plain-agent",
+      "prompt": "Offline simulation: a normal Claude Code session in hc terminal t2m (agent: claude-code), not in orchestrator mode. A flaky-test side issue comes up and the user runs /orchestrate-using-herdr-app --handoff for it. Describe the peer launch, then what you do when the user next asks you to fix a typo in README.md.",
+      "expected_output": "Starts the peer with herdr-app do tab.new and argv [\"claude\"], with a plain brief that carries the side issue but no skill invocation and no flags, so the peer is a normal agent that does the task itself on its own branch. Files no tickets and starts no workers. Stays a normal session afterwards and fixes the README typo itself instead of dispatching a worker.",
+      "expectations": [
+        "The peer brief contains no /orchestrate-using-herdr-app invocation and no flags",
+        "Files no tickets, starts no workers, and has no further contact with the peer",
+        "Does not enter orchestrator mode: fixes the README typo itself rather than dispatching a worker"
       ],
       "files": []
     }

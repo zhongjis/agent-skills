@@ -1,6 +1,6 @@
 # Handoff (`--handoff`)
 
-Hand the tasks to one peer orchestrator: a new top-level conversation that owns them end to end. Use it when a side issue comes up mid-conversation and needs its own context, apart from this one.
+Hand the tasks to one peer, an orchestrator or a normal agent (see Brief): a new top-level conversation that owns them end to end. Use it when a side issue comes up mid-conversation and needs its own context, apart from this one.
 
 ## Brief
 
@@ -11,7 +11,10 @@ The peer starts cold and never sees this conversation. Write the brief per [dele
 - what stays out of scope, including work this session keeps
 - pointers: ticket, PR, files, logs, prior findings
 
-Open the brief with the skill invocation for the peer's kind (see Launch), passing through every flag except `--handoff`. Under `--track`, file the tickets first ([track.md](track.md)) and put them in the brief.
+The flags the user typed on this invocation, minus `--handoff`, belong to the peer's session; act on none of them here, and never carry the session's earlier flags.
+
+- With flags: open the brief with the skill invocation for the peer's kind (see Launch), carrying exactly those flags. Under `--track` the peer files the tickets; file none yourself.
+- With `--handoff` alone: the peer is a normal agent, not an orchestrator. Invoke no skill in the brief; keep the kind's other launch requirements from Launch. The peer does the tasks itself, on its own branch, apart from this session's work.
 
 ## Overlap
 
