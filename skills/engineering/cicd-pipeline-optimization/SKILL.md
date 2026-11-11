@@ -1,6 +1,6 @@
 ---
 name: cicd-pipeline-optimization
-description: CI/CD pipeline optimization playbook for cost and speed. Use when CI is slow or expensive: auditing workflow YAML, shortening PR feedback time, diagnosing a CI bill spike, cutting test, cache, or build time, choosing runners (ARM, larger, external, self-hosted), or attributing CI cost per team.
+description: "CI/CD pipeline optimization playbook for cost and speed. Use when CI is slow or expensive: auditing workflow YAML, shortening PR feedback time, diagnosing a CI bill spike, cutting test, cache, or build time, choosing runners (ARM, larger, external, self-hosted), or attributing CI cost per team."
 adaptedFrom:
   - "https://cicdpipelinecost.com"
 ---
