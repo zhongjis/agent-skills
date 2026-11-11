@@ -8,8 +8,17 @@
 # stopped_by_restart) is removed and restarted with start-worker.sh
 # --resume, keeping its name, worktree, kind, and session; the brief is its
 # first message. Exit 2: the worker waits on a dialog, or finished without a
-# resume label; read its screen before acting.
+# resume label; read its screen before acting. When ORCH_LOG is set, a confirmed
+# delivery or revival appends a best-effort `re-instructed` row to that log.
 set -euo pipefail
+
+log_followup() {
+	[ -n "${ORCH_LOG:-}" ] || return 0
+	local evidence="brief=$brief"
+	[ -z "$base" ] || evidence+=" last-reviewed=$base"
+	"$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$ORCH_LOG" "$name" re-instructed \
+		"$evidence" working >/dev/null 2>&1 || true
+}
 
 usage() {
 	printf 'usage: send-followup.sh <agent> <worktree> <brief-file> [--last-reviewed <commit>]\n' >&2
@@ -60,6 +69,7 @@ case "$state" in
 		fi
 		hc send "$name" "$(cat "$brief")" >/dev/null
 		printf 'agent %s: sent\n' "$name"
+		log_followup
 		;;
 	finished)
 		# The resume label holds the agent's own launch line, for example
@@ -74,7 +84,11 @@ case "$state" in
 		fi
 		session="${BASH_REMATCH[3]}"
 		hc rm "$name" >/dev/null
-		exec "$(dirname -- "${BASH_SOURCE[0]}")/start-worker.sh" "$name" "$worktree" "$brief" --kind "$kind" --resume "$session"
+		# Blank ORCH_LOG so start-worker.sh does not log a `dispatched` row.
+		rc=0
+		ORCH_LOG='' "$(dirname -- "${BASH_SOURCE[0]}")/start-worker.sh" "$name" "$worktree" "$brief" --kind "$kind" --resume "$session" || rc=$?
+		if [ "$rc" -eq 0 ]; then log_followup; fi
+		exit "$rc"
 		;;
 	*)
 		printf 'agent %s: unexpected state %s\n' "$name" "$state" >&2

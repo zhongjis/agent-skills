@@ -9,7 +9,8 @@
 # Rejects agent names outside [a-z][a-z0-9_-]{0,31}. A failed launch is
 # printed as hc returned it and never retried. Exit 2: the terminal started
 # but the brief is not confirmed (blocked, error, finished, or no turn after
-# 60 seconds); read the screen before acting.
+# 60 seconds); read the screen before acting. When ORCH_LOG is set, a confirmed
+# start appends a best-effort `dispatched` row to that log.
 set -euo pipefail
 
 usage() {
@@ -75,8 +76,18 @@ fi
 # namespace through env. --no-notify keeps hc's notes about the worker out
 # of the orchestrator's input, where they would collide with the user's typing.
 # Submit only the file pointer and Pi triggers, not the full brief, via argv.
-hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
-	env "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt"
+run_status=0
+run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
+	env "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt") || run_status=$?
+printf '%s\n' "$run_out"
+[ "$run_status" -eq 0 ] || exit "$run_status"
+log_dispatch() {
+	[ -n "${ORCH_LOG:-}" ] || return 0
+	local address
+	address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
+	"$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$ORCH_LOG" "$name" dispatched \
+		"terminal=$address worktree=$worktree brief=$brief kind=$kind" working >/dev/null 2>&1 || true
+}
 # The orchestrator's space: its own space label, else its pane's herdr.space.
 space=
 if [ -n "${HC_TERMINAL_ID:-}" ]; then
@@ -95,11 +106,12 @@ for _ in $(seq 30); do
 		exit 2
 	fi
 	case "$status" in
-		working) printf 'agent %s: working\n' "$name"; exit 0 ;;
+		working) printf 'agent %s: working\n' "$name"; log_dispatch; exit 0 ;;
 		blocked|error) printf 'agent %s: %s\n' "$name" "$status" >&2; exit 2 ;;
 	esac
 	if [ "$turn" -ge 1 ]; then
 		printf 'agent %s: turn %s, %s\n' "$name" "$turn" "$status"
+		log_dispatch
 		exit 0
 	fi
 	sleep 2

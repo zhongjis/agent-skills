@@ -17,4 +17,7 @@ fi
 # from the same terminal appends to the same log.
 dir="${XDG_STATE_HOME:-$HOME/.local/state}/orchestrate-using-herdr-app"
 mkdir -p "$dir"
-printf 'log=%s/%s.tsv\n' "$dir" "$(printf '%s' "$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '-')"
+log="$dir/$(printf '%s' "$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '-').tsv"
+printf 'log=%s\n' "$log"
+# Exporting it lets start-worker.sh and send-followup.sh log their own rows.
+printf 'export ORCH_LOG=%q\n' "$log"

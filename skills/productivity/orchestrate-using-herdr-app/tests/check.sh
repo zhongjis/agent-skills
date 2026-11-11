@@ -171,6 +171,28 @@ check 1 'unreadable brief' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp
 check 1 'usage' "$scripts/start-worker.sh" worker-a "$tmp/wt-a"
 [[ ! -s $tmp/calls ]]
 
+# ORCH_LOG: dispatch and follow-up append rows only on success and only when set.
+orch_log="$tmp/orch.tsv"
+rm -f "$orch_log"
+check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ ! -e $orch_log ]]
+check 0 'working' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
+[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tdispatched\tterminal=t9 worktree='"$tmp/wt-a"' brief='"$tmp/brief with spaces"$' kind=claude\tworking' ]]
+check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 1 'name_taken' env ORCH_LOG="$orch_log" MODE=run-fail "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(wc -l < "$orch_log") -eq 2 ]]
+# A logging failure never fails the dispatch.
+check 0 'working' env ORCH_LOG="$tmp/wt-a" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+: > "$tmp/calls"
+check 0 'sent' env ORCH_LOG="$orch_log" MODE=settled "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tre-instructed\tbrief='"$tmp/brief"$'\tworking' ]]
+rm -f "$tmp/removed"
+check 0 'working' env ORCH_LOG="$orch_log" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tre-instructed\t'* && $(grep -c dispatched "$orch_log") -eq 1 ]]
+check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(wc -l < "$orch_log") -eq 4 ]]
+: > "$tmp/calls"
+
 # Reviewer startup uses hc ls's observed string status, not hc get's object.
 ln -s "$tmp/wt-a" "$tmp/wt-alias"
 printf '{"terminals":[{"address":"t1","name":"worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
@@ -220,6 +242,7 @@ check 3 'requires --last-reviewed' env MODE=finished "$scripts/send-followup.sh"
 # orchestrate-init.sh: requires an hc terminal; log keyed by terminal id.
 check 1 'not inside' env -u HC_TERMINAL_ID -u XDG_STATE_HOME "$scripts/orchestrate-init.sh" api
 check 0 "log=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
+check 0 "export ORCH_LOG=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh"
 
 git init -q --bare "$tmp/remote"
