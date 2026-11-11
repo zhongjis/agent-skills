@@ -11,7 +11,7 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
 ## Every kind
 
 - **Slash commands go as keys.** `hc send` from an `hc` terminal wraps the text in `<hc from="…">…</hc>`, so the agent reads a slash command as chat and does not run it. Type every slash command with `hc keys <name> …`, one key per character, with `space` between words, then `enter`: `hc keys <name> / n e w enter`. Confirm the result on screen (Pi: `New session started`, or the status line's `ctx` drops). Briefs and follow-ups still go through `hc send` and `send-followup.sh`.
-- **Reviewer brief names the spec.** Every reviewer brief, of any kind and any round, names the review range, the ticket URL and the task brief path. It asks the reviewer to judge the diff against that spec and to report every issue it finds, including efficiency, as a finding. It also asks for changes the spec does not ask for, such as changes to behavior the brief lists as unchanged, to be reported as scope creep.
+- **Reviewer brief names the spec.** Every reviewer brief, of any kind and any round, names the review range, the ticket URL and the task brief path. It asks the reviewer to judge the diff against that spec and to report every issue it finds, including efficiency, as a finding. It also asks for changes the spec does not ask for, such as changes to behavior the brief lists as unchanged, to be reported as scope creep. It marks as blocking any change that removes or weakens an existing authorization, ownership or isolation check the task does not authorize, even when the reviewer judges the removed path unreachable.
 
 ## pi
 

@@ -28,7 +28,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 ## Start
 
-Run `scripts/orchestrate-init.sh <slug>`, where the slug names the overall work in at most 4 words. It checks that you run in an `hc` terminal (`$HC_TERMINAL_ID`) and prints `log=<path>`; keep that path for the session. On failure, report its message and stop. Otherwise read `hc --skill` and `herdr-app --skill` once: `hc` owns command syntax, terminal and agent primitives, and lifecycle states; `herdr-app` owns only what the user sees. This skill adds only the orchestration layer.
+Run `scripts/orchestrate-init.sh <slug>`, where the slug names the overall work in at most 4 words. It checks that you run in an `hc` terminal (`$HC_TERMINAL_ID`) and prints `log=<path>` and an `export ORCH_LOG=<path>` line; keep that path for the session and run the export line in every shell that starts or follows up workers. On failure, report its message and stop. Otherwise read `hc --skill` and `herdr-app --skill` once: `hc` owns command syntax, terminal and agent primitives, and lifecycle states; `herdr-app` owns only what the user sees. This skill adds only the orchestration layer.
 
 Then read, in one pass, what your flags need:
 
@@ -50,7 +50,7 @@ Send failed acceptance or missing evidence back to the worker.
 Per task:
 
 1. **Spec it.** Write the brief per [delegation-contract.md](references/delegation-contract.md) from the agreed conversation, or from the task's existing ticket when it has one; under `--track`, a task without a ticket gets one from the spec ([track.md](references/track.md)). Resolve routine gaps by inspection. If a material decision is missing from the conversation, ask one precise question and stop before any side effect. **Done when** the task has a brief with acceptance criteria.
-2. **Launch** through [preflight.md](references/preflight.md), every ready task at once unless the conversation set a limit. A task whose prerequisites are unverified is **queued**: it launches once they are verified, with their outputs added to its brief; without supervision, report it as queued. **Done when** the task is queued, or its worker is `working` and, under `--watch` or `--auto`, its `scripts/watch-agent.sh <name>` background task is running.
+2. **Launch** through [preflight.md](references/preflight.md), every ready task at once unless the conversation set a limit. A task with prerequisites is **queued**: log it as `queued` with evidence `needs=<task>,<task>`; these rows are the task graph, and a changed graph appends a new row (the latest wins). Before every dispatch, re-read the log, and launch a queued task only when each prerequisite has a `settled` row with result `succeeded` ([auto-merge.md](references/auto-merge.md#after-merge) defines settled for merged work), with their outputs added to its brief; without supervision, report it as queued. **Done when** the task is queued, or its worker is `working` and, under `--watch` or `--auto`, its `scripts/watch-agent.sh <name>` background task is running.
 3. **Hand off or supervise** per the mode.
 
 A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md), which keeps its terminal and worktree; without supervision, that happens when the user later reports the result. Remove terminals and worktrees only when the user asks for cleanup.
@@ -64,7 +64,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## Report
 
-Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, handed-off, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. Build every report from the log rows, never from memory.
+Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, handed-off, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. `start-worker.sh` and `send-followup.sh` log their own `dispatched` and `re-instructed` rows when `ORCH_LOG` is exported; log every other event yourself. Build every report from the log rows, never from memory.
 
 Report at each yield, when you are about to wait on workers or hand control back:
 

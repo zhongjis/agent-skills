@@ -8,14 +8,15 @@ Before work, confirm the worktree is clean, belongs to the intended repository, 
 
 ## Merge gates (you)
 
-Complete [supervise.md](supervise.md)'s local whole-branch review before push, same-session incremental review, and post-push bot convergence first. Its round budgets, rate-limit fallback, relay of every finding, and user decision at a cap apply here too. Non-blocking findings never trigger another round.
+Complete [supervise.md](supervise.md)'s local whole-branch review before push, same-session incremental review, and post-push bot convergence first. Its round budgets, rate-limit fallback, relay of every finding, and cap handling apply here too. Non-blocking findings never trigger another round.
 
 Immediately before merging, confirm all of these for the recorded head SHA:
 
 - the head SHA is unchanged and has no unexpected third-party commits;
 - the PR is open, non-draft, and mergeable;
 - CI is green for that SHA, including every required check, and no blocker remains;
-- repository-required approvals and review-thread resolution are satisfied for that SHA, including protection that blocks merging on `CHANGES_REQUESTED`.
+- repository-required approvals and review-thread resolution are satisfied for that SHA, including protection that blocks merging on `CHANGES_REQUESTED`;
+- no release or deploy run is in progress or queued on the default branch (another merge, possibly from a peer orchestrator). If one is, wait for it to finish, then re-check every gate. A wait past the release workflow's own timeout is a shared blocker ([supervise.md](supervise.md)).
 
 Merge through the repository's merge queue when it has one, otherwise its supported method. An optional configured bot still silent after the 15-minute review window is not itself a merge blocker; non-blocking findings may be listed in the PR body. Any failed or uncertain repository-required gate (including a missing required approval, protected `CHANGES_REQUESTED`, or required thread resolution) leaves the PR open with evidence; send in-scope repairs back to the worker.
 
