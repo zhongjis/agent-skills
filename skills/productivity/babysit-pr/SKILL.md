@@ -1,6 +1,8 @@
 ---
 name: babysit-pr
 description: Monitor a pull request through review and CI. Use when the user asks to monitor, watch, or babysit a PR.
+adaptedFrom:
+  - "https://github.com/t3dotgg/tstack/tree/11e37a74d0a6868c121cd0910ab2b3bd9873b92a/skills/babysit-pr"
 ---
 
 # Babysit PR
@@ -48,10 +50,10 @@ It prints one line per real event. It exits 0 when the `--until` condition is
 met or the PR merges, 1 when it needs you (a required check failed, conflicts,
 unresolved threads, PR closed), and 2 on bad input.
 
-- `ready` (default): required checks green, Greptile or Macroscope reviewed the
-  head, and no unresolved threads. Use this to babysit.
-- `green`: required checks only. Use it when the repo has no Greptile or
-  Macroscope.
+- `ready` (default): required checks green, every review bot that has appeared
+  on the PR (Codex, CodeRabbit) reviewed the head, and no unresolved threads.
+  Use this to babysit.
+- `green`: required checks only. Use it when the repo has no review bot.
 - `any-change`: exit on the first event.
 
 In Claude Code, run it with the Monitor tool (`timeout_ms: 3600000`), so each
@@ -80,15 +82,17 @@ finding against the source before changing code. Fix real findings and CI
 failures, distinguish repository failures from infrastructure flakes, and reply
 with a written reason when dismissing false positives.
 
-If the repo has `.macroscope/check-run-agents/*.md`, read those rules before you
-reply to a Macroscope finding. Its findings cite them.
+Codex reviews a head only when the PR opens, leaves draft, or someone comments
+`@codex review`. A push does not trigger it, so `ready` keeps waiting for Codex
+on the new head. After you push a repair, comment `@codex review` once.
 
-CodeRabbit is advisory. Treat its findings like any other finding, but never
-wait for it and never hold a merge for it.
+CodeRabbit reviews each push on its own. When it says it is rate limited, it
+will not review that head: wait with `--until green` instead and report its
+review as missing.
 
 If a review bot leaves feedback you believe is not worth addressing, reply with
-a written reason and resolve the comment. Use the `leaving-pr-comments` skill
-for every comment posted on the user's behalf.
+a written reason and resolve the comment. Use the `writing-clearly-and-concisely`
+skill for every comment posted on the user's behalf.
 
 Screenshots and videos help as well, when you have a way to upload them.
 
