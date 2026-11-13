@@ -8,7 +8,7 @@ Before work, confirm the worktree is clean, belongs to the intended repository, 
 
 ## Merge gates (you)
 
-Complete [supervise.md](supervise.md)'s local whole-branch review before push, same-session incremental review, and post-push bot convergence first. Its round budgets, rate-limit fallback, relay of every finding, and cap handling apply here too. Non-blocking findings never trigger another round.
+Complete [supervise.md](supervise.md)'s local whole-branch review before push, same-session incremental review, and post-push bot convergence first. Its round budgets, no-bot-review fallback, relay of every finding, and cap handling apply here too. Non-blocking findings never trigger another round.
 
 Immediately before merging, confirm all of these for the recorded head SHA:
 
