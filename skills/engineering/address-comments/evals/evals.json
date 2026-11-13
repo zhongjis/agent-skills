@@ -42,13 +42,13 @@
       "id": 4,
       "name": "failure-introduced-during-comment-fix",
       "prompt": "Address PR #54. The initial required checks are green. After the comment fix is verified, committed, and pushed in default mode, required check `integration` fails within the check window. Logs and local reproduction show the comment fix introduced the failure.",
-      "expected_output": "The reply is posted after the first push. The integration failure is classified PR-introduced. Default mode executes the amendment without approval, then verifies, commits, and pushes it, which starts a new 5-minute window. The replied thread stays unresolved.",
+      "expected_output": "The reply is posted after the first push. The integration failure is classified PR-introduced. Default mode executes the amendment without approval, then verifies, commits, and pushes it, which starts a new 5-minute window. The replied thread is resolved after reply readback.",
       "expectations": [
         "Posts the reply after the first push and before the required-check wait.",
         "Classifies the new integration failure as PR-introduced.",
         "Executes the amendment without approval, then verifies, commits, and pushes it.",
         "Starts a new 5-minute window after the amendment push.",
-        "Leaves the replied thread unresolved."
+        "Resolves the replied thread after reply readback."
       ],
       "files": []
     },
@@ -56,12 +56,12 @@
       "id": 5,
       "name": "base-preexisting-required-failure",
       "prompt": "Address PR #55. A required lint job is failing before edits. Its logs show the same generated-file error on the base commit, and the PR diff does not touch generation. One review thread has a documentation fix.",
-      "expected_output": "Records the base attribution but includes an in-scope lint repair alongside the documentation fix. If repair requires broader scope, reports the concrete blocker instead. The doc-fix reply follows publication and the thread stays unresolved.",
+      "expected_output": "Records the base attribution but includes an in-scope lint repair alongside the documentation fix. If repair requires broader scope, reports the concrete blocker instead. The doc-fix reply follows publication and the thread is resolved after reply readback.",
       "expectations": [
         "Does not exclude the lint failure from repair solely because it also occurs on base.",
         "Plans and verifies an in-scope repair or reports a concrete blocker requiring broader scope.",
         "Does not misclassify the documented thread fix as a repair for the base failure.",
-        "Posts the doc-fix reply after push and leaves the thread unresolved for the reviewer.",
+        "Posts the doc-fix reply after push and resolves the thread after reply readback.",
         "Does not claim checks green."
       ],
       "files": []
@@ -70,11 +70,11 @@
       "id": 6,
       "name": "confirmed-flaky-or-infrastructure-failure",
       "prompt": "Address PR #56. Required check `browser` fails intermittently with repeat evidence from the provider, while required check `deploy` is blocked by a documented provider outage. A small code fix for one review thread has passed local tests and been pushed.",
-      "expected_output": "Browser stays open as flaky and deploy stays open as infrastructure, both with evidence. No unrelated repairs. The reply is posted and the thread left unresolved. The run does not claim checks green.",
+      "expected_output": "Browser stays open as flaky and deploy stays open as infrastructure, both with evidence. No unrelated repairs. The reply is posted and the thread resolved after reply readback. The run does not claim checks green.",
       "expectations": [
         "Classifies browser as confirmed flaky and deploy as infrastructure from the supplied evidence.",
         "Does not repair either failure with unrelated code changes.",
-        "Posts the reply and leaves the thread unresolved.",
+        "Posts the reply and resolves the thread after readback.",
         "Does not claim checks green."
       ],
       "files": []
@@ -95,11 +95,11 @@
       "id": 8,
       "name": "manual-requires-approval-for-plan-and-amendment",
       "prompt": "Address PR #58 with `--manual`. One thread needs a validation fix and required checks are initially green. After the user approves and the fix is tested, committed, and pushed, required check `integration` fails within the check window; logs and local reproduction prove the fix introduced it.",
-      "expected_output": "Manual mode requests approval before the initial plan and again before the amendment. The reply is posted after the initial publication. The replied thread stays unresolved. A new 5-minute window starts after the amendment push. The temporary directory is cleaned up.",
+      "expected_output": "Manual mode requests approval before the initial plan and again before the amendment. The reply is posted after the initial publication. The replied thread is resolved after reply readback. A new 5-minute window starts after the amendment push. The temporary directory is cleaned up.",
       "expectations": [
         "Requests approval before the initial plan, covering its local edits/tests and individually named commit, push, and reply actions.",
         "Requests approval again before the amendment that repairs the PR-introduced integration failure.",
-        "Posts the reply after the initial publication and leaves the replied thread unresolved.",
+        "Posts the reply after the initial publication and resolves the replied thread after readback.",
         "Starts a new 5-minute window after the amendment push.",
         "Keeps the repair scoped and cleans up the temporary directory before reporting."
       ],
@@ -109,11 +109,11 @@
       "id": 9,
       "name": "settled-prior-round-resolution",
       "prompt": "Address PR #59 in default mode. Reviewer A's round-1 threads T1 and T2 have the PR author's reply as the last comment. T1's reply reported a fix. T2's reply explained why the code stays. Reviewer A later opened round-2 threads T4 and T5, created after those replies; T4 and T5 need code fixes and their last comments are A's. Reviewer B's thread T3 has the PR author's reply as the last comment, and B has no later PR activity.",
-      "expected_output": "Resolves T1 and T2 without new replies, including explanation-only T2. Leaves T3 untouched. Fixes T4 and T5, replies after push, and leaves T4 and T5 unresolved. The plan names the T1 and T2 resolutions.",
+      "expected_output": "Resolves T1 and T2 without new replies, including explanation-only T2. Leaves T3 untouched. Fixes T4 and T5, replies after push, and resolves T4 and T5 after reply readback. The plan names all four resolutions.",
       "expectations": [
         "Resolves T1 and T2 without new replies, including the explanation-only T2.",
         "Leaves T3 untouched.",
-        "Fixes T4 and T5, posts replies after push, and leaves T4 and T5 unresolved.",
+        "Fixes T4 and T5, posts replies after push, and resolves T4 and T5 after reply readback.",
         "Names the T1 and T2 resolutions in the plan."
       ],
       "files": []
@@ -122,13 +122,13 @@
       "id": 10,
       "name": "check-window-ends-pending",
       "prompt": "Address PR #60 in default mode. One review thread needs a code fix. After that fix is pushed, the required Jenkins check is still pending when 5 minutes have elapsed. Its check link is available.",
-      "expected_output": "Posts the reply after the push and before waiting. Waits at most 5 minutes with a bounded poll. Stops at the deadline and reports the pending check with its link. Does not claim checks green. Leaves the replied thread unresolved.",
+      "expected_output": "Posts the reply after the push and before waiting. Waits at most 5 minutes with a bounded poll. Stops at the deadline and reports the pending check with its link. Does not claim checks green. Resolves the replied thread after reply readback.",
       "expectations": [
         "Posts the reply after the push and before waiting.",
         "Waits at most 5 minutes with a bounded poll.",
         "Stops at the deadline and reports the pending Jenkins check with its link.",
         "Does not claim checks green.",
-        "Leaves the replied thread unresolved."
+        "Resolves the replied thread after reply readback."
       ],
       "files": []
     },
@@ -149,13 +149,13 @@
       "id": 12,
       "name": "root-id-targeting-serialized-retries",
       "prompt": "Address PR #62 in default mode. Four active threads need replies after the verified fix is pushed. Fetch data contains GraphQL node IDs only; the selected comment in one chain is a later reply, not the root. Prepare the publish actions. During the first REST POST, the client times out, but read-only inspection finds a matching existing reply in the intended thread. Required checks remain pending.",
-      "expected_output": "Looks up each root comment's numeric databaseId read-only and uses the REST replies endpoint, serializing writes with readback. Inspects and verifies the existing matching reply after the timeout instead of blindly reposting, and leaves the threads unresolved.",
+      "expected_output": "Looks up each root comment's numeric databaseId read-only and uses the REST replies endpoint, serializing writes with readback. Inspects and verifies the existing matching reply after the timeout instead of blindly reposting, and resolves the threads only after reply readback.",
       "expectations": [
         "Selects the earliest comment as the thread root and resolves its numeric REST databaseId through a read-only GraphQL node lookup rather than passing a node ID or later reply ID to REST.",
         "Uses the REST pull request comment replies endpoint with the intended root databaseId and serializes reply/review writes with readback before the next write.",
         "Inspects the existing matching reply before retrying and avoids a duplicate after the uncertain POST outcome.",
         "Verifies SUBMITTED comment state, a present non-pending parent review, and replyTo matching the intended root before counting the reply as posted.",
-        "Leaves replied threads unresolved and does not claim pending required checks are green."
+        "Resolves replied threads after readback and does not claim pending required checks are green."
       ],
       "files": []
     },
@@ -179,7 +179,7 @@
       "expectations": [
         "Compares full non-thread findings against inline threads and deduplicates overlapping concerns even when wording differs.",
         "Records duplicated findings as skipped with source comment/review links while retaining the independent release-note concern.",
-        "Replies in the existing inline threads and leaves them unresolved for the reviewer.",
+        "Replies in the existing inline threads and resolves them after reply readback.",
         "Posts a new PR conversation response only for the independent non-thread concern, linking its source review without repeating inline findings."
       ],
       "files": []

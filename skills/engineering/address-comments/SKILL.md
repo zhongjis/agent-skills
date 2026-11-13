@@ -16,10 +16,10 @@ Work unresolved PR review threads and actionable review/conversation comments to
 
 All workflow authorization follows this single rule:
 
-- **Default** (without `--manual`): record the Step 4 plan or amendment and execute the full scoped workflow without asking for approval, including local edits/tests, commit, push, replies, and `settled` thread resolutions.
+- **Default** (without `--manual`): record the Step 4 plan or amendment and execute the full scoped workflow without asking for approval, including local edits/tests, commit, push, replies, and thread resolutions.
 - **`--manual`**: present the Step 4 plan or amendment and obtain one explicit approval covering its listed local edits/tests and individually named remote actions.
 
-`--manual` changes only the approval gate. Both modes keep fixes scoped, retain failure evidence and left-open items, publish code before replying, leave threads replied to in this pass unresolved for the reviewer, bound each required-check wait to 5 minutes per push, and clean up the temporary directory.
+`--manual` changes only the approval gate. Both modes keep fixes scoped, retain failure evidence and left-open items, publish code before replying, resolve each `fix` or `disagree` thread only after its reply is verified, bound each required-check wait to 5 minutes per push, and clean up the temporary directory.
 
 ## Setup
 
@@ -101,7 +101,7 @@ For every `active` thread and retained non-thread item, read local code around i
 
 ### 4. Prepare one plan
 
-Prepare one plan containing every comment action, every `settled` resolution, the `awaiting` threads, every known required-check repair, any explicitly scoped other-check repair, files to edit, local tests, observed check failures and blockers left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each `settled` thread resolution. Authorization is limited to the plan's listed local edits/tests and remote actions; it does not imply broad permission for side effects.
+Prepare one plan containing every comment action, every thread resolution, the `awaiting` threads, every known required-check repair, any explicitly scoped other-check repair, files to edit, local tests, observed check failures and blockers left open, skipped items, and the exact remote actions. Remote actions must be named individually: commit, push, each reply, and each thread resolution. Authorization is limited to the plan's listed local edits/tests and remote actions; it does not imply broad permission for side effects.
 
 Apply the mode rule to this plan. If material new scope appears, prepare a plan amendment naming its edits, tests, and remote actions, then apply the mode rule again before proceeding.
 
@@ -139,7 +139,7 @@ gh api graphql -f query='query($reply: ID!) { node(id: $reply) { ... on PullRequ
 
 Count a reply as posted only when readback shows comment `state: SUBMITTED`, a present non-`PENDING` parent `pullRequestReview`, and `replyTo` matching the intended root comment. A success response, URL, or matching body alone is not completion. If a drafting API returns `PENDING`, submit only a pending review proven to have been created by this workflow and containing only the plan's authorized replies, using `COMMENT` (never `APPROVE` or `REQUEST_CHANGES`). Name that submission in the plan/amendment and apply the existing mode rule before submitting, then repeat readback. Never publish the user's pre-existing draft. If ownership is unknown or the parent review is absent, stop and report the reply as pending/unverified; deletion or reposting requires separate authorization.
 
-Use new PR conversation comments only for independently actionable non-thread concerns retained in triage; link to the source comment/review rather than repeating findings already represented inline. Leave every thread replied to in this pass unresolved so its reviewer can confirm. Resolve each `settled` thread without a new reply. Leave `left open` and `awaiting` threads untouched. Submissions and conversation comments have no resolution state.
+Use new PR conversation comments only for independently actionable non-thread concerns retained in triage; link to the source comment/review rather than repeating findings already represented inline. Resolve each `fix` or `disagree` thread once its reply passes readback; the reviewer can reopen it. Resolve each `settled` thread without a new reply. Leave `left open` and `awaiting` threads untouched. Submissions and conversation comments have no resolution state.
 
 ### 8. Wait for required checks (5-minute window per push)
 
@@ -147,7 +147,7 @@ After each push, refresh both required and other observed checks on the pushed h
 
 For every observed failure, attempt read-only log inspection, reproduce when feasible, and classify with Step 2; record the exact blocker and link as `unclassified` when logs are inaccessible. Other observed failures do not extend the required-check window or silently authorize repairs; apply Step 2's amendment/left-open rule.
 
-- Repair every `PR-introduced` required-check failure. A repair first discovered here is a material scope change: amend the plan, apply the mode rule, then verify, commit, and push. Reply again only when the repair changes behavior an earlier reply described; post that reply right after the push and leave that thread unresolved. Then start a new window.
+- Repair every `PR-introduced` required-check failure. A repair first discovered here is a material scope change: amend the plan, apply the mode rule, then verify, commit, and push. Reply again only when the repair changes behavior an earlier reply described; post that reply right after the push; the thread stays resolved. Then start a new window.
 - Leave evidenced `base/pre-existing`, confirmed `flaky`, `infrastructure`, and unclassified failures open with evidence.
 - When the window ends with checks still pending, stop waiting and report each pending check with its link.
 
@@ -162,7 +162,7 @@ Before the final or blocked report, remove the recorded absolute temporary-direc
 - Configured required checks: final observed status (green, failed, or pending with links), or explicitly none configured; repairs made
 - Other observed CI/deployment checks: final statuses and links, amended repairs, and failures left open with reasons; for every failure include inspected log evidence or the exact access/tool blocker and link as unclassified, plus evidence supporting any base/pre-existing, flaky, or infrastructure attribution
 - Files changed, local verification, and commit/push result
-- Replies posted, `settled` threads resolved, and threads left for reviewers to resolve
+- Replies posted and threads resolved, split into replied (`fix`, `disagree`) and `settled`
 
 Include a compact table:
 
