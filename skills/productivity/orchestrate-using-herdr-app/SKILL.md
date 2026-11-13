@@ -28,7 +28,7 @@ You are the orchestrator: you turn the tasks agreed with the user into briefs, d
 
 ## Start
 
-Run `scripts/orchestrate-init.sh <slug> --mode "<this invocation's flags>"`, where the slug names the overall work in at most 4 words. It logs the flags as a `mode` row and marks your own tab `[o] <slug>`. It checks that you run in an `hc` terminal (`$HC_TERMINAL_ID`) and prints `log=<path>` and an `export ORCH_LOG=<path>` line; keep that path for the session and run the export line in every shell that starts or follows up workers. On failure, report its message and stop. Otherwise read `hc --skill` and `herdr-app --skill` once: `hc` owns command syntax, terminal and agent primitives, and lifecycle states; `herdr-app` owns only what the user sees. This skill adds only the orchestration layer.
+Run `scripts/orchestrate-init.sh <slug> --mode "<this invocation's flags>"`, where the slug names the overall work in at most 4 words. It logs the flags as a `mode` row and marks your own tab `[o] <title>`, the slug's words with hyphens as spaces (`[o] retro skills`). It checks that you run in an `hc` terminal (`$HC_TERMINAL_ID`) and prints `log=<path>` and an `export ORCH_LOG=<path>` line; keep that path for the session and run the export line in every shell that starts or follows up workers. On failure, report its message and stop. Otherwise read `hc --skill` and `herdr-app --skill` once: `hc` owns command syntax, terminal and agent primitives, and lifecycle states; `herdr-app` owns only what the user sees. This skill adds only the orchestration layer.
 
 Then read, in one pass, what your flags need:
 
@@ -58,7 +58,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 ## House rules
 
 - **Pi by default** unless the user names another kind; a reviewer is the other kind from its worker ([supervise.md](references/supervise.md)).
-- **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own tab `[o] <slug>`.
+- **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own tab `[o] <titg>`.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 

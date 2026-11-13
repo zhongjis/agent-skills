@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Start an orchestration: verify this runs in an hc terminal, print the log path,
-# log the invocation's mode, and mark the orchestrator's tab `[o] <slug>`.
+# log the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
+# smart-sessions tab standard, at most four slug words with hyphens as spaces.
 # Usage: orchestrate-init.sh <slug> [--mode <flags>]
 set -euo pipefail
 
@@ -43,6 +44,8 @@ if command -v herdr-app >/dev/null; then
 		'[.spaces[].tabs[] | select(any(.terminals[]; .terminal == $t)) | {id, name}][0] // empty | [.id, .name] | @tsv' 2>/dev/null) || tab=
 	if [ -n "$tab" ]; then
 		IFS=$'\t' read -r tab_id tab_name <<<"$tab"
-		[[ $tab_name == '[o] '* ]] || herdr-app do tab.rename --id "$tab_id" --name "[o] $slug" >/dev/null 2>&1 || true
+		read -ra words <<<"${slug//[-_]/ }"
+		title="${words[*]:0:4}"
+		[[ $tab_name == '[o] '* ]] || herdr-app "do" tab.rename --id "$tab_id" --name "[o] $title" >/dev/null 2>&1 || true
 	fi
 fi

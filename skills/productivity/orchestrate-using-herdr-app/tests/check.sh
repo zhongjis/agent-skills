@@ -244,7 +244,10 @@ check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-in
 rm -f "$tmp/herdr"
 check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --track'
 [[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\torchestrator\tmode\tflags=--auto --track slug=api\tok' ]] || { echo 'FAIL: init must log the invocation flags'; exit 1; }
-[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <slug>'; exit 1; }
+[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <title>'; exit 1; }
+rm -f "$tmp/herdr"
+check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" retro-skills_ui-audit-fix
+[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] retro skills ui audit' ]] || { echo 'FAIL: init tab title must split hyphens into at most four words'; exit 1; }
 rm -f "$tmp/herdr"
 check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scripts/orchestrate-init.sh" api
 [[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked tab'; exit 1; }
