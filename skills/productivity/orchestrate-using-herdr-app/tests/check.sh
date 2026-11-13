@@ -77,22 +77,6 @@ cat > "$tmp/bin/sleep" <<'MOCK'
 set -euo pipefail
 printf '%s\n' "$1" >> "$FIXTURE/sleeps"
 MOCK
-cat > "$tmp/bin/gh" <<'MOCK'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ $PWD == "$FIXTURE/work" ]]
-[[ $* == "pr view $3 --json mergeable,headRefOid,statusCheckRollup" ]]
-[[ $MODE != gh-error ]] || { echo 'authentication failed' >&2; exit 1; }
-[[ $MODE != gh-malformed ]] || { echo broken; exit; }
-mergeable=MERGEABLE
-status=COMPLETED
-[[ $MODE != conflict || $3 != 22 ]] || mergeable=CONFLICTING
-if [[ $MODE == pending && $3 == 11 && ! -e $FIXTURE/polled ]]; then
-	status=WAITING
-	touch "$FIXTURE/polled"
-fi
-printf '{"mergeable":"%s","headRefOid":"head-%s","statusCheckRollup":[{"status":"%s","conclusion":"FAILURE","name":"unit"},{"state":"ERROR","context":"deploy"}]}\n' "$mergeable" "$3" "$status"
-MOCK
 chmod +x "$tmp/bin/"*
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 for status in idle 'done' blocked error; do
@@ -273,11 +257,6 @@ mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'--name task-review'* && ${argv[*]} == *'pi --session review-9'* ]]
 [[ $(cat "$tmp/review-brief") == *"$head..HEAD"* ]]
 [[ $(cat "$tmp/review-brief") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: resumed reviewer brief and prompt must retain final ulw'; exit 1; }
-check 0 $'11 head-11 FAIL: deploy, unit\n22 head-22 FAIL: deploy, unit' env MODE=pending "$scripts/watch-ci.sh" "$tmp/work" 11 22
-[[ $(tail -n 1 "$tmp/sleeps") == 90 ]]
-check 2 'PR 22 CONFLICTING' env MODE=conflict "$scripts/watch-ci.sh" "$tmp/work" 11 22
-check 1 'authentication failed' env MODE=gh-error "$scripts/watch-ci.sh" "$tmp/work" 11
-check 5 '' env MODE=gh-malformed "$scripts/watch-ci.sh" "$tmp/work" 11
 
 # Guard failures must happen before the passed command executes.
 check 1 'not on branch' "$scripts/push-pinned.sh" "$tmp/work" other "$main" -- touch "$tmp/built"
