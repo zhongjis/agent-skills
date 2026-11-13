@@ -5,7 +5,7 @@
 # --keep-agent stops only listening processes (dev servers) and keeps the
 # agent, its LSP and MCP children, and the worktree for follow-ups, then
 # labels the settled worker hibernate=ok after cleanup.
-# Linux only: matches processes by /proc/<pid>/cwd.
+# Matches cwd via /proc on Linux and lsof on macOS.
 set -euo pipefail
 
 if [ "$#" -lt 2 ] || [ "$#" -gt 3 ] || { [ "$#" -eq 3 ] && [ "$3" != --keep-agent ]; }; then
@@ -46,7 +46,15 @@ while [ "$p" -gt 1 ]; do
 	p=$(ps -o ppid= -p "$p" | tr -d ' ')
 done
 
-if [ "$keep_agent" = --keep-agent ]; then
+platform=$(uname -s)
+if [ "$platform" = Darwin ]; then
+	if [ "$keep_agent" = --keep-agent ]; then
+		# lsof exits 1 when no listeners match.
+		candidates=$(lsof -nP -iTCP -sTCP:LISTEN -t | sort -u) || [ "$?" -eq 1 ]
+	else
+		candidates=$(ps -axo pid=)
+	fi
+elif [ "$keep_agent" = --keep-agent ]; then
 	candidates=$(ss -ltnpH | { grep -o 'pid=[0-9]*' || [ "$?" -eq 1 ]; } | cut -d= -f2 | sort -u)
 else
 	candidates=$(ls /proc | grep -E '^[0-9]+$')
@@ -54,7 +62,11 @@ fi
 pids=()
 for pid in $candidates; do
 	[ -z "${spare[$pid]:-}" ] || continue
-	cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null) || continue
+	if [ "$platform" = Darwin ]; then
+		cwd=$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p') || continue
+	else
+		cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null) || continue
+	fi
 	inside "${cwd% (deleted)}" && pids+=("$pid")
 done
 

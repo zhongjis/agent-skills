@@ -2,7 +2,7 @@
 # Run isolated CLI fixtures; never contacts a live remote or herdr-core session.
 set -euo pipefail
 scripts=$(realpath "$(dirname -- "${BASH_SOURCE[0]}")/../scripts")
-tmp=$(mktemp -d)
+tmp=$(realpath "$(mktemp -d)")
 trap 'rm -rf -- "$tmp"' EXIT
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 export HOME="$tmp/home"
@@ -54,6 +54,16 @@ case "$1" in
 		esac
 		exit ;;
 esac
+if [[ $MODE == status-live ]]; then
+	printf '%s\n' "$*" >> "$FIXTURE/live-calls"
+	case "$2" in
+		t9) echo '{"state":"live","status":{"state":"working"}}' ;;
+		t10) echo '{"state":"finished"}' ;;
+		t11) exit 3 ;;
+		*) echo 'unexpected terminal' >&2; exit 1 ;;
+	esac
+	exit
+fi
 [[ $2 != orch ]] || { echo '{"labels":{"herdr.space":"sp1"}}'; exit; }
 n=$(( $(cat "$FIXTURE/gets" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$FIXTURE/gets"
@@ -106,6 +116,27 @@ check 0 'terminal finished' env MODE=finished "$scripts/watch-agent.sh" worker
 check 1 'unauthorized' env MODE=auth "$scripts/watch-agent.sh" worker
 check 5 '' env MODE=malformed "$scripts/watch-agent.sh" worker
 check 1 'wait failed' env MODE=wait-error "$scripts/watch-agent.sh" worker
+
+# A file-only macOS sha256sum must fall back to the stdin-capable shasum.
+export REAL_SHASUM
+REAL_SHASUM=$(command -v shasum)
+cat > "$tmp/bin/sha256sum" <<'MOCK'
+#!/usr/bin/env bash
+printf 'Usage: sha256sum <file>\n' >&2
+exit 1
+MOCK
+cat > "$tmp/bin/shasum" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$FIXTURE/hashes"
+exec "$REAL_SHASUM" "$@"
+MOCK
+chmod +x "$tmp/bin/sha256sum" "$tmp/bin/shasum"
+rm -f "$tmp/reads"
+check 0 'quiet 0m (working) fp=' env MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0
+rm -f "$tmp/reads"
+out=$(MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0)
+[[ $out =~ fp=[0-9a-f]{12}$ && $(sort -u "$tmp/hashes") == '-a 256' ]]
+rm "$tmp/bin/sha256sum" "$tmp/bin/shasum"
 
 # start-worker.sh: short prompt, literal brief outside cwd, confirm by turn.
 mkdir -p "$tmp/wt-a"
@@ -324,7 +355,30 @@ check 0 'topic' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- build "$t
 [[ $(cat "$tmp/build output") == "literal ; \$(false)" ]]
 [[ $(git --git-dir="$tmp/remote" rev-parse refs/heads/topic) == "$head" ]]
 
-# reap-worker.sh: only the worker's namespace, Compose projects, and processes.
+# reap-worker.sh: Darwin discovery, only the worker's resources, spare ancestors.
+export REAL_PS
+REAL_PS=$(command -v ps)
+cat > "$tmp/bin/uname" <<'MOCK'
+#!/usr/bin/env bash
+printf 'Darwin\n'
+MOCK
+cat > "$tmp/bin/ps" <<'MOCK'
+#!/usr/bin/env bash
+if [[ $* == '-axo pid=' ]]; then cat "$FIXTURE/pids"; else exec "$REAL_PS" "$@"; fi
+MOCK
+cat > "$tmp/bin/lsof" <<'MOCK'
+#!/usr/bin/env bash
+case "$*" in
+	'-nP -iTCP -sTCP:LISTEN -t')
+		[[ -s $FIXTURE/listeners ]] || exit 1
+		tr ' ' '\n' < "$FIXTURE/listeners" ;;
+	'-a -p '*' -d cwd -Fn')
+		state=$("$REAL_PS" -o stat= -p "$3") || exit 1
+		[[ $state != Z* ]] || exit 1
+		awk -F '\t' -v pid="$3" '$1 == pid { print "p" $1; print "n" $2 }' "$FIXTURE/cwds" ;;
+	*) exit 2 ;;
+esac
+MOCK
 cat > "$tmp/bin/agent-browser" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s %s\n' "$AGENT_BROWSER_NAMESPACE" "$*" >> "$FIXTURE/browser"
@@ -338,16 +392,13 @@ case "$1 $2" in
 	*) echo "$*" >> "$FIXTURE/docker" ;;
 esac
 MOCK
-cat > "$tmp/bin/ss" <<'MOCK'
-#!/usr/bin/env bash
-[[ -s $FIXTURE/listeners ]] || exit 0
-printf 'LISTEN 0 0 127.0.0.1:3456 *:* users:(("node",pid=%s,fd=3))\n' $(cat "$FIXTURE/listeners")
-MOCK
 chmod +x "$tmp/bin/"*
 mkdir -p "$tmp/wt/apps/web" "$tmp/wt-other"
 spawn() { (cd "$1" && exec tail -f /dev/null >/dev/null 2>&1) & echo $!; }
 dev=$(spawn "$tmp/wt/apps/web"); agent=$(spawn "$tmp/wt"); other=$(spawn "$tmp/wt-other")
-echo "$dev $other" > "$tmp/listeners"
+echo "$dev $other $$" > "$tmp/listeners"
+echo "$dev $agent $other $$" > "$tmp/pids"
+printf '%s\t%s\n' "$dev" "$tmp/wt/apps/web" "$agent" "$tmp/wt" "$other" "$tmp/wt-other" "$$" "$tmp/wt" > "$tmp/cwds"
 : > "$tmp/labels"
 check 0 'processes under' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
 ! kill -0 "$dev" 2>/dev/null || [[ $(ps -o stat= -p "$dev") == Z* ]]
@@ -366,4 +417,86 @@ kill -0 "$other"
 kill "$other"; wait "$dev" "$agent" "$other" 2>/dev/null || true
 check 1 'usage' "$scripts/reap-worker.sh" "$tmp/wt"
 check 1 'refusing' "$scripts/reap-worker.sh" / w-worker-a
+rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
+
+# status.sh: latest stem/worker/reviewer row wins; live uses the worker dispatch.
+cat > "$tmp/status.tsv" <<'TSV'
+ts	task	event	evidence	result
+2026-01-01T00:00:00Z	orchestrator	mode	flags=--auto	ok
+2026-01-01T00:01:00Z	w-alpha	dispatched	terminal=t9 brief=/brief	working
+2026-01-01T00:02:00Z	w-beta	dispatched	terminal=t10	working
+2026-01-01T00:03:00Z	all	note	one	ok
+2026-01-01T00:04:00Z	alpha	settled	PR #7 | green	succeeded
+2026-01-01T00:05:00Z	beta	reaped	terminal=reviewer	ok
+2026-01-01T00:06:00Z	all	note	two	ok
+2026-01-01T00:07:00Z	w-gamma	dispatched	terminal=t11	working
+2026-01-01T00:08:00Z	delta	queued	needs=alpha	pending
+TSV
+check 0 '| alpha | w-alpha (t9) | settled | succeeded | PR #7 &#124; green | 2026-01-01T00:04:00Z |' "$scripts/status.sh" "$tmp/status.tsv"
+out=$("$scripts/status.sh" "$tmp/status.tsv")
+[[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *orchestrator* && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
+check 0 '| Since | Live |' env MODE=status-live "$scripts/status.sh" "$tmp/status.tsv" --live
+out=$(MODE=status-live "$scripts/status.sh" "$tmp/status.tsv" --live)
+[[ $out == *'00:04:00Z | working |'* && $out == *'00:05:00Z | finished |'* && $out == *'00:07:00Z | gone |'* && $out == *'00:08:00Z |  |'* ]]
+[[ $(sort -u "$tmp/live-calls") == $'get t10 --json\nget t11 --json\nget t9 --json' ]]
+check 1 'unauthorized' env MODE=auth "$scripts/status.sh" "$tmp/status.tsv" --live
+check 1 'usage' "$scripts/status.sh" "$tmp/status.tsv" --unknown
+check 1 '' "$scripts/status.sh" "$tmp/missing.tsv"
+
+# Mixed names collapse to one task; the newest reviewer row cannot replace its worker.
+cat > "$tmp/mixed.tsv" <<'TSV'
+ts	task	event	evidence	result
+2026-01-01T00:00:00Z	w-x	dispatched	terminal=old	working
+2026-01-01T00:01:00Z	w-x	dispatched	terminal=t9	working
+2026-01-01T00:02:00Z	x	settled	PR #8	succeeded
+2026-01-01T00:03:00Z	r-x	dispatched	terminal=t11	working
+2026-01-01T00:04:00Z	r-x	reviewed	findings=/review	approved
+TSV
+check 0 '| x | w-x (t9) | reviewed | approved | findings=/review | 2026-01-01T00:04:00Z |' "$scripts/status.sh" "$tmp/mixed.tsv"
+out=$("$scripts/status.sh" "$tmp/mixed.tsv")
+[[ $(grep -c '^| ' <<<"$out") == 3 && $(grep -c '^| x |' <<<"$out") == 1 ]]
+check 0 '| 2026-01-01T00:04:00Z | working |' env MODE=status-live "$scripts/status.sh" "$tmp/mixed.tsv" --live
+
+# bot-active.sh: paginated API fixtures only, never real GitHub.
+cat > "$tmp/bin/gh" <<'MOCK'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $1 == api ]] || exit 2
+[[ $GH_MODE != api-error ]] || { echo 'API unavailable' >&2; exit 1; }
+if [[ $2 == repos/owner/repo/pulls/7 ]]; then
+	[[ $* == *"--jq .head.sha" ]] || exit 2
+	echo fixture-head
+	exit
+fi
+[[ $2 == --paginate && $3 == --slurp ]] || exit 2
+case "$4" in
+	repos/owner/repo/issues/7/comments) cat "$FIXTURE/bot-comments.json" ;;
+	repos/owner/repo/issues/7/reactions) cat "$FIXTURE/bot-reactions.json" ;;
+	repos/owner/repo/pulls/7/reviews) cat "$FIXTURE/bot-reviews.json" ;;
+	repos/owner/repo/pulls/7/comments) cat "$FIXTURE/bot-inline.json" ;;
+	repos/owner/repo/commits/fixture-head/check-runs) cat "$FIXTURE/bot-checks.json" ;;
+	*) echo 'unexpected API path' >&2; exit 1 ;;
+esac
+MOCK
+chmod +x "$tmp/bin/gh"
+for channel in comments reactions reviews inline checks; do
+	printf '[[]]\n' > "$tmp/bot-$channel.json"
+done
+printf '[{"check_runs":[]}]\n' > "$tmp/bot-checks.json"
+check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo
+for channel in comments reactions reviews inline; do
+	# The second page has the bot; the human on the first must not count.
+	printf '[[{"user":{"login":"human","type":"User"},"created_at":"2026-01-01T00:00:00Z"}],[{"user":{"login":"review[bot]","type":"Bot"},"created_at":"2026-01-01T01:00:00Z","submitted_at":"2026-01-01T01:00:00Z"}]]\n' > "$tmp/bot-$channel.json"
+	check 0 'review[bot]' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:30:00Z
+	check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T02:00:00+01:00
+	printf '[[]]\n' > "$tmp/bot-$channel.json"
+done
+printf '[{"check_runs":[{"app":{"slug":"checker"},"started_at":"2026-01-01T00:00:01Z"}]}]\n' > "$tmp/bot-checks.json"
+check 0 'checker[bot]' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:00:00.500Z
+check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:00:02Z
+printf '[{"check_runs":[]}]\n' > "$tmp/bot-checks.json"
+printf '[[{"user":{"login":"ci-bot","type":"User"},"created_at":"2026-01-01T00:00:00Z"},{"user":{"login":"helperbot","type":"User"},"created_at":"2026-01-01T00:00:00Z"}]]\n' > "$tmp/bot-comments.json"
+check 0 $'ci-bot\nhelperbot' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo
+check 2 'API unavailable' env GH_MODE=api-error "$scripts/bot-active.sh" 7 --repo owner/repo
+check 2 'usage' "$scripts/bot-active.sh" 7
 printf '%s CLI checks plus safety assertions passed\n' "$checks"

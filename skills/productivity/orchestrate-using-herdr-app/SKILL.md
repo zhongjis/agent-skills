@@ -57,14 +57,16 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## House rules
 
-- **Pi by default** unless the user names another kind; a reviewer is the other kind from its worker ([supervise.md](references/supervise.md)).
+- **Pi by default** unless the user names another kind; a reviewer runs on a different model family from its worker ([supervise.md](references/supervise.md)).
 - **Hands off the user's window:** workers are hidden `hc` terminals that show under you as sub-agents; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own tab `[o] <titg>`.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
 
 ## Report
 
-Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, handed-off, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. `start-worker.sh` and `send-followup.sh` log their own `dispatched` and `re-instructed` rows when `ORCH_LOG` is exported; log every other event yourself. Build every report from the log rows, never from memory.
+Log every task event with `scripts/log.sh "$log" <task> <event> <evidence> <result>`: ticketed, dispatched, handed-off, queued, re-instructed, reviewed, settled, reaped, merged, blocked, note. Evidence is the IDs, URLs, and SHAs `hc`, `git`, the tracker, or GitHub returned. `start-worker.sh` and `send-followup.sh` log their own `dispatched` and `re-instructed` rows when `ORCH_LOG` is exported; log every other event yourself. Build every report from the log rows, never from memory: `scripts/status.sh "$log" [--live]` prints the latest row per task. After a context compaction or restart, run it with `--live` before acting.
+
+Write per-task content as one table, columns Task, Worker (terminal), State, Waiting for; PR URL and head SHA go in State. At each yield, list only tasks whose state changed since your last report plus tasks still running; the full table belongs to the every-task-settled report and status requests.
 
 Report at each yield, when you are about to wait on workers or hand control back:
 

@@ -47,6 +47,10 @@ snap() {
 
 screen() { hc read "$name" 2>/dev/null || true; }
 
+# Some macOS sha256sum commands accept files only, not stdin.
+hasher=(sha256sum)
+if ! printf '' | sha256sum >/dev/null 2>&1; then hasher=(shasum -a 256); fi
+
 # Screen plus turn, without parts that move while nothing progresses:
 # spinner glyphs, elapsed timers, token rates, and clock times. Token counts stay.
 fingerprint() {
@@ -55,7 +59,7 @@ fingerprint() {
 			s/\b\d+(?:\.\d+)?\s?tok\/s\b//g;
 			s/\b\d{1,2}:\d{2}(?::\d{2})?\b//g;
 			s/\b\d+h(?:\s?\d+m)?(?:\s?\d+s)?\b|\b\d+m(?:\s?\d+s)?\b|\b\d+(?:\.\d+)?s\b//g' |
-		sha256sum | cut -c1-12
+		"${hasher[@]}" | cut -c1-12
 }
 
 last_fp="" changed_at=$(date +%s)
