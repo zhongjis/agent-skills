@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Offline check of pr-wait's review-bot gate; never calls gh."""
 
+import contextlib
 import importlib.machinery
+import io
 import importlib.util
 import json
 import sys
@@ -35,7 +37,7 @@ def coderabbit_rate_limited() -> dict:
     return {"id": "crl", "url": "u", "body": "rate limited", "author": {"login": "coderabbitai[bot]", "__typename": BOT}}
 
 
-def outcome(comments: list, reviews: list) -> int | None:
+def outcome(comments: list, reviews: list, extra_checks: dict | None = None) -> int | None:
     """Exit code after two polls (green needs two identical check snapshots), or None while waiting."""
     pr = {
         "url": "u", "state": "OPEN", "headRefOid": HEAD, "baseRefName": "main", "mergeStateStatus": "CLEAN",
@@ -46,12 +48,18 @@ def outcome(comments: list, reviews: list) -> int | None:
     watcher.path.unlink(missing_ok=True)
     watcher.required = set()
     watcher.fetch_pr = lambda: pr
-    watcher.fetch_checks = lambda: {"unit": {"name": "unit", "bucket": "pass", "link": "l", "description": ""}}
+    checks = {"unit": {"name": "unit", "bucket": "pass", "link": "l", "description": ""}, **(extra_checks or {})}
+    watcher.fetch_checks = lambda: checks
+    global printed
+    out = io.StringIO()
     try:
-        watcher.poll()
-        watcher.poll()
+        with contextlib.redirect_stdout(out):
+            watcher.poll()
+            watcher.poll()
     except SystemExit as stop:
         return stop.code
+    finally:
+        printed = out.getvalue()
     return None
 
 
@@ -60,5 +68,8 @@ assert outcome([codex_summary(HEAD, "completed")], []) == 0, "absent bot is not 
 assert outcome([codex_summary(HEAD, "in_progress")], []) is None, "running Codex review is not done"
 assert outcome([codex_summary("b" * 40, "completed")], []) is None, "Codex reviewed an older head"
 assert outcome([codex_summary(HEAD, "completed"), coderabbit_rate_limited()], []) is None, "seen CodeRabbit gates"
+skip = {"CodeRabbit": {"name": "CodeRabbit", "bucket": "skipping", "link": "l", "description": ""}}
+assert outcome([codex_summary(HEAD, "completed"), coderabbit_rate_limited()], [], skip) == 0, "skipped bot does not block"
+assert "coderabbit skipped" in printed and "coderabbit done" not in printed, printed
 assert not pr_wait.codex_reviewed([{"body": "<!-- codex-review-state:v1 {broken -->"}], HEAD)
 print("pr-wait checks passed")

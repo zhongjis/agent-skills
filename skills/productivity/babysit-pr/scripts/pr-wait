@@ -440,17 +440,23 @@ class Watcher:
             summaries = [c for c in comments if bot_name(who(c)[0]) == bot]
             own_reviews = [r for r in reviews if bot_name(who(r)[0]) == bot]
             on_head = any((r.get("commit") or {}).get("oid") == head for r in own_reviews)
+            # A bot whose own checks all skipped (CodeRabbit's review limit) did not
+            # review: never count it as done, and never wait for it.
+            skipped = bool(own_checks) and all(c["bucket"] == "skipping" for c in own_checks.values())
             if own_checks:
-                done = all(c["bucket"] != "pending" for c in own_checks.values())
+                done = not skipped and all(c["bucket"] != "pending" for c in own_checks.values())
             elif bot == "codex":
                 # Its summary names a commit while that review still runs.
                 done = on_head or codex_reviewed(summaries, head)
             else:
                 done = on_head or any(short in s["body"] for s in summaries)
             seen = bool(own_checks or summaries or own_reviews)
-            if bot in GATING_BOTS and seen and not done:
+            if bot in GATING_BOTS and seen and not done and not skipped:
                 waiting.append(bot)
-            if bot in ADVISORY_BOTS and own_checks:
+            if skipped:
+                bot_status[bot] = f"{bot} skipped"
+                self.emit(f"skip:{bot}:{head}", f"{bot} skipped {short} without reviewing it")
+            elif bot in ADVISORY_BOTS and own_checks:
                 desc = next(iter(own_checks.values()))
                 bot_status[bot] = f"{bot} {desc['description'] or desc['bucket']} (advisory)"
             elif seen:
