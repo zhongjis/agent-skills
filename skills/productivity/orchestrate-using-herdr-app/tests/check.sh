@@ -115,119 +115,141 @@ ln -s 'brief with spaces' "$tmp/brief"
 printf -v prompt 'Read the brief file at %q and follow it.' "$tmp/brief with spaces"
 pi_prompt="$prompt \$skill:x \$skill:y ulw"
 rm -f "$tmp/gets"
-check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(cat "$tmp/gets") == 3 ]]
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == "run --bg --json --no-notify --name worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=worker-a pi $pi_prompt" ]] || { echo 'FAIL: short Pi argv must reference absolute brief and preserve skill/ulw triggers'; exit 1; }
+[[ ${argv[*]} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=w-worker-a pi $pi_prompt" ]] || { echo 'FAIL: short Pi argv must reference absolute brief and preserve skill/ulw triggers'; exit 1; }
 [[ ${argv[-1]} == "$pi_prompt" && ${argv[*]} != *'Private brief body'* ]]
 [[ ! -s $tmp/labels ]]
 # A relative brief resolves before hc switches to the worker cwd.
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$(realpath --relative-to="$PWD" "$tmp/brief with spaces")"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$(realpath --relative-to="$PWD" "$tmp/brief with spaces")"
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[-1]} == "$pi_prompt" ]]
 [[ $(cat "$tmp/brief") == "Fix \$skill:x and \$skill:y ; \$(false)"$'\nPrivate brief body\nulw' ]]
-check 0 '' env MODE=settled HC_TERMINAL_ID=orch "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(cat "$tmp/labels") == "label worker-a space=sp1" ]]
+check 0 '' env MODE=settled HC_TERMINAL_ID=orch "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(cat "$tmp/labels") == "label w-worker-a space=sp1" ]]
 : > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1
+check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=worker-a pi --session s-1 $pi_prompt" ]]
+[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-1 $pi_prompt" ]]
 : > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude --resume u-1
+check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude --resume u-1
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=worker-a claude --resume u-1 $prompt" && ${argv[-1]} == "$prompt" ]]
-check 1 'cannot resume' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind codex --resume x
+[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a claude --resume u-1 $prompt" && ${argv[-1]} == "$prompt" ]]
+check 1 'cannot resume' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind codex --resume x
 : > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind codex
+check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind codex
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=worker-a codex --no-daemon $prompt" && ${argv[-1]} == "$prompt" ]]
-check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-check 2 'terminal finished' env MODE=finished "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-check 2 'not confirmed' env MODE=start-never "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a codex --no-daemon $prompt" && ${argv[-1]} == "$prompt" ]]
+check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
+check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
+check 2 'terminal finished' env MODE=finished "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 2 'not confirmed' env MODE=start-never "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(tail -n 1 "$tmp/sleeps") == 2 ]]
 : > "$tmp/calls"
-check 1 'name_taken' env MODE=run-fail "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 1 'name_taken' env MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 : > "$tmp/calls"
 check 1 'invalid agent name' "$scripts/start-worker.sh" Worker_A "$tmp/wt-a" "$tmp/brief"
-check 1 'no worktree' "$scripts/start-worker.sh" worker-a "$tmp/missing" "$tmp/brief"
-check 1 'unreadable brief' "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/missing"
-check 1 'usage' "$scripts/start-worker.sh" worker-a "$tmp/wt-a"
+# The role lives in the prefix: an unprefixed name is refused, and a worker
+# whose stem ends in -review is still a worker.
+check 1 'invalid agent name' "$scripts/start-worker.sh" a2a-618-mcp-review "$tmp/wt-a" "$tmp/brief"
+check 1 'no worktree' "$scripts/start-worker.sh" w-worker-a "$tmp/missing" "$tmp/brief"
+check 1 'unreadable brief' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/missing"
+check 1 'usage' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a"
 [[ ! -s $tmp/calls ]]
 
 # ORCH_LOG: dispatch and follow-up append rows only on success and only when set.
 orch_log="$tmp/orch.tsv"
 rm -f "$orch_log"
-check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ ! -e $orch_log ]]
-check 0 'working' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tdispatched\tterminal=t9 worktree='"$tmp/wt-a"' brief='"$tmp/brief with spaces"$' kind=claude\tworking' ]]
-check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-check 1 'name_taken' env ORCH_LOG="$orch_log" MODE=run-fail "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'working' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
+[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tdispatched\tterminal=t9 worktree='"$tmp/wt-a"' brief='"$tmp/brief with spaces"$' kind=claude\tworking' ]]
+check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 1 'name_taken' env ORCH_LOG="$orch_log" MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(wc -l < "$orch_log") -eq 2 ]]
 # A logging failure never fails the dispatch.
-check 0 'working' env ORCH_LOG="$tmp/wt-a" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'working' env ORCH_LOG="$tmp/wt-a" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 : > "$tmp/calls"
-check 0 'sent' env ORCH_LOG="$orch_log" MODE=settled "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tre-instructed\tbrief='"$tmp/brief"$'\tworking' ]]
+check 0 'sent' env ORCH_LOG="$orch_log" MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tre-instructed\tbrief='"$tmp/brief"$'\tworking' ]]
 rm -f "$tmp/removed"
-check 0 'working' env ORCH_LOG="$orch_log" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(tail -n 1 "$orch_log") == *$'\tworker-a\tre-instructed\t'* && $(grep -c dispatched "$orch_log") -eq 1 ]]
-check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'working' env ORCH_LOG="$orch_log" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tre-instructed\t'* && $(grep -c dispatched "$orch_log") -eq 1 ]]
+check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(wc -l < "$orch_log") -eq 4 ]]
 : > "$tmp/calls"
 
 # Reviewer startup uses hc ls's observed string status, not hc get's object.
 ln -s "$tmp/wt-a" "$tmp/wt-alias"
-printf '{"terminals":[{"address":"t1","name":"worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
+printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
 : > "$tmp/calls"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
 [[ ! -s $tmp/calls ]]
-for terminal in 'live idle worker-a' 'finished working worker-a' 'live working other-review'; do
+for terminal in 'live idle w-worker-a' 'finished working w-worker-a' 'live working r-other'; do
 	read -r state status name <<< "$terminal"
 	printf '{"terminals":[{"address":"t1","name":"%s","cwd":"%s","state":"%s","status":"%s"}]}\n' "$name" "$tmp/wt-a" "$state" "$status" > "$tmp/terminals.json"
-	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
 done
 printf '{"terminals":[{"address":"t1","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-a" > "$tmp/terminals.json"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
-printf '{"terminals":[{"address":"t1","name":"worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp" > "$tmp/terminals.json"
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" task-review "$tmp/wt-a" "$tmp/brief"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
+printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp" > "$tmp/terminals.json"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 : > "$tmp/calls"
 
 # send-followup.sh: hc send to a live worker; revive a resumable finished one.
-check 0 'sent' env MODE=settled "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(cat "$tmp/calls") == "send worker-a $(cat "$tmp/brief")" ]]
+check 0 'sent' env MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(cat "$tmp/calls") == "send w-worker-a $(cat "$tmp/brief")" ]]
 : > "$tmp/calls"
-check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ ! -s $tmp/calls ]]
 rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='env AGENT_BROWSER_NAMESPACE=worker-a pi --session s-9' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(head -n 1 "$tmp/calls") == "rm worker-a" ]]
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='env AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-9' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(head -n 1 "$tmp/calls") == "rm w-worker-a" ]]
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=worker-a pi --session s-9 $pi_prompt" && ${argv[-1]} == "$pi_prompt" ]]
+[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-9 $pi_prompt" && ${argv[-1]} == "$pi_prompt" ]]
 : > "$tmp/calls"
 rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='claude --resume u-9' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='claude --resume u-9' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=worker-a claude --resume u-9 $prompt" && ${argv[-1]} == "$prompt" ]]
+[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a claude --resume u-9 $prompt" && ${argv[-1]} == "$prompt" ]]
 : > "$tmp/calls"
-check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/brief"
+check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ ! -s $tmp/calls ]]
-check 1 'unreadable brief' "$scripts/send-followup.sh" worker-a "$tmp/wt-a" "$tmp/missing"
-check 1 'usage' "$scripts/send-followup.sh" worker-a "$tmp/wt-a"
+check 1 'unreadable brief' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/missing"
+check 1 'usage' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a"
 
 # A later reviewer round cannot bypass the base gate, even on resume.
 : > "$tmp/calls"
-check 3 'requires --last-reviewed' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/wt-a" "$tmp/brief"
-check 3 'requires --last-reviewed' env MODE=finished "$scripts/send-followup.sh" task-review "$tmp/wt-a" "$tmp/brief"
+check 3 'requires --last-reviewed' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/wt-a" "$tmp/brief"
+check 3 'requires --last-reviewed' env MODE=finished "$scripts/send-followup.sh" r-task "$tmp/wt-a" "$tmp/brief"
 [[ ! -s $tmp/calls ]]
 
+# herdr-app mock: init never touches the person's real window.
+cat > "$tmp/bin/herdr-app" <<'MOCK'
+#!/usr/bin/env bash
+case "$1" in
+	ls) printf '{"spaces":[{"tabs":[{"id":"tb1","name":"%s","terminals":[{"terminal":"t3"}]}]}]}' "${TAB_NAME:-1}" ;;
+	do) printf '%s\n' "$*" >> "$FIXTURE/herdr" ;;
+esac
+MOCK
+chmod +x "$tmp/bin/herdr-app"
 # orchestrate-init.sh: requires an hc terminal; log keyed by terminal id.
 check 1 'not inside' env -u HC_TERMINAL_ID -u XDG_STATE_HOME "$scripts/orchestrate-init.sh" api
 check 0 "log=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 check 0 "export ORCH_LOG=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh"
+# The invocation's flags land in the log; the orchestrator's own tab is marked once.
+rm -f "$tmp/herdr"
+check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --track'
+[[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\torchestrator\tmode\tflags=--auto --track slug=api\tok' ]] || { echo 'FAIL: init must log the invocation flags'; exit 1; }
+[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <slug>'; exit 1; }
+rm -f "$tmp/herdr"
+check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scripts/orchestrate-init.sh" api
+[[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked tab'; exit 1; }
+[[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\tflags=none slug=api\tok' ]] || { echo 'FAIL: init without --mode must log flags=none'; exit 1; }
+check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode
 
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
@@ -243,18 +265,18 @@ git -C "$tmp/work" commit -qm feature --allow-empty
 head=$(git -C "$tmp/work" rev-parse HEAD)
 # Review scope must resolve to a commit in this worktree's HEAD history.
 : > "$tmp/calls"
-check 3 'not a commit' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/brief" --last-reviewed missing
+check 3 'not a commit' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/brief" --last-reviewed missing
 [[ ! -s $tmp/calls ]]
 review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
 printf '%s' "$review_body" > "$tmp/review-brief"
-check 0 'sent' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+check 0 'sent' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
 [[ $(cat "$tmp/calls") == *"$main..HEAD"* ]]
 [[ $(cat "$tmp/calls") == *"$review_body" ]] || { echo 'FAIL: live reviewer prompt must preserve the reporting footer and final ulw'; exit 1; }
 # Same reviewer name and session survive finished-terminal revival.
 rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$head"
+check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$head"
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *'--name task-review'* && ${argv[*]} == *'pi --session review-9'* ]]
+[[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *'pi --session review-9'* ]]
 [[ $(cat "$tmp/review-brief") == *"$head..HEAD"* ]]
 [[ $(cat "$tmp/review-brief") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: resumed reviewer brief and prompt must retain final ulw'; exit 1; }
 
@@ -264,7 +286,7 @@ check 3 'expected wrong' "$scripts/push-pinned.sh" "$tmp/work" topic wrong -- to
 git -C "$tmp/work" switch -q --orphan unrelated
 git -C "$tmp/work" commit -qm unrelated --allow-empty
 : > "$tmp/calls"
-check 3 'not an ancestor' env MODE=settled "$scripts/send-followup.sh" task-review "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+check 3 'not an ancestor' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
 [[ ! -s $tmp/calls ]]
 check 3 'not an ancestor' "$scripts/push-pinned.sh" "$tmp/work" unrelated "$main" -- touch "$tmp/built"
 [[ ! -e $tmp/built ]]
@@ -324,21 +346,21 @@ spawn() { (cd "$1" && exec tail -f /dev/null >/dev/null 2>&1) & echo $!; }
 dev=$(spawn "$tmp/wt/apps/web"); agent=$(spawn "$tmp/wt"); other=$(spawn "$tmp/wt-other")
 echo "$dev $other" > "$tmp/listeners"
 : > "$tmp/labels"
-check 0 'processes under' "$scripts/reap-worker.sh" "$tmp/wt" worker-a --keep-agent
+check 0 'processes under' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
 ! kill -0 "$dev" 2>/dev/null || [[ $(ps -o stat= -p "$dev") == Z* ]]
 kill -0 "$agent" && kill -0 "$other"
-[[ $(cat "$tmp/browser") == 'worker-a close --all' ]]
+[[ $(cat "$tmp/browser") == 'w-worker-a close --all' ]]
 [[ $(cat "$tmp/docker") == $'rm -f -v c-mine\nvolume rm -f volume-mine\nnetwork rm network-mine' ]]
-[[ $(cat "$tmp/labels") == 'label worker-a hibernate=ok' ]] || { echo 'FAIL: settled worker must become hibernatable after reaping'; exit 1; }
+[[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=ok' ]] || { echo 'FAIL: settled worker must become hibernatable after reaping'; exit 1; }
 : > "$tmp/listeners"
-check 0 '0 stopped' "$scripts/reap-worker.sh" "$tmp/wt" worker-a --keep-agent
-[[ $(cat "$tmp/labels") == $'label worker-a hibernate=ok\nlabel worker-a hibernate=ok' ]]
+check 0 '0 stopped' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ $(cat "$tmp/labels") == $'label w-worker-a hibernate=ok\nlabel w-worker-a hibernate=ok' ]]
 : > "$tmp/labels"
-check 0 '1 stopped' "$scripts/reap-worker.sh" "$tmp/wt" worker-a
+check 0 '1 stopped' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a
 [[ ! -s $tmp/labels ]]
 ! kill -0 "$agent" 2>/dev/null || [[ $(ps -o stat= -p "$agent") == Z* ]]
 kill -0 "$other"
 kill "$other"; wait "$dev" "$agent" "$other" 2>/dev/null || true
 check 1 'usage' "$scripts/reap-worker.sh" "$tmp/wt"
-check 1 'refusing' "$scripts/reap-worker.sh" / worker-a
+check 1 'refusing' "$scripts/reap-worker.sh" / w-worker-a
 printf '%s CLI checks plus safety assertions passed\n' "$checks"

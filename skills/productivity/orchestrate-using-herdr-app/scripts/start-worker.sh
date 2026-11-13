@@ -6,7 +6,7 @@
 # (a hibernated worker's) instead of starting a new one. The terminal is
 # labelled space=<id> with the orchestrator's space, so herdr-app's spaces sidebar
 # still lists it there after the orchestrator's pane closes.
-# Rejects agent names outside [a-z][a-z0-9_-]{0,31}. A failed launch is
+# Rejects agent names without a w- (worker) or r- (reviewer) role prefix. A failed launch is
 # printed as hc returned it and never retried. Exit 2: the terminal started
 # but the brief is not confirmed (blocked, error, finished, or no turn after
 # 60 seconds); read the screen before acting. When ORCH_LOG is set, a confirmed
@@ -33,17 +33,17 @@ while [ "$#" -gt 0 ]; do
 	esac
 done
 
-if ! [[ $name =~ ^[a-z][a-z0-9_-]{0,31}$ ]]; then
-	printf 'invalid agent name %s: use [a-z][a-z0-9_-]{0,31}\n' "$name" >&2
+if ! [[ $name =~ ^[wr]-[a-z0-9][a-z0-9_-]{0,29}$ ]]; then
+	printf 'invalid agent name %s: use w-<stem> (worker) or r-<stem> (reviewer), [a-z0-9_-], at most 32 characters\n' "$name" >&2
 	exit 1
 fi
 [ -d "$worktree" ] || { printf 'no worktree %s\n' "$worktree" >&2; exit 1; }
 [ -r "$brief" ] || { printf 'unreadable brief %s\n' "$brief" >&2; exit 1; }
 # Reviewers share the worker's checkout; never inspect it mid-edit.
-if [[ $name == *-review ]]; then
+if [[ $name == r-* ]]; then
 	worktree=$(realpath -- "$worktree")
 	terminals=$(hc ls --json)
-	candidates=$(jq -r '.terminals[] | select(.state == "live" and .status == "working") | select(((.name // "") | endswith("-review")) | not) | [.address, .cwd] | @tsv' <<<"$terminals")
+	candidates=$(jq -r '.terminals[] | select(.state == "live" and .status == "working") | select(((.name // "") | startswith("r-")) | not) | [.address, .cwd] | @tsv' <<<"$terminals")
 	while IFS=$'\t' read -r address cwd; do
 		[ -n "$address" ] || continue
 		if [ "$(realpath -- "$cwd")" = "$worktree" ]; then
