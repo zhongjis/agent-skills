@@ -18,6 +18,7 @@ Immediately before merging, confirm all of these for the recorded head SHA:
 - CI is green for that SHA, including every required check, and no blocker remains;
 - repository-required approvals and review-thread resolution are satisfied for that SHA, including protection that blocks merging on `CHANGES_REQUESTED`;
 - no release or deploy run is in progress or queued on the default branch (another merge, possibly from a peer orchestrator). If one is, wait for it to finish, then re-check every gate. A wait past the release workflow's own timeout is a shared blocker ([supervise.md](supervise.md)).
+- a saved infrastructure plan that the merge applies is current for the head SHA and marked non-destructive; `--auto` approves it with the merge. A destructive or stale plan stays a user decision.
 
 Merge through the repository's merge queue when it has one, otherwise its supported method. An optional configured bot still silent after the 15-minute review window is not itself a merge blocker; non-blocking findings may be listed in the PR body. Any failed or uncertain repository-required gate (including a missing required approval, protected `CHANGES_REQUESTED`, or required thread resolution) leaves the PR open with evidence; send in-scope repairs back to the worker.
 

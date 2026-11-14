@@ -2,6 +2,12 @@
 
 Measure first; estimate only what cannot be measured yet. Rates come from the pages listed under "Time-sensitive figures" in [SKILL.md](../SKILL.md).
 
+## Billed usage first
+
+- GitHub-hosted: `gh api "organizations/<org>/settings/billing/usage?year=<y>&month=<m>"` returns minutes, gross and net amounts per SKU and day.
+- External runners (Blacksmith, Depot, Namespace and similar): read the vendor's usage page, grouped by workflow, job, runner type and outcome. It usually needs a signed-in browser.
+- Project a month from the daily rate, weekends included.
+
 ## Measure
 
 Per top workflow, sample the last ~50 runs:
@@ -21,7 +27,7 @@ gh api "repos/{owner}/{repo}/actions/runs/<run-id>/jobs?filter=all" --paginate \
 | Rerun rate | share of runs with `attempt > 1` |
 | Cache hit rate | `gh run view <run-id> --log` lines for cache restored versus not found, per cache step |
 
-Monthly minutes: per-run minutes × runs/month for each runner label. Where billing access exists, cross-check against the billing usage report. Public repositories and self-hosted runners have zero billed minutes; their cost is compute, maintenance, and wall-clock.
+When neither source is available, estimate monthly minutes as per-run minutes × runs/month for each runner label. Public repositories and self-hosted runners have zero billed minutes; their cost is compute, maintenance, and wall-clock.
 
 ## Price
 

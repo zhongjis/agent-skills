@@ -19,7 +19,7 @@ Examples use GitHub Actions; [pipeline](references/pipeline.md) maps the levers 
 
 ## Steps
 
-1. **Baseline both currencies** for the top workflows by minutes, from the last ~50 runs: minutes per run and per month, PR wall-clock p50/p90, queue time, critical-path job, rerun rate, cache hit rate. Methods: [cost model](references/cost-model.md). Done when the top three workflows each have both baselines and the source of each figure.
+1. **Baseline both currencies.** Start from billed usage where the account exposes it: the platform's billing usage report and each external runner vendor's usage view. Then break that bill down for the top workflows, from the last ~50 runs: minutes per run and per job, PR wall-clock p50/p90, queue time, critical-path job, rerun rate, cache hit rate. Methods: [cost model](references/cost-model.md). Done when the top three workflows each have both baselines and the source of each figure.
 2. **Audit** each top workflow against the leak checklist. Done when every item is marked hit, miss, or n/a per workflow, with `file:line` for hits.
 3. **Rank** hits by saving in the currency the user prioritises ÷ effort, priced with the [cost model](references/cost-model.md).
 4. **Fix** inside the decision boundary on a branch. Done when inside fixes are committed on the branch and each outside item names the decision it needs.
