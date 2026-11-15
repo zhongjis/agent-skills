@@ -12,6 +12,22 @@ fi
 logfile="$1"
 shift
 
+# One key per task: a ticket key (`a2a-610`) when the name starts with one, else
+# the name; `w-`/`r-` agent names fold into it. Mirrors status.sh.
+known() {
+	[ -s "$logfile" ] && awk -F'\t' -v want="$1" '
+		function key(t) { sub(/^[wr]-/, "", t); if (match(t, /^[a-z][a-z0-9]*-[0-9]+/)) t = substr(t, 1, RLENGTH); return t }
+		NR > 1 && key($2) == key(want) { found = 1; exit } END { exit !found }' "$logfile"
+}
+case "$2" in
+	queued|ticketed|dispatched|decided|note) ;;
+	*)
+		if [ "$1" != orchestrator ] && [ "$1" != all ] && ! known "$1"; then
+			printf 'unknown task %s: log it as queued, ticketed or dispatched first, under the same key\n' "$1" >&2
+			exit 1
+		fi ;;
+esac
+
 mkdir -p "$(dirname "$logfile")"
 
 # Use `>>` here, never `>`: a failed emptiness test then costs one stray

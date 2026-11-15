@@ -232,7 +232,8 @@ def lock(repo: str, pr: int) -> Any:
         pid = handle.read().strip() or "unknown"
         fail(
             f"pid {pid} already watches {repo}#{pr}, so this watcher exits to avoid "
-            f"duplicate events. If no events reach you from it, run `kill {pid}` and start again."
+            f"duplicate events. Under an orchestrator, only the orchestrator watches a PR; a worker "
+            f"ends its turn instead. If no events reach you from it, run `kill {pid}` and start again."
         )
     handle.seek(0)
     handle.truncate()

@@ -457,6 +457,36 @@ out=$("$scripts/status.sh" "$tmp/mixed.tsv")
 [[ $(grep -c '^| ' <<<"$out") == 3 && $(grep -c '^| x |' <<<"$out") == 1 ]]
 check 0 '| 2026-01-01T00:04:00Z | working |' env MODE=status-live "$scripts/status.sh" "$tmp/mixed.tsv" --live
 
+# Ticket keys: queued, agent and short rows of one ticket fold into one task.
+cat > "$tmp/keys.tsv" <<'TSV'
+ts	task	event	evidence	result
+2026-01-01T00:00:00Z	a2a-610-sender-provider	queued	needs=a2a-608	queued
+2026-01-01T00:01:00Z	w-a2a-610-sender-provider	dispatched	terminal=t9	working
+2026-01-01T00:02:00Z	r-a2a-610-sender-provider	reviewed	findings=/r	approved
+2026-01-01T00:03:00Z	a2a-610	settled	PR #9	succeeded
+TSV
+out=$("$scripts/status.sh" "$tmp/keys.tsv")
+[[ $(grep -c '^| a2a-610' <<<"$out") == 1 && $out == *'| a2a-610 | w-a2a-610-sender-provider (t9) | settled |'* ]] || { echo "FAIL: ticket rows must fold into one task"; echo "$out"; exit 1; }
+checks=$((checks + 1))
+
+# log.sh refuses a key with no queued/ticketed/dispatched row, except on those events, decided and note.
+cp "$tmp/keys.tsv" "$tmp/log.tsv"
+check 0 '' "$scripts/log.sh" "$tmp/log.tsv" a2a-610 merged sha ok
+check 0 '' "$scripts/log.sh" "$tmp/log.tsv" w-a2a-610-x re-instructed brief ok
+check 1 'unknown task a2a-999' "$scripts/log.sh" "$tmp/log.tsv" a2a-999 merged sha ok
+check 0 '' "$scripts/log.sh" "$tmp/log.tsv" a2a-999 decided 'by=user q=x a=y' ok
+check 0 '' "$scripts/log.sh" "$tmp/log.tsv" orchestrator mode 'flags=--auto' ok
+check 1 'unknown task' "$scripts/log.sh" "$tmp/fresh.tsv" alpha settled x ok
+
+# compact-context.sh: silent without a log or after --off; otherwise mode row plus table.
+check 0 '' "$scripts/compact-context.sh" "$tmp/missing.tsv"
+check 0 'Latest mode row: flags=--auto' "$scripts/compact-context.sh" "$tmp/status.tsv"
+out=$("$scripts/compact-context.sh" "$tmp/status.tsv")
+[[ $out == *'Re-read the orchestrate-using-herdr-app SKILL.md'* && $out == *'| alpha |'* ]] || { echo "FAIL: compact-context table"; exit 1; }
+printf '2026-01-01T00:09:00Z\torchestrator\tmode\tflags=--off\toff\n' >> "$tmp/status.tsv"
+[[ -z $("$scripts/compact-context.sh" "$tmp/status.tsv") ]] || { echo "FAIL: compact-context must be silent after --off"; exit 1; }
+checks=$((checks + 1))
+
 # bot-active.sh: paginated API fixtures only, never real GitHub.
 cat > "$tmp/bin/gh" <<'MOCK'
 #!/usr/bin/env bash

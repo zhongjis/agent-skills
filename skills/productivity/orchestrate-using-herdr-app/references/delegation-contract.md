@@ -2,7 +2,7 @@
 
 Every brief sent to an `hc` worker follows this template, the ticket shape of `to-tickets` plus what a fresh worker needs. Fill each section from the agreed conversation and the task's ticket, if any; write "None" rather than dropping a section. State what done is and what was agreed; the worker owns the rest of the approach.
 
-The worker shares none of your context: not the conversation, not your exploration. Write the brief so a fresh agent with only the brief and its links can act without guessing.
+The worker shares none of your context: not the conversation, not your exploration, not this skill or its references. Write the brief so a fresh agent with only the brief and its links can act without guessing. Every rule you expect the worker to follow crosses in the brief or not at all: a rule that lives only in your references or the conversation does not exist for the worker.
 
 <brief-template>
 
@@ -23,7 +23,7 @@ What the user and orchestrator already agreed: contract terms, interfaces, schem
 
 ## Context
 
-What the worker cannot recover by reading: why this work exists, rejected approaches and why, user preferences, terms coined in the conversation, current environment state (branch, running services, known failures).
+What the worker cannot recover by reading: why this work exists, rejected approaches and why, user preferences, terms coined in the conversation, current environment state (branch, running services, known failures), and every rule the user stated in this session that changes how workers act (testing, verification, waiting).
 
 ## Blocked by and inputs
 
@@ -41,6 +41,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 - **Authority:** Everything the agreed outcome needs on your own branch is authorized, including history rewrites, lease-guarded pushes, and edits wherever the change reaches; stop only at a Tripwire. Publication, merge, deployment, and shared-branch rewrites only as Deliverables grant.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Launch every browser through the automation tool itself, headless by default, using its executable and profile options when you need the user's browser or a copied profile, so the tool owns it and reaping closes it. A browser you start yourself and attach to is not owned and survives reaping. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
+- **Waits:** end your turn at each handoff point (a local commit, a push, or a review-thread reply), with its head SHA. The orchestrator waits on CI, review bots, merge, and release, and sends you what needs work; never run `pr-wait` or watch the PR or CI yourself.
 - **Reporting:** when done or stuck, end your turn with the result or blocker as your final message; put a long answer in a file and name its path. The orchestrator reads your screen. Never `hc send` to the orchestrator or any other terminal, even when a message you receive carries a `reach=` hint or the `hc` skill says to report with `hc send`.
 - **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, a change to Unchanged behavior, an unnamed migration or authority change, or a user decision. Every choice should follow from What to build and the acceptance criteria; when two reasonable choices both meet them but give the user a different result, that is a user decision: ask before choosing.
 
@@ -58,6 +59,7 @@ External results the mode or task requires, embedded in full: the worker contrac
 - **QA:** name the changed screens to QA in the brief; the worker's own mode chooses QA depth, rather than imposing a full viewport × theme matrix on every screen in every round.
 - **Wave audit:** after all tickets in a wave are written and before any dispatch, read them side by side and against the spec: no item belongs to two tickets; no criterion is stricter or looser than the spec; every "none remains" criterion includes its search command and allowed exceptions. Correct mismatches before dispatch.
 - **Follow-ups:** every later message to a worker (re-instruction, repair, review findings, the brief after `/new`, a revive brief) ends with one line: "Report by ending your turn; never `hc send` to the orchestrator." `hc` tags each `hc send` with a `reach=` hint that asks for the opposite, and a revived session still holds older briefs.
+- **Session rules:** when the user states a rule mid-session that changes how workers act, add it to the Context of every later brief and to a follow-up for every running worker.
 - **Batch briefs** share one filled template; only the target in What to build, its inputs, and per-target overrides differ.
 - **Link or inline.** Link sources the worker can open; inline anything that exists only in the conversation. Inline a snippet only when it encodes a decision more precisely than prose (schema, type shape, state machine).
 - **Redact** secrets and sensitive data from every section.

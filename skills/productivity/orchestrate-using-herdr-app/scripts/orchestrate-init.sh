@@ -34,6 +34,10 @@ log="$dir/$(printf '%s' "$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '-').tsv"
 # The latest `mode` row is the invocation's authority (for example --auto);
 # recalled memory never replaces it.
 "$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$log" orchestrator mode "flags=$mode slug=$slug" ok
+# The herdr-app session integrations run the labelled script after a compaction and
+# inject its output. Keep the logical path: a resolved Nix store path goes stale on the
+# next switch. Best effort: a missing label only loses that reminder.
+hc label "$HC_TERMINAL_ID" "orch-context=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/compact-context.sh" >/dev/null 2>&1 || true
 printf 'log=%s\n' "$log"
 # Exporting it lets start-worker.sh and send-followup.sh log their own rows.
 printf 'export ORCH_LOG=%q\n' "$log"

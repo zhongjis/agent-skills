@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Usage: status.sh <logfile> [--live]
-# One Markdown row per task stem, combining w-/r- agent and task log rows.
+# One Markdown row per task key: a leading ticket key (`a2a-610`) or the name,
+# with w-/r- agent rows folded in (log.sh uses the same rule).
 # Worker names/terminals come from the latest w- dispatch; all/note rows are counted.
 # --live adds hc state using the worker's dispatched terminal.
 # Exit nonzero on unreadable logs or hc errors other than missing terminals (gone).
@@ -19,7 +20,7 @@ summary=$(jq -Rn '
 		if $row.task == "all" and $row.event == "note" then .notes += 1
 		elif $row.task == "orchestrator" and $row.event == "mode" then .
 		else
-			($row.task | sub("^[wr]-"; "")) as $task |
+			($row.task | sub("^[wr]-"; "") | (capture("^(?<k>[a-z][a-z0-9]*-[0-9]+)").k // .)) as $task |
 			if .tasks[$task] == null then .order += [$task] else . end |
 			.tasks[$task] = ($row + {task: $task}) |
 			if $row.event == "dispatched" and ($row.task | startswith("w-"))
