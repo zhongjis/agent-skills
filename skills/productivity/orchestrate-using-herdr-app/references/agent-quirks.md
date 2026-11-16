@@ -11,7 +11,6 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
 ## Every kind
 
 - **Slash commands go as keys.** `hc send` from an `hc` terminal wraps the text in `<hc from="…">…</hc>`, so the agent reads a slash command as chat and does not run it. Type every slash command with `hc keys <name> …`, one key per character, with `space` between words, then `enter`: `hc keys <name> / n e w enter`. Confirm the result on screen (Pi: `New session started`, or the status line's `ctx` drops). Briefs and follow-ups still go through `hc send` and `send-followup.sh`.
-- **Reviewer brief names the spec.** Every reviewer brief, of any kind and any round, names the review range, the ticket URL and the task brief path. It asks the reviewer to judge the diff against that spec and to report every issue it finds, including efficiency, as a finding. It also asks for changes the spec does not ask for, such as changes to behavior the brief lists as unchanged, to be reported as scope creep. It marks as blocking any change that removes or weakens an existing authorization, ownership or isolation check the task does not authorize, even when the reviewer judges the removed path unreachable.
 
 ## pi
 
@@ -26,7 +25,7 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
 - **Compact:** type `/compact [what to preserve]` as keys; status can read `done` while compaction runs, and a message queued during compaction is dropped. Send the follow-up only once `hc read <name>` no longer shows "Compacting".
 - **Handoff:** type `/handoff <follow-up request> ulw` as keys. Pi summarizes into a new session and **preloads** the summary plus request in the editor without submitting it; once the agent is `idle`, submit with `hc keys <name> enter`. The terminal name survives.
 - **Peer orchestrator** ([handoff.md](handoff.md)): argv `["pi"]`; the brief opens with `$skill:orchestrate-using-herdr-app <flags>` and ends with `ulw`.
-- **Reviewer** ([supervise.md](supervise.md)): the brief is `$skill:axis-review` plus the spec lines from Every kind, for a local whole-branch review of `<base>...HEAD` (later rounds: only `<last-reviewed>..HEAD`, focusing on correctness bugs, real runtime or security risks, and unfixed earlier blockers). Write all findings, including non-blocking ones, to `<briefs>/raw-review-<ticket>-<round>.md` outside the worktree (task slug without a ticket), and end the turn with that absolute path, never `hc send`. This output file is the only permitted write: no code edits, commits, or remote comments, reviews, or replies. Keep the session across rounds and bot fallback. End the brief with `ulw`.
+- **Reviewer** ([supervise.md](supervise.md) Reviewer brief): open the brief with `$skill:axis-review` and end it with `ulw`.
 - **Reviewer on another model** ([supervise.md](supervise.md) step 2): start it with `scripts/start-worker.sh r-<stem> <worktree> <brief-file>`, then `hc interrupt r-<stem>`, type `/mode-model <provider/model>` as keys, confirm the status line shows that model, and `hc send` the same first prompt (read the brief at its absolute path, its `$skill:` tokens, `ulw`).
 
 ## claude
@@ -39,7 +38,7 @@ Send every follow-up brief with `scripts/send-followup.sh <name> <worktree> <bri
   2. Take only the path from the worker's output; do not read the document yourself.
   3. Type `/new` as keys, then prompt the worker to read that path and continue with the follow-up request.
 - **Peer orchestrator** ([handoff.md](handoff.md)): argv `["claude"]`; the brief opens with `/orchestrate-using-herdr-app <flags>`. Expect the folder-trust dialog in an untrusted folder.
-- **Reviewer** ([supervise.md](supervise.md)): the brief is a plain review prompt with the spec lines from Every kind, not the bundled `/code-review`: that command takes only a target, reads any later text as part of the target, and accepts no spec. Review `<base>...HEAD` for the initial whole branch; later rounds say: "Review only commits `<last-reviewed>..HEAD`; focus on correctness bugs, real runtime or security risks, and unfixed earlier blockers." In every brief require all findings, including non-blocking ones, in `<briefs>/raw-review-<ticket>-<round>.md` outside the worktree (task slug without a ticket), ending the turn with that absolute path, never `hc send`. Only that output file may be written: no code edits, commits, or remote comments, reviews, or replies. Keep the session across rounds and bot fallback. A worktree a Pi worker made is new to Claude, so expect the folder-trust dialog.
+- **Reviewer** ([supervise.md](supervise.md) Reviewer brief): send that brief as a plain review prompt, not the bundled `/code-review`: that command takes only a target, reads any later text as part of the target, and accepts no spec. A worktree a Pi worker made is new to Claude, so expect the folder-trust dialog.
 
 ## codex
 

@@ -32,9 +32,9 @@ Run `scripts/orchestrate-init.sh <slug> --mode "<this invocation's flags>"`, whe
 
 Then read, in one pass, what your flags need:
 
-- always: [delegation-contract.md](references/delegation-contract.md), [preflight.md](references/preflight.md), [worker-context.md](references/worker-context.md), and your worker kind's section of [agent-quirks.md](references/agent-quirks.md)
+- always: [delegation-contract.md](references/delegation-contract.md), [preflight.md](references/preflight.md), [worker-context.md](references/worker-context.md), and the Every kind, Hibernated or finished workers, and your worker kind's sections of [agent-quirks.md](references/agent-quirks.md)
 - `--track`: [track.md](references/track.md)
-- `--watch` or `--auto`: [supervise.md](references/supervise.md) and [reap.md](references/reap.md)
+- `--watch` or `--auto`: [supervise.md](references/supervise.md), [reap.md](references/reap.md), and the reviewer kind's section of agent-quirks.md ([supervise.md](references/supervise.md) step 2 picks the kind)
 - `--auto`: also [auto-merge.md](references/auto-merge.md)
 - `--handoff`: instead of all of the above, [handoff.md](references/handoff.md), [delegation-contract.md](references/delegation-contract.md), and your own kind's section of [agent-quirks.md](references/agent-quirks.md); the peer reads the rest itself
 
@@ -51,7 +51,7 @@ Per task:
 
 1. **Spec it.** Write the brief per [delegation-contract.md](references/delegation-contract.md) from the agreed conversation, or from the task's existing ticket when it has one; under `--track`, a task without a ticket gets one from the spec ([track.md](references/track.md)). Resolve routine gaps by inspection. If a material decision is missing from the conversation, ask one precise question and stop before any side effect. **Done when** the task has a brief with acceptance criteria.
 2. **Launch** through [preflight.md](references/preflight.md), every ready task at once unless the conversation set a limit. A task with prerequisites is **queued**: log it as `queued` with evidence `needs=<task>,<task>`; these rows are the task graph, and a changed graph appends a new row (the latest wins). Before every dispatch, re-read the log, and launch a queued task once each prerequisite has a `merged` row (or, for work that does not merge, a `settled` row with result `succeeded`), based on those merge commits and with their outputs added to its brief; without supervision, report it as queued. Merge a dependent's PR only when each prerequisite has a `settled` row with result `succeeded` ([auto-merge.md](references/auto-merge.md#after-merge) defines settled for merged work); when a prerequisite's release fails, pause its running dependents. **Done when** the task is queued, or its worker is `working` and, under `--watch` or `--auto`, its `scripts/watch-agent.sh <name>` background task is running.
-3. **Hand off or supervise** per the mode.
+3. **Hand off or supervise** per the mode. The supervised lifecycle: watch → local review → publish → bot rounds → merge (`--auto`) → release → reap; [supervise.md](references/supervise.md) owns round caps, shared blockers, and lost watchers.
 
 A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md): a task that succeeded with its PR merged and released gets full cleanup; every other task keeps its terminal and worktree. Without supervision, that happens when the user later reports the result.
 
