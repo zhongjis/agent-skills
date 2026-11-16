@@ -63,11 +63,11 @@ A new user-invoked skill, `orchestrate-using-t3code`, created as a full copy of 
 - Good tests observe external behavior: the orchestrator's chosen actions and reports for a scenario, not wording.
 - `evals/evals.json` is ported: each Herdr scenario keeps its intent with T3 mechanics; terminal-quirk scenarios are dropped and the pane-label scenario becomes a thread-title scenario.
 - No `tests/check.sh` for this skill. Scripts get syntax checks during development.
-- Prior art: the Herdr and Orca orchestration skills' `evals/evals.json`.
+- Prior art: the Herdr orchestration skill's `evals/evals.json`.
 
 ## Out of Scope
 
-- An orchestration-common skill shared by Herdr, Orca, and T3 variants.
+- An orchestration-common skill shared by Herdr and T3 variants.
 - `delegate_task` child workers.
 - T3's PR stack listing, PR guides, scheduled tasks, devices, and remote environments.
 - Changes to `orchestrate-using-herdr`.
