@@ -94,7 +94,8 @@
       "expectations": [
         "Keeps execution with the pi worker rather than taking over small tasks.",
         "Uses Handoff because the settled task enters a new phase with mostly noisy context.",
-        "Retains orchestrator acceptance and verification without duplicating worker execution."
+        "Retains orchestrator acceptance and verification without duplicating worker execution.",
+        "The worker's instructions, under --watch as under --auto, tell it to reply in each handled review thread and then resolve it."
       ],
       "files": []
     },
