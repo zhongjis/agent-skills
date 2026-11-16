@@ -149,7 +149,7 @@ rm -f "$tmp/gets"
 check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(cat "$tmp/gets") == 3 ]]
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent env AGENT_BROWSER_NAMESPACE=w-worker-a pi $pi_prompt" ]] || { echo 'FAIL: short Pi argv must reference absolute brief and preserve skill/ulw triggers'; exit 1; }
+[[ ${argv[*]} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent env PATH=$PATH AGENT_BROWSER_NAMESPACE=w-worker-a pi $pi_prompt" ]] || { echo 'FAIL: short Pi argv must reference absolute brief and preserve skill/ulw triggers'; exit 1; }
 [[ ${argv[-1]} == "$pi_prompt" && ${argv[*]} != *'Private brief body'* ]]
 [[ ! -s $tmp/labels ]]
 # A relative brief resolves before hc switches to the worker cwd.

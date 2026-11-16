@@ -73,12 +73,13 @@ if [ -n "$session" ]; then
 fi
 
 # hc terminals do not inherit this shell's environment, so pass the
-# namespace through env. --no-notify keeps hc's notes about the worker out
+# namespace and PATH (Herdr's per-launch agent hook shims) through env.
+# --no-notify keeps hc's notes about the worker out
 # of the orchestrator's input, where they would collide with the user's typing.
 # Submit only the file pointer and Pi triggers, not the full brief, via argv.
 run_status=0
 run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
-	env "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt") || run_status=$?
+	env "PATH=$PATH" "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt") || run_status=$?
 printf '%s\n' "$run_out"
 [ "$run_status" -eq 0 ] || exit "$run_status"
 log_dispatch() {
