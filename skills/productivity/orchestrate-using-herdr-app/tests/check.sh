@@ -8,7 +8,7 @@ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 export HOME="$tmp/home"
 mkdir -p "$HOME" "$tmp/bin"
 export FIXTURE="$tmp" PATH="$tmp/bin:$PATH"
-unset HC_TERMINAL_ID
+unset HC_TERMINAL_ID ORCH_MAX
 checks=0
 check() {
 	local expected="$1" needle="$2" out status=0
@@ -24,10 +24,13 @@ cat > "$tmp/bin/hc" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
-	ls) cat "${FIXTURE}/terminals.json"; exit ;;
+	ls)
+		printf '%s\n' "$*" >> "$FIXTURE/ls-calls"
+		cat "${FIXTURE}/terminals.json"; exit ;;
 	run)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
 		printf '%s\0' "$@" > "$FIXTURE/argv"
+		rm -f "$FIXTURE/sends"
 		[[ $MODE != run-fail ]] || { echo '{"error":{"kind":"name_taken"}}' >&2; exit 1; }
 		echo '{"address":"t9","state":"live","turn":0}'
 		exit ;;
@@ -37,6 +40,7 @@ case "$1" in
 	send|rm)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
 		[[ $1 != rm ]] || touch "$FIXTURE/removed"
+		[[ $1 != send ]] || echo sent >> "$FIXTURE/sends"
 		exit ;;
 	wait)
 		[[ $MODE != gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
@@ -68,6 +72,8 @@ fi
 n=$(( $(cat "$FIXTURE/gets" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$FIXTURE/gets"
 state=live status="${AGENT_STATUS:-idle}" turn=1
+# Each hc send starts a turn, except in send-stuck.
+if [[ -e $FIXTURE/sends && $MODE != send-stuck ]]; then turn=$((turn + $(wc -l < "$FIXTURE/sends"))); fi
 case "$MODE" in
 	gone) echo '{"error":{"kind":"not_found"}}'; exit 3 ;;
 	auth) echo '{"error":{"kind":"unauthorized"}}'; exit 1 ;;
@@ -250,6 +256,32 @@ check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.
 [[ ! -s $tmp/calls ]]
 check 1 'unreadable brief' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/missing"
 check 1 'usage' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a"
+# A sent follow-up must start a turn before the script returns.
+check 2 'no turn started' env MODE=send-stuck "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+
+# --max: only this orchestrator's live working w-/r- agents hold a slot.
+printf '{"terminals":[%s]}\n' '{"name":"w-a","state":"live","status":"working"},{"name":"r-b","state":"live","status":"working"},{"name":"w-c","state":"live","status":"idle"},{"name":"w-blocked","state":"live","status":"blocked"},{"name":"helper","state":"live","status":"working"},{"state":"live","status":"working"},{"name":"w-gone","state":"finished","status":"working"}' > "$tmp/terminals.json"
+: > "$tmp/ls-calls"
+check 0 '' env ORCH_MAX=3 HC_TERMINAL_ID=orch "$scripts/slot-free.sh"
+[[ $(cat "$tmp/ls-calls") == 'ls --json --label orch=orch' ]] || { echo 'FAIL: slot count must be scoped to this orchestrator'; exit 1; }
+check 4 'no free slot: 2 of max 2 working: w-a r-b' env ORCH_MAX=2 HC_TERMINAL_ID=orch "$scripts/slot-free.sh"
+check 0 '' env ORCH_MAX=2 HC_TERMINAL_ID=orch "$scripts/slot-free.sh" w-a
+check 0 '' "$scripts/slot-free.sh"
+check 1 'invalid ORCH_MAX' env ORCH_MAX=0 HC_TERMINAL_ID=orch "$scripts/slot-free.sh"
+check 1 'needs HC_TERMINAL_ID' env ORCH_MAX=2 "$scripts/slot-free.sh"
+: > "$tmp/calls"
+brief_before=$(cat "$tmp/brief")
+check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$tmp/brief"
+check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-followup.sh" w-c "$tmp/wt-a" "$tmp/brief"
+check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-followup.sh" r-x "$tmp/wt-a" "$tmp/brief" --last-reviewed HEAD
+[[ ! -s $tmp/calls && $(cat "$tmp/brief") == "$brief_before" ]] || { echo 'FAIL: a refused start or follow-up must have no side effects'; exit 1; }
+# A follow-up to an agent already working takes no new slot.
+check 0 'sent' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$scripts/send-followup.sh" w-a "$tmp/wt-a" "$tmp/brief"
+check 0 'turn 1' env ORCH_MAX=3 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$tmp/brief"
+mapfile -d '' -t argv < "$tmp/argv"
+[[ ${argv[*]} == *'--outlive-parent --label orch=orch env '* ]] || { echo 'FAIL: a worker must carry its orchestrator label from launch'; exit 1; }
+printf '{"terminals":[]}\n' > "$tmp/terminals.json"
+: > "$tmp/calls"
 
 # A later reviewer round cannot bypass the base gate, even on resume.
 : > "$tmp/calls"
@@ -284,6 +316,15 @@ check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scri
 [[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked tab'; exit 1; }
 [[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\tflags=none slug=api\tok' ]] || { echo 'FAIL: init without --mode must log flags=none'; exit 1; }
 check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode
+# --max needs a positive N and a supervising mode; a refusal logs nothing.
+init_log="$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv"
+rows=$(wc -l < "$init_log")
+check 1 'needs --watch or --auto' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--track --max 2'
+check 1 'positive integer, got nothing' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max'
+check 1 'positive integer, got 0' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --max 0'
+[[ $(wc -l < "$init_log") == "$rows" ]] || { echo 'FAIL: a refused --max must not log a mode row'; exit 1; }
+check 0 'export ORCH_MAX=2' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max 2 --track'
+check 0 'unset ORCH_MAX' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto'
 
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"

@@ -4,8 +4,10 @@
 # AGENT_BROWSER_NAMESPACE and a brief-file prompt as its first message, then confirm
 # the agent took the brief. --resume continues that Pi or Claude session
 # (a hibernated worker's) instead of starting a new one. The terminal is
-# labelled space=<id> with the orchestrator's space, so herdr-app's spaces sidebar
-# still lists it there after the orchestrator's pane closes.
+# labelled orch=$HC_TERMINAL_ID, which scopes slot-free.sh, and space=<id> with
+# the orchestrator's space, so herdr-app's spaces sidebar still lists it there
+# after the orchestrator's pane closes. Exit 4: ORCH_MAX agents already work
+# (slot-free.sh); nothing started.
 # Rejects agent names without a w- (worker) or r- (reviewer) role prefix. A failed launch is
 # printed as hc returned it and never retried. Exit 2: the terminal started
 # but the brief is not confirmed (blocked, error, finished, or no turn after
@@ -77,8 +79,11 @@ fi
 # --no-notify keeps hc's notes about the worker out
 # of the orchestrator's input, where they would collide with the user's typing.
 # Submit only the file pointer and Pi triggers, not the full brief, via argv.
+"$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh"
+labels=()
+[ -z "${HC_TERMINAL_ID:-}" ] || labels=(--label "orch=$HC_TERMINAL_ID")
 run_status=0
-run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent \
+run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent ${labels[@]+"${labels[@]}"} \
 	env "PATH=$PATH" "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt") || run_status=$?
 printf '%s\n' "$run_out"
 [ "$run_status" -eq 0 ] || exit "$run_status"

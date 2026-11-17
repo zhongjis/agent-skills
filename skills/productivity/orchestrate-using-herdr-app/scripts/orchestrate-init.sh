@@ -3,6 +3,8 @@
 # log the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
 # smart-sessions tab standard, at most four slug words with hyphens as spaces.
 # Usage: orchestrate-init.sh <slug> [--mode <flags>]
+# With `--max <N>` in the flags (which then need --watch or --auto), it also
+# prints `export ORCH_MAX=<N>`; otherwise `unset ORCH_MAX`.
 set -euo pipefail
 
 usage() {
@@ -19,6 +21,22 @@ while [ "$#" -gt 0 ]; do
 		--mode) [ "$#" -ge 2 ] || usage; mode="${2:-none}"; shift 2 ;;
 		*) usage ;;
 	esac
+done
+
+# --max <N> caps working agents (slot-free.sh); it needs a supervisor to free slots.
+max=
+read -ra flags <<<"$mode"
+for i in "${!flags[@]}"; do
+	[ "${flags[i]}" = --max ] || continue
+	max="${flags[i + 1]:-}"
+	if ! [[ $max =~ ^[1-9][0-9]*$ ]]; then
+		printf -- '--max needs a positive integer, got %s\n' "${max:-nothing}" >&2
+		exit 1
+	fi
+	if ! [[ " $mode " =~ \ --(watch|auto)\  ]]; then
+		printf -- '--max needs --watch or --auto: without supervision nothing frees a slot\n' >&2
+		exit 1
+	fi
 done
 
 if ! command -v hc >/dev/null || [ -z "${HC_TERMINAL_ID:-}" ]; then
@@ -41,6 +59,8 @@ hc label "$HC_TERMINAL_ID" "orch-context=$(cd -- "$(dirname -- "${BASH_SOURCE[0]
 printf 'log=%s\n' "$log"
 # Exporting it lets start-worker.sh and send-followup.sh log their own rows.
 printf 'export ORCH_LOG=%q\n' "$log"
+# A flag applies only to its invocation, so a later one without --max lifts the cap.
+if [ -n "$max" ]; then printf 'export ORCH_MAX=%s\n' "$max"; else printf 'unset ORCH_MAX\n'; fi
 
 # Best effort: without an open window the orchestration still runs.
 if command -v herdr-app >/dev/null; then

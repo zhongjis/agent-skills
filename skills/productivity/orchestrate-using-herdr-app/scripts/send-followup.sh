@@ -4,11 +4,14 @@
 # the durable brief before either live delivery or same-session revival. Exit 3:
 # missing/invalid review base. The brief file must be writable for reviewers.
 # Deliver a follow-up brief to an existing worker. A live worker gets it
-# through hc send. A finished worker with a resume label (hibernated, or
+# through hc send, and the script returns once its turn starts. A finished
+# worker with a resume label (hibernated, or
 # stopped_by_restart) is removed and restarted with start-worker.sh
 # --resume, keeping its name, worktree, kind, and session; the brief is its
-# first message. Exit 2: the worker waits on a dialog, or finished without a
-# resume label; read its screen before acting. When ORCH_LOG is set, a confirmed
+# first message. Exit 2: the worker waits on a dialog, finished without a
+# resume label, or did not start a turn within 60 seconds; read its screen
+# before acting. Exit 4: ORCH_MAX agents already work (slot-free.sh); nothing
+# sent. When ORCH_LOG is set, a confirmed
 # delivery or revival appends a best-effort `re-instructed` row to that log.
 set -euo pipefail
 
@@ -36,6 +39,8 @@ if [ "$#" -gt 0 ]; then
 	[ "$#" -eq 2 ] && [ "$1" = --last-reviewed ] && [ -n "$2" ] || usage
 	base="$2"
 fi
+# Before any side effect, including the reviewer scope written into the brief.
+"$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh" "$name"
 if [[ $name == r-* ]]; then
 	[ -n "$base" ] || { printf 'reviewer follow-up requires --last-reviewed <commit>\n' >&2; exit 3; }
 	base=$(git -C "$worktree" rev-parse --verify --end-of-options "$base^{commit}" 2>/dev/null) || {
@@ -58,8 +63,9 @@ elif [ -n "$base" ]; then
 fi
 
 snapshot=$(hc get "$name" --json)
-fields=$(jq -er '[.state, (.status.state // "none"), (.labels.resume // "")] | @tsv' <<<"$snapshot")
-IFS=$'\t' read -r state status resume <<<"$fields"
+fields=$(jq -er '[.state, (.status.state // "none"), (.turn // 0), (.labels.resume // "")] | @tsv' <<<"$snapshot")
+# resume last: tab is IFS whitespace, so an empty middle field would collapse.
+IFS=$'\t' read -r state status turn resume <<<"$fields"
 
 case "$state" in
 	live)
@@ -69,7 +75,18 @@ case "$state" in
 		fi
 		hc send "$name" "$(cat "$brief")" >/dev/null
 		printf 'agent %s: sent\n' "$name"
-		log_followup
+		# Confirm the turn started, so the next slot check counts it.
+		for _ in $(seq 30); do
+			fields=$(hc get "$name" --json | jq -er '[(.status.state // "none"), (.turn // 0)] | @tsv')
+			IFS=$'\t' read -r now_status now_turn <<<"$fields"
+			if [ "$now_status" = working ] || [ "$now_turn" -gt "$turn" ]; then
+				log_followup
+				exit 0
+			fi
+			sleep 2
+		done
+		printf 'agent %s: no turn started after 60 s\n' "$name" >&2
+		exit 2
 		;;
 	finished)
 		# The resume label holds the agent's own launch line, for example
