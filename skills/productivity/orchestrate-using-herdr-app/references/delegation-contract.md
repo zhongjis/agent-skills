@@ -37,7 +37,7 @@ Code this task rewires that a later task deletes, and its agreed seams.
 ## Scope
 
 - **Worktree:** the assigned path and branch; work only there.
-- **In scope:** only what the ticket, or the agreed outcome without a ticket, requires. A gap is reported, never closed by widening scope.
+- **In scope:** what the ticket, or the agreed outcome without a ticket, requires, plus the root cause of its symptom and any bug in code your diff already changes that needs no new contract, migration, auth or public API change. Report any other gap with its size and area; never close it unasked.
 - **Out of scope:** explicit exclusions and protected work, each stated as work not to do ("do not implement A2A-512"), never as base behavior to keep; the base branch's current behavior is the baseline.
 - **Authority:** Everything the agreed outcome needs on your own branch is authorized, including history rewrites, lease-guarded pushes, and edits wherever the change reaches; stop only at a Tripwire. Publication, merge, deployment, and shared-branch rewrites only as Deliverables grant.
 - **Resources:** your browsers run in the `AGENT_BROWSER_NAMESPACE` set for your terminal; keep it. Launch every browser through the automation tool itself, headless by default, using its executable and profile options when you need the user's browser or a copied profile, so the tool owns it and reaping closes it. A browser you start yourself and attach to is not owned and survives reaping. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
