@@ -39,7 +39,7 @@ case "$1" in
 		exit ;;
 	send|rm)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
-		[[ $1 != rm ]] || touch "$FIXTURE/removed"
+		[[ $1 != rm ]] || { touch "$FIXTURE/removed"; echo "$2" >> "$FIXTURE/removed-names"; }
 		[[ $1 != send ]] || echo sent >> "$FIXTURE/sends"
 		exit ;;
 	wait)
@@ -55,6 +55,7 @@ case "$1" in
 			quiet) printf '⠋ Working (%sm%ss · ↓ 1.2k tokens) 4%s tok/s 12:0%s\n' "$r" "$r" "$r" "$r" ;;
 			quiet-hint) printf '❯ 1. Yes\nGoal blocked (/goal resume)\n' ;;
 			compact) [[ $r -ge 2 ]] || printf 'Compacting\n' ;;
+			crash) printf 'pi exiting due to uncaughtException:\nAbortError: The operation was aborted\n' ;;
 		esac
 		exit ;;
 esac
@@ -74,6 +75,9 @@ echo "$n" > "$FIXTURE/gets"
 state=live status="${AGENT_STATUS:-idle}" turn=1
 # Each hc send starts a turn, except in send-stuck.
 if [[ -e $FIXTURE/sends && $MODE != send-stuck ]]; then turn=$((turn + $(wc -l < "$FIXTURE/sends"))); fi
+if [[ $MODE == full ]]; then
+	grep -qxF "$2" "$FIXTURE/full-terms" && ! grep -qxF "$2" "$FIXTURE/removed-names" 2>/dev/null || exit 3
+fi
 case "$MODE" in
 	gone) echo '{"error":{"kind":"not_found"}}'; exit 3 ;;
 	auth) echo '{"error":{"kind":"unauthorized"}}'; exit 1 ;;
@@ -111,7 +115,11 @@ check 0 'settled: idle' env MODE=flicker AGENT_STATUS=idle "$scripts/watch-agent
 [[ $(cat "$tmp/gets") -eq 9 ]]
 rm -f "$tmp/gets" "$tmp/reads"
 check 0 'settled: done' env MODE=compact AGENT_STATUS=done "$scripts/watch-agent.sh" worker
-[[ $(cat "$tmp/reads") -eq 2 ]]
+# Two Compacting checks, then one read for the settle evidence.
+[[ $(cat "$tmp/reads") -eq 3 ]]
+# A crashed agent reads done; the settle says exited and shows the crash.
+check 0 'settled: exited (turn 1)' env MODE=crash AGENT_STATUS=done "$scripts/watch-agent.sh" worker
+check 0 'AbortError: The operation was aborted' env MODE=crash AGENT_STATUS=done "$scripts/watch-agent.sh" worker
 rm -f "$tmp/reads"
 check 0 'quiet 0m (working) fp=' env MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0
 out=$(MODE=quiet-hint "$scripts/watch-agent.sh" worker --quiet 0)
@@ -458,6 +466,22 @@ kill -0 "$other"
 kill "$other"; wait "$dev" "$agent" "$other" 2>/dev/null || true
 check 1 'usage' "$scripts/reap-worker.sh" "$tmp/wt"
 check 1 'refusing' "$scripts/reap-worker.sh" / w-worker-a
+check 1 'usage' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --full
+
+# --full: removes both role terminals, the worktree, and the local and remote branch.
+git init -q --bare "$tmp/full-remote"
+git init -q -b main "$tmp/full-src"
+git -C "$tmp/full-src" -c user.email=f@example.invalid -c user.name=F commit -qm main --allow-empty
+git -C "$tmp/full-src" remote add origin "$tmp/full-remote"
+git -C "$tmp/full-src" worktree add -q -b topic-full "$tmp/full-wt"
+git -C "$tmp/full-src" push -q origin topic-full
+echo "$$" > "$tmp/pids"; : > "$tmp/listeners"; : > "$tmp/removed-names"
+printf 'w-a1-topic\nr-a1-topic\n' > "$tmp/full-terms"
+check 0 'full cleanup w-a1-topic' env MODE=full "$scripts/reap-worker.sh" "$tmp/full-wt" w-a1-topic --full topic-full
+[[ $(sort "$tmp/removed-names") == $'r-a1-topic\nw-a1-topic' ]]
+[[ ! -e $tmp/full-wt ]]
+! git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full >/dev/null
+! git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-full >/dev/null
 rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 
 # status.sh: latest stem/worker/reviewer row wins; live uses the worker dispatch.

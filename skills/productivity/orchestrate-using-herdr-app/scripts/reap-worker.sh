@@ -1,20 +1,29 @@
 #!/usr/bin/env bash
-# Usage: reap-worker.sh <worktree> <agent> [--keep-agent]
+# Usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch>]
 # Stop what a worker started in <worktree>: its agent-browser namespace,
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
 # agent, its LSP and MCP children, and the worktree for follow-ups, then
 # labels the settled worker hibernate=ok after cleanup.
+# --full <branch> is full cleanup after a merged, released task: it also removes the
+# w-/r- terminals for the agent's stem, the git worktree, and the local and remote
+# <branch>, then confirms each is gone.
 # Matches cwd via /proc on Linux and lsof on macOS.
 set -euo pipefail
 
-if [ "$#" -lt 2 ] || [ "$#" -gt 3 ] || { [ "$#" -eq 3 ] && [ "$3" != --keep-agent ]; }; then
-	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent]\n' >&2
+usage() {
+	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch>]\n' >&2
 	exit 1
-fi
+}
+keep_agent="" branch=""
+case "$#" in
+	2) ;;
+	3) [ "$3" = --keep-agent ] || usage; keep_agent=--keep-agent ;;
+	4) [ "$3" = --full ] && [ -n "$4" ] || usage; branch="$4" ;;
+	*) usage ;;
+esac
 root=$(realpath -m -- "$1")
 agent="$2"
-keep_agent="${3:-}"
 [ "$root" != / ] && [ "$root" != "$(realpath -m -- "$HOME")" ] || {
 	printf 'refusing to reap %s\n' "$root" >&2
 	exit 1
@@ -82,3 +91,28 @@ if [ "${#pids[@]}" -gt 0 ]; then
 fi
 printf 'processes under %s: %s stopped\n' "$root" "${#pids[@]}"
 if [ "$keep_agent" = --keep-agent ]; then hc label "$agent" hibernate=ok >/dev/null; fi
+
+[ -n "$branch" ] || exit 0
+source=$(dirname -- "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)")
+stem="${agent#[wr]-}"
+for name in "w-$stem" "r-$stem"; do
+	hc get "$name" --json >/dev/null 2>&1 || continue
+	hc kill "$name" >/dev/null 2>&1 || true
+	hc rm "$name" >/dev/null
+	printf 'terminal %s: removed\n' "$name"
+done
+git -C "$source" worktree remove --force "$root"
+git -C "$source" branch -D "$branch" >/dev/null
+if git -C "$source" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+	git -C "$source" push -q origin --delete "$branch"
+fi
+left=""
+for name in "w-$stem" "r-$stem"; do hc get "$name" --json >/dev/null 2>&1 && left+=" terminal $name"; done
+git -C "$source" worktree list --porcelain | grep -qxF "worktree $root" && left+=" worktree"
+[ ! -e "$root" ] || left+=" path"
+git -C "$source" rev-parse --verify -q "refs/heads/$branch" >/dev/null && left+=" branch"
+if [ -n "$left" ]; then
+	printf 'full cleanup incomplete:%s\n' "$left" >&2
+	exit 1
+fi
+printf 'full cleanup %s: terminals, worktree and branch %s removed\n' "$agent" "$branch"

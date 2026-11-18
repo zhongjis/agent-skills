@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Usage: watch-agent.sh <agent> [--quiet <minutes>] [--since <fp>]
 # Exit 0 with one line once the agent needs attention:
-#   settled: <status>   blocked/error re-checked after 5 s; idle/done confirmed over 30 s
+#   settled: <status>   blocked/error re-checked after 5 s; idle/done confirmed over 30 s;
+#     status is exited when the screen shows the agent process crashed
+#   then the screen tail: the last 8 lines for idle/done, 20 for anything unexpected
 #   quiet <n>m (working) fp=<fp>[: <hint>]   status stayed working, but the screen
 #     (minus spinners, timers, rates) and turn did not change for <n> minutes (default 15)
 #   gone | terminal <state>
@@ -46,6 +48,17 @@ snap() {
 }
 
 screen() { hc read "$name" 2>/dev/null || true; }
+tail_of() { grep -v '^[[:space:]]*$' <<<"$1" | tail -n "$2" | cut -c1-200 || true; }
+
+# One settle line, then the screen evidence. A crashed agent can still read idle/done.
+settle() {
+	local outcome="$status" shown
+	shown=$(screen)
+	if tail -n 40 <<<"$shown" | grep -qE 'exiting due to|uncaughtException'; then outcome=exited; fi
+	printf 'agent %s settled: %s (turn %s)\n' "$name" "$outcome" "$turn"
+	case "$outcome" in idle|done) tail_of "$shown" 8 ;; *) tail_of "$shown" 20 ;; esac
+	exit 0
+}
 
 # Some macOS sha256sum commands accept files only, not stdin.
 hasher=(sha256sum)
@@ -75,7 +88,7 @@ while true; do
 		blocked|error)
 			sleep 5
 			snap
-			case "$status" in blocked|error) printf 'agent %s settled: %s (turn %s)\n' "$name" "$status" "$turn"; exit 0 ;; esac
+			case "$status" in blocked|error) settle ;; esac
 			;;
 		idle|done)
 			for _ in 1 2 3 4 5 6; do
@@ -85,8 +98,7 @@ while true; do
 			done
 			# Pi can read done while /compact runs past the confirm window.
 			screen | tail -n 15 | grep -q Compacting && continue
-			printf 'agent %s settled: %s (turn %s)\n' "$name" "$status" "$turn"
-			exit 0
+			settle
 			;;
 		working|none)
 			fp=$(fingerprint)
