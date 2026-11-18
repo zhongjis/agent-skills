@@ -39,6 +39,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 5. Check every candidate before presenting it. Drop or downgrade it when it fails:
    - **Already covered:** search the owning source and its parent layers for the rule. If the rule exists and was ignored, the finding is why it was ignored, not "add it".
    - **Counterfactual:** name the log turn where the agent, with the fix in context, would have acted differently. No such turn means no finding.
+   - **Behavior class:** name the model default or environment contract that produced the divergence, and fix that class, not the instance. Prefer, in order: change the environment (tool, guard, check) so the default becomes harmless; state a principle the model applies to cases the log never showed; only then a rule naming a specific tool, value or command. A steering line that restates what the environment already enforces is a stale cache: remove it.
    - **Real owner:** read the owning file before proposing an edit to it. Never propose a file the setup does not read.
 
 6. Present these candidates to the user, in order of severity. Each finding has a plain-language title, its owning source's file path and three sections:
