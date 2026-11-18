@@ -31,6 +31,7 @@ Break the work into **tracer bullet** tickets.
 - Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
 - A completed slice is demoable or verifiable on its own
 - Each slice is sized to fit in a single fresh context window
+- Each ticket becomes one PR, and every PR pays a fixed cost in CI, review rounds and deploy. Merge a slice into its neighbour when both touch the same area and neither is demoable or deployable alone
 - Any prefactoring should be done first
 - When the spec carries a visual target (a mock, design or screenshot), every ticket that changes UI gets the criterion "matches <view> of <target> at <widths and themes>, shown by before/after screenshots" plus the target's path; a prefactor that builds visual components renders them against the target too
 
@@ -47,6 +48,7 @@ Present the proposed breakdown as a numbered list. For each ticket, show:
 - **Title**: short descriptive name
 - **Blocked by**: which other tickets (if any) must complete first
 - **What it delivers**: the end-to-end behaviour this ticket makes work
+- **Size**: estimated files changed and the area it touches
 
 Ask the user:
 
