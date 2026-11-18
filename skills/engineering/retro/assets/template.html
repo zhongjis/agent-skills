@@ -175,6 +175,18 @@ kbd{font:12px var(--mono);border:1px solid var(--line);border-bottom-width:2px;b
 .toggle[aria-expanded="true"] .icon{transform:rotate(90deg)}
 .foldbody{display:flex;flex-direction:column;gap:8px;padding:2px 0 0;font-size:14.5px;color:var(--muted)}
 .foldbody ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.foldbody ul.steer{list-style:none;padding:0;display:grid;grid-template-columns:max-content 1fr;gap:8px 12px;align-items:baseline}
+.steer li{display:contents}
+.steer .plain{grid-column:1/-1}
+.steer .src{justify-self:start}
+@media (max-width:560px){.foldbody ul.steer{grid-template-columns:1fr;gap:2px}.steer li>span:last-child{margin-bottom:8px}}
+.src{--h:250;display:inline-flex;align-items:baseline;gap:5px;max-width:100%;font:500 12px/1.6 var(--sans);padding:1px 9px;border-radius:999px;background:oklch(.95 .035 var(--h));color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.src b{font-weight:600;color:oklch(.47 .11 var(--h))}
+/* One hue per steering layer, kept clear of the severity and decision colors. */
+.src[data-layer=global]{--h:330} .src[data-layer=harness]{--h:215} .src[data-layer=mode]{--h:185}
+.src[data-layer=subagent]{--h:40} .src[data-layer=skill]{--h:275} .src[data-layer=project]{--h:150} .src[data-layer=ticket]{--h:95}
+@media (prefers-color-scheme:dark){.src{background:oklch(.30 .045 var(--h))} .src b{color:oklch(.83 .10 var(--h))}}
+.owner .src{align-self:center}
 
 .decide{margin-top:6px;background:var(--sunk);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px}
 .decide textarea{background:var(--surface)}
@@ -287,6 +299,8 @@ var F = D.findings;
 var SEV = {high: "High", med: "Medium", low: "Low"};
 var STATUS = {gap: "Not handled", proposal: "Fix proposed", mostly: "Mostly fixed", covered: "Already fixed"};
 var LABEL = {approve: "Approved", asked: "Asked", later: "Later", skip: "Skipped"};
+var LAYER = {global: "Global", harness: "Harness", mode: "Mode", subagent: "Subagent", skill: "Skill", project: "Project", ticket: "Ticket"};
+function badge(src){ return src && LAYER[src.layer] ? '<span class="src" data-layer="' + src.layer + '" title="' + esc(LAYER[src.layer] + (src.name ? " · " + src.name : "")) + '"><b>' + LAYER[src.layer] + "</b>" + (src.name ? esc(src.name) : "") + "</span>" : ""; }
 var KEY = "retro:" + location.pathname + ":" + D.title;
 var state = {}; var idx = 0; var pending = null; var served = /^https?:$/.test(location.protocol);
 var lastSent = null; var seen = {}; try { seen = JSON.parse(localStorage.getItem("retro:" + location.pathname + ":" + D.title + ":seen") || "{}") || {}; } catch (e) {}
@@ -372,7 +386,11 @@ function renderStart(){
   $("costly").querySelectorAll("button").forEach(function(b){ b.onclick = function(){ go(+b.dataset.i); }; });
   var steer = D.steering || [];
   $("steering-fold").hidden = !steer.length;
-  $("steering").innerHTML = "<ul>" + steer.map(function(s){ return "<li>" + inline(s) + "</li>"; }).join("") + "</ul>";
+  $("steering").innerHTML = '<ul class="steer">' + steer.map(function(s){
+    return typeof s === "string" ? '<li><span class="plain">' + inline(s) + "</span></li>" : "<li>" + badge(s) + "<span>" + inline(s.text) + "</span></li>";
+  }).join("") + "</ul>";
+  var t = F.filter(yourTurn).length;
+  $("begin").firstChild.nodeValue = t ? "Review " + t + " repl" + (t > 1 ? "ies" : "y") : "Start reviewing";
 }
 
 function renderDots(){
@@ -410,7 +428,7 @@ function renderCard(){
   $("f-why").innerHTML = rich(f.why); $("v-why").innerHTML = visualHTML(v.why);
   $("fix-label").textContent = f.rev > 1 ? "Revised fix proposal" : "Fix proposal";
   $("f-fix").innerHTML = rich(f.fix); $("v-fix").innerHTML = visualHTML(v.fix);
-  $("f-owner").textContent = "Owning source: " + f.owner + (f.stage ? " · " + f.stage : "");
+  $("f-owner").innerHTML = badge(f.source) + " Owning source: " + esc(f.owner) + (f.stage ? " · " + esc(f.stage) : "");
   $("f-rec").hidden = !f.rec; $("f-rec-text").innerHTML = rich(f.rec);
   $("f-outcome").hidden = !f.outcome; $("f-outcome-text").innerHTML = rich(f.outcome);
   var ev = f.evidence || [];
@@ -563,7 +581,8 @@ if (served) {
     setLink(h.pending ? "wait" : "on", h.pending ? "Awaiting reply" : "Agent connected");
   }).catch(function(){ served = false; setLink("off", "Offline"); renderDecisions(); });
   var es = new EventSource("/events");
-  es.addEventListener("reload", function(){ location.reload(); });
+  // A new round from the agent opens Start, which lists the replies waiting on you.
+  es.addEventListener("reload", function(){ try { history.replaceState(null, "", "#start"); } catch (e) {} location.reload(); });
   es.onerror = function(){ setLink("off", "Offline"); };
   es.onopen = function(){ if ($("link").dataset.state === "off") setLink("on", "Agent connected"); };
 } else {

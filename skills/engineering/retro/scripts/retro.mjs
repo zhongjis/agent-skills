@@ -3,7 +3,8 @@
 //
 //   retro.mjs render <dir>             validate <dir>/findings.json, write <dir>/retro.html
 //   retro.mjs serve <dir>              start the localhost helper (detached); print {url, port, pid}
-//   retro.mjs poll <dir> [--timeout S] wait for the next decision batch; print it as JSON
+//   retro.mjs poll <dir> [--timeout S] wait for the next decision batch; print it as JSON.
+//                                      Waits until a batch or stop by default; --timeout is opt-in.
 //   retro.mjs stop <dir>               stop the helper
 //
 // The page POSTs a batch to /decisions; the helper appends it to <dir>/decisions.jsonl.
@@ -48,13 +49,27 @@ function validate(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return ['root must be an object'];
   onlyKeys(data, 'root', ['$schema', 'title', 'intro', 'steering', 'handoff', 'findings']);
   str(data.title, 'title'); str(data.intro, 'intro'); str(data.handoff, 'handoff', false);
-  strArray(data.steering, 'steering');
+  const LAYERS = ['global', 'harness', 'mode', 'subagent', 'skill', 'project', 'ticket'];
+  const source = (v, path) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) { errors.push(`${path} must be an object`); return false; }
+    oneOf(v.layer, `${path}.layer`, LAYERS); str(v.name, `${path}.name`, false);
+    return true;
+  };
+  if (data.steering !== undefined) {
+    if (!Array.isArray(data.steering)) errors.push('steering must be an array');
+    else data.steering.forEach((s, j) => {
+      if (typeof s === 'string') return;
+      const sp = `steering[${j}]`;
+      if (!source(s, sp)) return;
+      onlyKeys(s, sp, ['layer', 'name', 'text']); str(s.text, `${sp}.text`);
+    });
+  }
   if (!Array.isArray(data.findings) || !data.findings.length) { errors.push('findings must be a non-empty array'); return errors; }
   const ids = new Set();
   data.findings.forEach((f, i) => {
     const p = `findings[${i}]`;
     if (!f || typeof f !== 'object') { errors.push(`${p} must be an object`); return; }
-    onlyKeys(f, p, ['id', 'title', 'severity', 'category', 'scope', 'status', 'cost', 'happened', 'why', 'fix', 'visuals', 'owner', 'stage', 'evidence', 'rec', 'thread', 'rev', 'outcome']);
+    onlyKeys(f, p, ['id', 'title', 'severity', 'category', 'scope', 'status', 'cost', 'happened', 'why', 'fix', 'visuals', 'owner', 'stage', 'evidence', 'rec', 'thread', 'rev', 'outcome', 'source']);
     if (typeof f.id !== 'string' || !/^[a-z0-9-]+$/.test(f.id)) errors.push(`${p}.id must match ^[a-z0-9-]+$`);
     else if (ids.has(f.id)) errors.push(`${p}.id "${f.id}" is duplicated`);
     else ids.add(f.id);
@@ -73,6 +88,7 @@ function validate(data) {
         }
       }
     }
+    if (f.source !== undefined && source(f.source, `${p}.source`)) onlyKeys(f.source, `${p}.source`, ['layer', 'name']);
     oneOf(f.severity, `${p}.severity`, ['high', 'med', 'low']);
     oneOf(f.scope, `${p}.scope`, ['Repo proposal', 'Personal edit', 'Owner decision']);
     oneOf(f.status, `${p}.status`, ['gap', 'proposal', 'mostly', 'covered']);
@@ -116,6 +132,7 @@ function alive(pid) { try { process.kill(pid, 0); return true; } catch { return 
 
 function serveDetached() {
   if (!existsSync(file('retro.html'))) fail(`run render first: ${file('retro.html')} is missing`);
+  try { unlinkSync(file('stopped')); } catch {}
   const running = readServer();
   if (running && alive(running.pid)) { out({ ok: true, reused: true, ...running }); return; }
   try { unlinkSync(file('server.json')); } catch {}
@@ -186,7 +203,8 @@ function pendingBatches() { const a = acked(); return batches().filter((b) => b.
 
 function poll() {
   const i = rest.indexOf('--timeout');
-  const timeoutMs = (i >= 0 ? Number(rest[i + 1]) : 600) * 1000;
+  // No limit by default: agents run poll as a background task that notifies on exit.
+  const timeoutMs = i >= 0 ? Number(rest[i + 1]) * 1000 : Infinity;
   const started = Date.now();
   const tick = () => {
     const [next] = pendingBatches();
@@ -195,6 +213,7 @@ function poll() {
       out({ type: 'decisions', ...next });
       return;
     }
+    if (existsSync(file('stopped'))) { out({ type: 'stopped' }); return; }
     if (Date.now() - started >= timeoutMs) { out({ type: 'timeout', waitedSeconds: Math.round(timeoutMs / 1000) }); process.exit(2); }
     setTimeout(tick, 500);
   };
@@ -202,6 +221,7 @@ function poll() {
 }
 
 function stop() {
+  writeFileSync(file('stopped'), new Date().toISOString());
   const s = readServer();
   if (!s) { out({ ok: true, running: false }); return; }
   if (alive(s.pid)) process.kill(s.pid, 'SIGTERM');

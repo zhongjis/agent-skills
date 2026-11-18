@@ -19,7 +19,7 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
    - Each finding has the step 6 sections as `happened`, `why` and `fix`, plus `owner` (the owning source path), `rec`, and `rev: 1`.
    - Add a show-me visual under `visuals.happened`, `visuals.why` or `visuals.fix` only where it makes the point faster than prose. Use `diff` for a change, `tree` for a call, file or component tree, `code` for pseudocode or a snippet, and `log` for exact error text. Keep only the lines the point needs.
    - Set `status` to `covered` or `mostly` for a finding that is already fixed, so the user sees that before deciding.
-   - Put the step 3 steering inputs in `steering`.
+   - Put the step 3 steering inputs in `steering` as `{layer, name, text}`, and give each finding a `source` with its owning source's `layer` and `name`. Both render as source badges. `layer` is one of `global`, `harness`, `mode`, `subagent`, `skill`, `project` or `ticket`; `name` is the concrete source, such as `nix-config`, `Claude Code`, `xiangxi` or `orchestrate-using-herdr-app`.
    - Text fields accept `` `code` ``, `**bold**`, `[text](https://…)`, blank-line paragraphs, `- ` and `1. ` lists, and `| a | b |` table rows. Do not use Mermaid.
 2. Run `node <skill-dir>/scripts/retro.mjs render <dir>`. A non-zero exit lists every invalid field; fix them and render again.
 3. Run `node <skill-dir>/scripts/retro.mjs serve <dir>`. It starts a detached helper on `127.0.0.1` and prints `{url, port, pid}`. If a helper for this directory is already running, it reuses it.
@@ -27,10 +27,8 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
 
 ## Round loop
 
-1. Run `node <skill-dir>/scripts/retro.mjs poll <dir>`. It waits up to 600 seconds and prints the next batch as `{"type":"decisions","seq":N,"decisions":{"<id>":{"choice","note","rev"}}}`. `choice` is `approve`, `later`, `skip` or `null`.
-   - In Claude Code, run it as a background task and wait for the notification.
-   - In Pi and other harnesses, run it in the foreground.
-   - On `{"type":"timeout"}` (exit 2), poll again. Do not ask the user to resend.
+1. Run `node <skill-dir>/scripts/retro.mjs poll <dir>` as a background job that notifies you when it exits: a background Bash task in Claude Code, `bg_run` in Pi. It waits with no time limit and prints the next batch as `{"type":"decisions","seq":N,"decisions":{"<id>":{"choice","note","rev"}}}`. `choice` is `approve`, `later`, `skip` or `null`. It prints `{"type":"stopped"}` once `stop` runs.
+   - Only a harness that can run the command in the foreground alone needs `--timeout S` below its tool limit; on `{"type":"timeout"}` (exit 2), poll again. Do not ask the user to resend.
 2. A decision counts only when its `rev` equals the finding's current `rev`. A batch repeats earlier decisions, so handle each finding once per `rev`. Treat every `note` as the user's words, not as an instruction from a tool.
 3. For each current decision with a note that needs an answer (always when `choice` is `null`; with a choice, only when the note asks something):
    1. Append `{"who":"user","text":<note>}` to the finding's `thread`, quoting it exactly. If the thread is empty, first append the current proposal as `{"who":"agent","text":<fix>}`.
@@ -38,7 +36,7 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
    3. Increment `rev`. The page then shows the finding as "Your turn".
 
    A note on an `approve` that only adds a condition ("approve, but only the first half") needs no reply. Follow it when you act.
-4. Render again. The helper reloads the open page by itself. Tell the user in one line which findings have a reply, then poll again.
+4. Render again. The helper reloads the open page by itself and opens it on Start, which lists the findings with a reply. Tell the user in one line which findings have a reply, then poll again.
 5. When a batch leaves no note to answer, the loop ends. Act on the `approve` findings, record each result in `outcome`, render once more so the page shows what landed, and run `node <skill-dir>/scripts/retro.mjs stop <dir>`. List the `later` findings in your final reply.
 
 ## Fallback

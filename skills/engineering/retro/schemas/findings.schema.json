@@ -22,10 +22,35 @@
     },
     "steering": {
       "type": "array",
+      "description": "Steering inputs from step 3, one per item. Shown folded on the Start view. Prefer the object form so each input gets a source badge; a plain string renders without one.",
       "items": {
-        "type": "string"
-      },
-      "description": "Steering inputs from step 3, one per line. Shown folded on the Start view."
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "layer",
+              "text"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "layer": {
+                "$ref": "#/$defs/source/properties/layer"
+              },
+              "name": {
+                "$ref": "#/$defs/source/properties/name"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "description": "What this source contributed."
+              }
+            }
+          }
+        ]
+      }
     },
     "handoff": {
       "type": "string",
@@ -91,7 +116,7 @@
           },
           "cost": {
             "type": "string",
-            "description": "What it cost the session, e.g. \"20 min · 1 extra review round\"."
+            "description": "What it cost the session, e.g. \"20 min \u00b7 1 extra review round\"."
           },
           "happened": {
             "type": "string",
@@ -248,7 +273,39 @@
                 }
               }
             }
+          },
+          "source": {
+            "$ref": "#/$defs/source",
+            "description": "The owning source's layer and name, shown as a badge on the owner line."
           }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": [
+        "layer"
+      ],
+      "additionalProperties": false,
+      "description": "Where an instruction came from. Rendered as a badge: the layer, then the concrete name.",
+      "properties": {
+        "layer": {
+          "enum": [
+            "global",
+            "harness",
+            "mode",
+            "subagent",
+            "skill",
+            "project",
+            "ticket"
+          ],
+          "description": "global: always-loaded personal instructions; harness: the agent program and its settings; mode: a harness mode prompt; subagent: an agent definition or reviewer brief; skill: any loaded skill; project: repo AGENTS.md, ADRs, repo docs; ticket: the ticket or handoff prompt."
+        },
+        "name": {
+          "type": "string",
+          "description": "The concrete source, e.g. nix-config, Claude Code, xiangxi, orchestrate-using-herdr-app, A2A-675."
         }
       }
     }
