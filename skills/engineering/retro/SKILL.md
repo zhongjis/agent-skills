@@ -48,6 +48,8 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
    Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 
+7. Apply the approved findings. Edit personal environment repos (`agent-skills`, `nix-config`, `pi-config`) in place on `main`, leaving the changes uncommitted: no branch, no commit. Run each repo's checks, show the diff, and commit only when the user approves it. A finding on a shared project file stays a proposal for the repo's owners.
+
 ## Reference
 
 ### Stages

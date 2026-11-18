@@ -32,6 +32,7 @@ Break the work into **tracer bullet** tickets.
 - A completed slice is demoable or verifiable on its own
 - Each slice is sized to fit in a single fresh context window
 - Any prefactoring should be done first
+- When the spec carries a visual target (a mock, design or screenshot), every ticket that changes UI gets the criterion "matches <view> of <target> at <widths and themes>, shown by before/after screenshots" plus the target's path; a prefactor that builds visual components renders them against the target too
 
 </vertical-slice-rules>
 

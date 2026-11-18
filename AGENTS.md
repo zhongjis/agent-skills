@@ -79,6 +79,8 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+- Retro fixes to this repo, `nix-config` and `pi-config` are made on `main` and left uncommitted until the user approves the diff.
+
 ## Skill catalog
 
 - **Layout**: authored/adapted skills live in category subdirectories under root `skills/` (e.g. `skills/engineering/<name>`); vendored common skills live in `.agents/skills/`; relative `.agents/skills/<name>` symlinks may project centrally excluded root skills from `../../skills/<category>/<name>`; physical harness skills live in `<agent-folder>/skills/`; absent harness folders yield empty groups

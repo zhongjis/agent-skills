@@ -37,7 +37,7 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
 
    A note on an `approve` that only adds a condition ("approve, but only the first half") needs no reply. Follow it when you act.
 4. Render again. The helper reloads the open page by itself and opens it on Start, which lists the findings with a reply. Tell the user in one line which findings have a reply, then poll again.
-5. When a batch leaves no note to answer, the loop ends. Act on the `approve` findings, record each result in `outcome`, render once more so the page shows what landed, and run `node <skill-dir>/scripts/retro.mjs stop <dir>`. List the `later` findings in your final reply.
+5. When a batch leaves no note to answer, the loop ends. Act on the `approve` findings as step 7 of `SKILL.md` directs, record each result in `outcome`, render once more so the page shows what landed, and run `node <skill-dir>/scripts/retro.mjs stop <dir>`. List the `later` findings in your final reply.
 
 ## Fallback
 
