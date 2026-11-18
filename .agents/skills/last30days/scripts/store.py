@@ -12,7 +12,6 @@ Database location: ~/.local/share/last30days/research.db
 
 import argparse
 import json
-import os
 import re
 import sqlite3
 import sys
@@ -25,6 +24,7 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from lib import dedupe, entity_extract, schema
+from lib.private_files import prepare_private_sqlite_files
 
 DB_DIR = Path.home() / ".local" / "share" / "last30days"
 DB_PATH = DB_DIR / "research.db"
@@ -61,19 +61,7 @@ def ensure_private_db_files(db_path: Optional[Path] = None) -> Path:
     """Create/harden the research database and SQLite sidecars owner-only."""
     path = db_path or _get_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not path.exists():
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError:
-            pass
-        else:
-            os.close(fd)
-    for candidate in (path, Path(f"{path}-wal"), Path(f"{path}-shm")):
-        try:
-            candidate.chmod(0o600)
-        except FileNotFoundError:
-            pass
-    return path
+    return prepare_private_sqlite_files(path, create=True)
 
 
 SCHEMA_V1 = """
@@ -185,6 +173,7 @@ _UPDATABLE_RUN_COLUMNS = frozenset({
     "findings_new",
     "findings_updated",
 })
+_RUN_ACCOUNTING_COLUMNS = frozenset({"token_cost", "cost_unknown"})
 
 _UPDATABLE_FINDING_COLUMNS = frozenset({
     "source",
@@ -246,12 +235,22 @@ CREATE INDEX IF NOT EXISTS idx_discovery_topics_status_surfaced
 ALTER TABLE research_runs ADD COLUMN cost_unknown INTEGER NOT NULL DEFAULT 1;
 UPDATE research_runs SET cost_unknown = 0 WHERE token_cost > 0;
 """,
+    5: """
+CREATE TABLE IF NOT EXISTS removed_run_usage (
+    run_id INTEGER PRIMARY KEY,
+    run_day TEXT,
+    token_cost REAL,
+    cost_unknown INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_removed_run_usage_day ON removed_run_usage(run_day);
+""",
 }
 
 
 def _connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """Open a connection with WAL mode and row factory."""
-    path = db_path or _get_db_path()
+    path = ensure_private_db_files(db_path)
     conn = sqlite3.connect(str(path))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -267,8 +266,6 @@ def _connect(db_path: Optional[Path] = None) -> sqlite3.Connection:
 def init_db(db_path: Optional[Path] = None) -> Path:
     """Create database and tables if they don't exist. Returns the DB path."""
     path = db_path or _get_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-
     conn = _connect(path)
     try:
         conn.executescript(SCHEMA_V1)
@@ -444,6 +441,12 @@ def remove_topic(name: str) -> bool:
                 "UPDATE findings SET topic_id = ?, run_id = ? WHERE id = ?",
                 (owner_id, run_id, finding["id"]),
             )
+        conn.execute(
+            """INSERT INTO removed_run_usage (run_id, run_day, token_cost, cost_unknown)
+               SELECT id, date(run_date), token_cost, cost_unknown
+               FROM research_runs WHERE topic_id = ?""",
+            (topic_id,),
+        )
         conn.execute("DELETE FROM research_runs WHERE topic_id = ?", (topic_id,))
         conn.execute("DELETE FROM topics WHERE id = ?", (topic_id,))
         conn.commit()
@@ -501,11 +504,17 @@ def record_run(
     """Record a research run. Returns the run ID."""
     conn = _connect()
     try:
+        # A worker can flush its usage journal after topic deletion. Retain the
+        # identity across both tables so a late update cannot hit a newer run.
         cursor = conn.execute(
             """INSERT INTO research_runs
-               (topic_id, run_date, source_mode, status, error_message,
+               (id, topic_id, run_date, source_mode, status, error_message,
                 duration_seconds, prompt_tokens, completion_tokens, token_cost, cost_unknown)
-               VALUES (?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (
+                   max(coalesce((SELECT max(id) FROM research_runs), 0),
+                       coalesce((SELECT max(run_id) FROM removed_run_usage), 0)) + 1,
+                   ?, datetime('now'), ?, ?, ?, ?, ?, ?, ?, ?
+               )""",
             (
                 topic_id, source_mode, status, error_message,
                 duration_seconds, prompt_tokens, completion_tokens, token_cost,
@@ -529,7 +538,15 @@ def update_run(run_id: int, **kwargs):
             )
         sets = ", ".join(f"{k} = ?" for k in kwargs)
         values = list(kwargs.values()) + [run_id]
-        conn.execute(f"UPDATE research_runs SET {sets} WHERE id = ?", values)
+        updated = conn.execute(f"UPDATE research_runs SET {sets} WHERE id = ?", values)
+        if updated.rowcount == 0:
+            usage = {key: value for key, value in kwargs.items() if key in _RUN_ACCOUNTING_COLUMNS}
+            if usage:
+                sets = ", ".join(f"{key} = ?" for key in usage)
+                conn.execute(
+                    f"UPDATE removed_run_usage SET {sets} WHERE run_id = ?",
+                    [*usage.values(), run_id],
+                )
         conn.commit()
     finally:
         conn.close()
@@ -554,18 +571,38 @@ def get_latest_completed_runs(topic_id: int, limit: int = 2) -> List[Dict[str, A
 # --- Findings ---
 
 
+def _merge_finding_scores(target: Dict[str, Any], incoming: Dict[str, Any]) -> None:
+    """Keep the higher engagement and relevance scores when collapsing duplicate URLs."""
+    prev_eng = target.get("engagement_score") or 0
+    new_eng = incoming.get("engagement_score") or 0
+    if new_eng > prev_eng:
+        target["engagement_score"] = new_eng
+    prev_rel = target.get("relevance_score") or 0
+    new_rel = incoming.get("relevance_score") or 0
+    if new_rel > prev_rel:
+        target["relevance_score"] = new_rel
+
+
 def store_findings(
     run_id: int,
     topic_id: int,
     findings: List[Dict[str, Any]],
 ) -> Dict[str, int]:
     """Store findings with URL-based dedup. Returns counts of new/updated."""
-    # Collect findings that have a URL, preserving order.
-    with_urls: List[tuple[str, Dict[str, Any]]] = []
+    # Collect findings that have a URL, preserving first-seen order while
+    # collapsing same-batch duplicate URLs so one run never self-conflicts on
+    # source_url or double-increments sighting_count.
+    by_url: Dict[str, Dict[str, Any]] = {}
     for f in findings:
         url = f.get("source_url") or f.get("url")
-        if url:
-            with_urls.append((url, f))
+        if not url:
+            continue
+        existing_in_batch = by_url.get(url)
+        if existing_in_batch is None:
+            by_url[url] = dict(f)
+        else:
+            _merge_finding_scores(existing_in_batch, f)
+    with_urls: List[tuple[str, Dict[str, Any]]] = list(by_url.items())
 
     if not with_urls:
         conn = _connect()
@@ -640,7 +677,7 @@ def store_findings(
                        last_seen = datetime('now'),
                        sighting_count = sighting_count + 1,
                        engagement_score = max(
-                           engagement_score, excluded.engagement_score),
+                           coalesce(engagement_score, 0), excluded.engagement_score),
                        run_id = excluded.run_id""",
                 insert_rows,
             )
@@ -668,6 +705,13 @@ def store_findings(
             (new_count, updated_count, run_id),
         )
         conn.commit()
+    except sqlite3.IntegrityError as exc:
+        if exc.sqlite_errorcode != sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY:
+            raise
+        conn.rollback()
+        if conn.execute("SELECT 1 FROM removed_run_usage WHERE run_id = ?", (run_id,)).fetchone():
+            return {"new": 0, "updated": 0}
+        raise
     finally:
         conn.close()
 
@@ -1123,36 +1167,35 @@ def mark_discovery_covered(name: str, as_of: str) -> Optional[Dict[str, Any]]:
 # --- Cost Tracking ---
 
 
-def get_daily_cost(date: Optional[str] = None) -> float:
-    """Get total token cost for a given day (default: today)."""
-    conn = _connect()
-    try:
-        if not date:
-            date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        row = conn.execute(
-            """SELECT COALESCE(SUM(token_cost), 0) as total
-               FROM research_runs
-               WHERE date(run_date) = date(?)""",
-            (date,),
-        ).fetchone()
-        return row["total"]
-    finally:
-        conn.close()
-
-
-# --- Settings ---
-
-
-def get_daily_unknown_cost_runs(date: Optional[str] = None) -> int:
+def get_daily_usage(date: Optional[str] = None) -> tuple[float, int]:
+    """Get the known cost and count of unknown-cost runs for one UTC day."""
     conn = _connect()
     try:
         date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        return conn.execute(
-            "SELECT COUNT(*) FROM research_runs WHERE date(run_date) = date(?) AND cost_unknown = 1",
+        row = conn.execute(
+            """SELECT coalesce(sum(token_cost), 0), coalesce(sum(cost_unknown = 1), 0)
+               FROM (
+                   SELECT token_cost, cost_unknown FROM research_runs WHERE date(run_date) = date(?1)
+                   UNION ALL
+                   SELECT token_cost, cost_unknown FROM removed_run_usage WHERE run_day = date(?1)
+               )""",
             (date,),
-        ).fetchone()[0]
+        ).fetchone()
+        return row[0], row[1]
     finally:
         conn.close()
+
+
+def get_daily_cost(date: Optional[str] = None) -> float:
+    """Get total token cost for a given day (default: today)."""
+    return get_daily_usage(date)[0]
+
+
+def get_daily_unknown_cost_runs(date: Optional[str] = None) -> int:
+    return get_daily_usage(date)[1]
+
+
+# --- Settings ---
 
 
 def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
@@ -1303,12 +1346,17 @@ def findings_from_report(
     (degraded path — rerank failed or was skipped), falls back to supplementing
     all sources from items_by_source so findings aren't silently dropped.
     """
-    findings = []
-    seen_urls = set()
+    findings: List[Dict[str, Any]] = []
+    seen_by_url: Dict[str, Dict[str, Any]] = {}
 
     for candidate in report.ranked_candidates:
-        findings.append(finding_from_candidate(candidate))
-        seen_urls.add(candidate.url)
+        converted = finding_from_candidate(candidate)
+        if candidate.url and candidate.url in seen_by_url:
+            _merge_finding_scores(seen_by_url[candidate.url], converted)
+            continue
+        findings.append(converted)
+        if candidate.url:
+            seen_by_url[candidate.url] = converted
 
     supplement_sources = (
         list(report.items_by_source)
@@ -1319,9 +1367,7 @@ def findings_from_report(
         if source_name not in report.items_by_source:
             continue
         for item in report.items_by_source[source_name]:
-            if item.url in seen_urls:
-                continue
-            findings.append({
+            converted = {
                 "source": source_name,
                 "source_url": item.url,
                 "source_title": item.title,
@@ -1330,8 +1376,13 @@ def findings_from_report(
                 "summary": item.snippet or (item.body[:500] if item.body else ""),
                 "engagement_score": item.engagement_score or 0.0,
                 "relevance_score": item.local_relevance or 0.5,
-            })
-            seen_urls.add(item.url)
+            }
+            if item.url and item.url in seen_by_url:
+                _merge_finding_scores(seen_by_url[item.url], converted)
+                continue
+            findings.append(converted)
+            if item.url:
+                seen_by_url[item.url] = converted
 
     return findings[:limit] if limit is not None else findings
 

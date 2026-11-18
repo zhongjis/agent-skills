@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlsplit
 
-from . import dates, http, log
+from . import dates, health, http, log
 from .query import infer_query_intent
 from .relevance import token_overlap_relevance as _compute_relevance
 
@@ -403,6 +403,7 @@ def _google_reel_fallback(
     *,
     deadline: float | None = None,
     cancel: threading.Event | None = None,
+    error_out: list[tuple[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Discover Instagram reels through Google and fetch their post details."""
     if budget is None:
@@ -427,21 +428,40 @@ def _google_reel_fallback(
             break
         budget["pages"] -= 1
         try:
-            data = http.get(
-                f"{SCRAPECREATORS_BASE}/v1/google/search",
-                params={
-                    "query": (
-                        f"site:instagram.com/reel {topic} "
-                        f"after:{from_date} before:{end_exclusive}"
-                    ),
-                    "page": page,
-                },
-                headers=headers,
-                retries=1,
-                **_request_options(30, deadline, cancel),
-            )
+            # A 404 here means the search found nothing. Mark it an expected
+            # miss so the pipeline's failure sink doesn't brand the source
+            # with a swallowed 404 once the adapter reports a clean result.
+            with http.expected_misses(404):
+                data = http.get(
+                    f"{SCRAPECREATORS_BASE}/v1/google/search",
+                    params={
+                        "query": (
+                            f"site:instagram.com/reel {topic} "
+                            f"after:{from_date} before:{end_exclusive}"
+                        ),
+                        "page": page,
+                    },
+                    headers=headers,
+                    retries=1,
+                    **_request_options(30, deadline, cancel),
+                )
         except Exception as e:
-            _log(f"Google Instagram fallback search failed on page {page}: {e}")
+            # A 404 from the Google fallback means the search found nothing,
+            # the same clean miss the primary reels search reports with its
+            # documented not_found payload. Don't record it as a failure or
+            # it resurfaces as an error on an otherwise empty result.
+            if isinstance(e, http.HTTPError) and e.status_code == 404:
+                _log(f"Google Instagram discovery fallback found no reels on page {page}")
+                break
+            detail = f"Google Instagram discovery fallback failed on page {page}: {e}"
+            # The transport already captured this same exception. Add stage
+            # context in place without losing its HTTP status or outcome type.
+            if isinstance(e, http.HTTPError):
+                e.args = (detail,)
+            if error_out is not None:
+                state = getattr(e, "outcome_state", None) or http.classify_failure(message=str(e))
+                error_out.append((detail, state))
+            _log(detail)
             break
         if not isinstance(data, dict):
             _log(f"Google Instagram fallback returned invalid data on page {page}")
@@ -538,6 +558,14 @@ def _google_reel_fallback(
     return reels
 
 
+def _search_error(error: Exception) -> dict[str, Any]:
+    return {
+        "items": [],
+        "error": f"{type(error).__name__}: {error}",
+        "_error_state": getattr(error, "outcome_state", None) or http.classify_failure(message=str(error)),
+    }
+
+
 def search_instagram(
     topic: str,
     from_date: str,
@@ -599,7 +627,7 @@ def search_instagram(
                         data = {"reels": []}
                     else:
                         _log(f"IG search retry failed: {retry_e}")
-                        return {"items": [], "error": f"{type(retry_e).__name__}: {retry_e}"}
+                        return _search_error(retry_e)
             elif getattr(e, "status_code", None) == 404:
                 # Only the documented no-results payload is a clean miss. Other
                 # 404s remain errors if the independent Google fallback is empty.
@@ -610,16 +638,17 @@ def search_instagram(
                 data = {"reels": []}
             else:
                 _log(f"ScrapeCreators error: {e}")
-                return {"items": [], "error": f"{type(e).__name__}: {e}"}
+                return _search_error(e)
         except Exception as e:
             _log(f"ScrapeCreators error: {e}")
-            return {"items": [], "error": f"{type(e).__name__}: {e}"}
+            return _search_error(e)
         reels_failures[:] = [f for f in reels_failures if f not in superseded_failures]
 
     # Items are in the 'reels' array (ScrapeCreators v2 response)
     raw_items = data.get("reels") or data.get("items") or data.get("data") or []
 
     used_google_fallback = not raw_items
+    fallback_errors: list[tuple[str, str]] = []
     if used_google_fallback:
         if primary_error:
             _log("IG reels search returned 404; trying Google Search fallback")
@@ -629,11 +658,17 @@ def search_instagram(
             core_topic, depth, token, from_date, to_date,
             _fallback_budget, _fallback_cache,
             deadline=deadline, cancel=cancel,
+            error_out=fallback_errors,
         )
 
     if not raw_items and primary_error and not _budget_expired(deadline, cancel):
         _log(f"Google Instagram fallback returned no reels: {primary_error}")
-        return {"items": [], "error": f"{type(primary_error).__name__}: {primary_error}"}
+        detail = f"{type(primary_error).__name__}: {primary_error}"
+        if fallback_errors:
+            detail += f"; {fallback_errors[0][0]}"
+        states = [primary_error.outcome_state, *(state for _, state in fallback_errors)]
+        return {"items": [], "error": detail,
+                "_error_state": min(states, key=lambda state: health.FAILURE_SPECIFICITY.get(state, 9))}
 
     # Limit to configured count
     raw_items = raw_items[:config["results_per_page"]]
@@ -661,6 +696,9 @@ def search_instagram(
     _log(f"Found {len(items)} Instagram reels")
     if _budget_expired(deadline, cancel):
         return {"items": items, "error": RESEARCH_TIMEOUT}
+    if not items and fallback_errors:
+        detail, state = fallback_errors[0]
+        return {"items": [], "error": detail, "_error_state": state, "_discovery_only_error": True}
     return {"items": items}
 
 
@@ -747,6 +785,7 @@ def fetch_captions(
                     if len(words) > CAPTION_MAX_WORDS:
                         transcript_text = ' '.join(words[:CAPTION_MAX_WORDS]) + '...'
                     captions[vid] = transcript_text
+                    item["caption_is_transcript"] = True
         except Exception as e:
             _log(f"Transcript fetch failed for {vid}: {e}")
 
@@ -786,6 +825,7 @@ def search_and_enrich(
     seen_ids: Set[str] = set()
     items: List[Dict[str, Any]] = []
     last_error = None
+    query_errors: list[tuple[str, str]] = []
 
     # Step 0: Creator reels (high-signal, runs first)
     if ig_creators and token:
@@ -822,7 +862,11 @@ def search_and_enrich(
             deadline=deadline, cancel=cancel,
         )
         if search_result.get("error"):
-            last_error = search_result["error"]
+            error = search_result["error"]
+            state = search_result.get("_error_state") or http.classify_failure(message=error)
+            query_errors.append((error, state))
+            if not search_result.get("_discovery_only_error"):
+                last_error = error
         for item in search_result.get("items", []):
             vid = item.get("video_id", "")
             if vid and vid not in seen_ids:
@@ -832,6 +876,11 @@ def search_and_enrich(
     # Sort merged results by views descending
     items.sort(key=lambda x: x.get("engagement", {}).get("views") or 0, reverse=True)
 
+    if not items and query_errors:
+        last_error = min(
+            reversed(query_errors),
+            key=lambda error: health.FAILURE_SPECIFICITY.get(error[1], 9),
+        )[0]
     if _budget_expired(deadline, cancel):
         last_error = RESEARCH_TIMEOUT
     if not items:
@@ -901,6 +950,7 @@ def enrich_with_comments(
         try:
             return _fetch_post_comments(
                 post_url, token, max_comments, deadline=deadline, cancel=cancel,
+                creator=str(item.get("author_name") or ""),
             )
         except Exception as exc:
             _log(f"Comment enrichment failed for {post_url}: {exc}")
@@ -935,6 +985,7 @@ def _fetch_post_comments(
     *,
     deadline: float | None = None,
     cancel: threading.Event | None = None,
+    creator: str = "",
 ) -> List[Dict[str, Any]]:
     """Fetch comments for a single Instagram post/reel via ScrapeCreators.
 
@@ -985,4 +1036,11 @@ def _fetch_post_comments(
             "comment_like_count": c.get("comment_like_count", 0) or 0,
             "date": date_str,
         })
+        # Whether the post's own creator wrote this. Both are handles, a stable
+        # identifier, so they compare exactly. With no handle on either side
+        # the key is left out: unknown.
+        handle = str(user.get("username") or "").strip().lstrip("@").lower()
+        owner = str(creator or "").strip().lstrip("@").lower()
+        if handle and owner:
+            out[-1]["is_uploader"] = handle == owner
     return out
