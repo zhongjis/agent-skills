@@ -1,11 +1,15 @@
 ---
 name: grilling
 description: Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.
+adaptedFrom:
+  - "https://github.com/mattpocock/skills/tree/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/productivity/grilling"
 ---
 
 Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
 
 Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled: the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
+
+Write for this audience: an engineer who knows software well but not this codebase's code, terms or history. Open each round with a short **primer** that defines every repo term, component or past decision the round's questions rely on, in plain words with a general-engineering equivalent. Skip terms an earlier primer already defined.
 
 Format a round like so:
 

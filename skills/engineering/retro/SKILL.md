@@ -45,7 +45,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 6. Present these candidates to the user, in order of severity. Each finding has a plain-language title, its owning source's file path and three sections:
    - **What happened:** what the session hit, with a real example and the exact error text.
    - **Why:** the root cause, naming the owning source.
-   - **Fix proposal:** the change, the log turn it would have changed, and your recommendation.
+   - **Fix proposal:** the change as an exact diff of the owning file, the log turn it would have changed, and your recommendation.
 
    Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 

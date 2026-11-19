@@ -17,6 +17,7 @@ Create one directory per retro and reuse it for every round: `~/.local/state/ret
 
 1. Write `findings.json` against `schemas/findings.schema.json`. `render` orders findings high, medium, low and keeps your order within a severity, so list the costlier finding first.
    - Each finding has the step 6 sections as `happened`, `why` and `fix`, plus `owner` (the owning source path), `rec`, and `rev: 1`.
+   - Every finding whose fix edits a file carries `visuals.fix` of kind `diff`, built from that file's current text: the exact lines removed and added.
    - Add a show-me visual under `visuals.happened`, `visuals.why` or `visuals.fix` only where it makes the point faster than prose. Use `diff` for a change, `tree` for a call, file or component tree, `code` for pseudocode or a snippet, and `log` for exact error text. Keep only the lines the point needs.
    - Set `status` to `covered` or `mostly` for a finding that is already fixed, so the user sees that before deciding.
    - Put the step 3 steering inputs in `steering` as `{layer, name, text}`, and give each finding a `source` with its owning source's `layer` and `name`. Both render as source badges. `layer` is one of `global`, `harness`, `mode`, `subagent`, `skill`, `project` or `ticket`; `name` is the concrete source, such as `nix-config`, `Claude Code`, `xiangxi` or `orchestrate-using-herdr-app`.

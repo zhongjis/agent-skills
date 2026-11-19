@@ -8,6 +8,7 @@ Complete [supervise.md](supervise.md)'s local whole-branch review before push, s
 
 Immediately before merging, confirm all of these for the recorded head SHA:
 
+- a [claims audit](supervise.md#local-review-before-push) of the worker's evidence since publication finds nothing open;
 - the log's latest `mode` row shows `--auto` for this task; under it, merge when the remaining gates close, without asking ([SKILL.md](../SKILL.md) Authority);
 - the head SHA is unchanged and has no unexpected third-party commits;
 - the PR is open, non-draft, and mergeable;

@@ -1,6 +1,8 @@
 ---
 name: git-master
 description: "MUST USE for ANY git operations: atomic commits, rebase/squash/fixup, and history search (blame, bisect, log -S, reflog). Load it before running git yourself, or pass load_skills=['git-master'] to the task that commits. Triggers: 'commit', 'rebase', 'squash', 'who wrote', 'when was X added', 'find the commit that'."
+adaptedFrom:
+  - "https://github.com/code-yeongyu/oh-my-openagent/tree/be84607fc6f0132f3042e287594f162fad5a6a5a/packages/shared-skills/skills/git-master"
 ---
 
 # Git Master
@@ -76,7 +78,7 @@ History rewriting is a shared-impact operation.
 
 - Never rebase or rewrite `main`, `master`, `dev`, release branches, or a protected branch unless the user explicitly named that exact operation.
 - If commits may already be pushed, ask before force-pushing. Use `--force-with-lease`, never plain `--force`.
-- If the worktree is dirty, preserve it intentionally before rebasing. Do not stash-pop over conflicts without checking what changed.
+- If the worktree is dirty, preserve it in a temporary commit before rebasing (`git commit -m 'WIP'`, then `git reset --soft HEAD^` after). The stash is shared by every worktree of the repository, so another agent's `stash pop` can take your entry.
 - For fixups, prefer `git commit --fixup=<hash>` followed by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <base>`.
 - For conflicts, read the conflicting files and resolve by intent. Do not choose ours/theirs blindly.
 - If a rebase goes wrong, use `git rebase --abort` first. Use reflog only after explaining the recovery path.

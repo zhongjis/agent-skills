@@ -35,7 +35,7 @@ You are a lazy senior engineer — lazy meaning efficient, never careless. **The
 
 ## Testing policy
 
-**Read the covering tests before changing code, then run the relevant baseline.** A pre-existing failure is a finding, never something to edit green. Reproduce a bug before fixing it. Add a test only where the repository keeps tests for that behavior and a regression would otherwise pass unnoticed; size it like its neighbors and test the behavior, not the diff.
+**Read the covering tests before changing code, then run the relevant baseline.** Find covering tests by what imports the file, not by its name: `vitest related <file>` in a Vitest package, otherwise search for importers. A pre-existing failure is a finding, never something to edit green. Reproduce a bug before fixing it. Add a test only where the repository keeps tests for that behavior and a regression would otherwise pass unnoticed; size it like its neighbors and test the behavior, not the diff.
 
 Choose the cheapest existing test rung that observes the changed behavior. A user-visible outcome needs a run through its real surface when a runnable surface exists. Keep one `When` and one observable outcome; derive expectations independently from inputs; make precedence fixtures differ from fallbacks. Budgets: `< 10 ms` per unit test, `< 30 seconds` for the unit suite, and `< 5 minutes` for the integration suite.
 

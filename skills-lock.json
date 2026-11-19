@@ -85,14 +85,6 @@
       "computedHash": "b78689833404148c769077355e12dbe5ad996a158a1e21e58ddf169e439d9d8c",
       "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
     },
-    "git-master": {
-      "source": "code-yeongyu/oh-my-openagent",
-      "ref": "dev",
-      "sourceType": "github",
-      "skillPath": "packages/shared-skills/skills/git-master/SKILL.md",
-      "computedHash": "0050afdaff78394295755a3debd4a213b6157f7e2747311106c804374de5c1c8",
-      "commit": "be84607fc6f0132f3042e287594f162fad5a6a5a"
-    },
     "github-actions": {
       "source": "dalestudy/skills",
       "sourceType": "github",
@@ -100,25 +92,11 @@
       "computedHash": "71151adc4d7d8d0991cfb2d6784242cb177a54c8de83b53d9b5cd806cc7921e7",
       "commit": "ab6b524b1befcfb67497affc7d99e4f3d69f0eb0"
     },
-    "grill-me": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/productivity/grill-me/SKILL.md",
-      "computedHash": "ab1acb9fbd9eaee03da254abb8a8de228d1e7a07475fe959da4a5eefa34ea4b9",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-    },
     "grill-with-docs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
       "computedHash": "02e258f41d210f9b2e7cce9faf62b3c59e8fcebe5d2736369c3cd07d471324f8",
-      "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
-    },
-    "grilling": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "skillPath": "skills/productivity/grilling/SKILL.md",
-      "computedHash": "485451958784497cd4c4dbea13cb5bbb579da58fac0d0e45f3bcb310fab68ac7",
       "commit": "5863806dd4e15c63174bee4e7515a4256792ecfa"
     },
     "handoff": {
