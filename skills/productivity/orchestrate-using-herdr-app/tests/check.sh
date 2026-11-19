@@ -115,8 +115,8 @@ check 0 'settled: idle' env MODE=flicker AGENT_STATUS=idle "$scripts/watch-agent
 [[ $(cat "$tmp/gets") -eq 9 ]]
 rm -f "$tmp/gets" "$tmp/reads"
 check 0 'settled: done' env MODE=compact AGENT_STATUS=done "$scripts/watch-agent.sh" worker
-# Two Compacting checks, then one read for the settle evidence.
-[[ $(cat "$tmp/reads") -eq 3 ]]
+# Two Compacting checks, one background-task check, then one read for the settle evidence.
+[[ $(cat "$tmp/reads") -eq 4 ]]
 # A crashed agent reads done; the settle says exited and shows the crash.
 check 0 'settled: exited (turn 1)' env MODE=crash AGENT_STATUS=done "$scripts/watch-agent.sh" worker
 check 0 'AbortError: The operation was aborted' env MODE=crash AGENT_STATUS=done "$scripts/watch-agent.sh" worker
