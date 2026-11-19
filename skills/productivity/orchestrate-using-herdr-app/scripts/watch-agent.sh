@@ -6,6 +6,8 @@
 #   then the screen tail: the last 8 lines for idle/done, 20 for anything unexpected
 #   quiet <n>m (working) fp=<fp>[: <hint>]   status stayed working, but the screen
 #     (minus spinners, timers, rates) and turn did not change for <n> minutes (default 15)
+#     settled: done (bg task running) when Pi idles with its own background task
+#     still listed for <quiet> minutes; nudge it to finish
 #   gone | terminal <state>
 # --since <fp>: restart after a quiet check-in; while the screen still matches <fp>,
 # the quiet threshold doubles so the same state does not re-alert at once.
@@ -98,9 +100,17 @@ while true; do
 			done
 			# Pi can read done while /compact runs past the confirm window.
 			screen | tail -n 15 | grep -q Compacting && continue
+			# Pi can read done while its own background task still runs; wait up to the
+			# quiet limit for it to resume, then report it so the orchestrator nudges.
+			if screen | tail -n 15 | grep -qE '◉ [0-9]+ bg tasks?'; then
+				bg_since=${bg_since:-$(date +%s)}
+				[ $(($(date +%s) - bg_since)) -ge $((quiet_min * 60)) ] || continue
+				status="$status (bg task running)"
+			fi
 			settle
 			;;
 		working|none)
+			bg_since=""
 			fp=$(fingerprint)
 			now=$(date +%s)
 			if [ "$fp" != "$last_fp" ]; then
