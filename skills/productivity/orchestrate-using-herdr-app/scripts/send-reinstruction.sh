@@ -4,7 +4,7 @@
 set -euo pipefail
 
 usage() {
-	printf 'usage: send-reinstruction.sh <agent> <worktree> <bead> <text> [--last-reviewed <commit>]\n' >&2
+	printf 'usage: send-reinstruction.sh <agent> <worktree> <bead> <text> [--last-reviewed <commit>] [--new-context]\n' >&2
 	exit 1
 }
 
@@ -15,10 +15,15 @@ bead="$3"
 text="$4"
 shift 4
 base=
-if [ "$#" -gt 0 ]; then
-	[ "$#" -eq 2 ] && [ "$1" = --last-reviewed ] && [ -n "$2" ] || usage
-	base="$2"
-fi
+new_context=
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--last-reviewed) [ "$#" -ge 2 ] && [ -n "$2" ] || usage; base="$2"; shift 2 ;;
+		# After /new: repeat the startup bootstrap, including Pi skill triggers.
+		--new-context) new_context=1; shift ;;
+		*) usage ;;
+	esac
+done
 # Before any side effect, including recording a re-instruction.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh" "$name"
 if [[ $name == r-* ]]; then
@@ -40,7 +45,8 @@ record_instruction() {
 	[ -z "$base" ] || event_fields+=("last-reviewed=$base")
 	"$script_dir/event.sh" "$bead" re-instructed --body "$text" "${event_fields[@]}" >/dev/null
 }
-printf -v pointer 'Load the orchestrated-worker skill, run bd prime, run bd show %q, and read the latest event=re-instructed comment with bd comments %q. Follow that re-instruction; write an event=report comment on that bead, then end your turn; never hc send to the orchestrator.' "$bead" "$bead"
+printf -v pointer 'Read the latest event=re-instructed comment with agent=%s in bd comments %q. Follow that re-instruction; write an event=report comment on that bead, then end your turn; never hc send to the orchestrator.' "$name" "$bead"
+[ -z "$new_context" ] || printf -v pointer 'Load the orchestrated-worker skill, run bd prime, run bd show %q, then: %s' "$bead" "$pointer"
 
 snapshot=$(hc get "$name" --json)
 fields=$(jq -er '[.state, (.status.state // "none"), (.turn // 0), (.labels.resume // "")] | @tsv' <<<"$snapshot")
@@ -53,15 +59,20 @@ case "$state" in
 			printf 'agent %s: blocked; answer its dialog first\n' "$name" >&2
 			exit 2
 		fi
+		record_instruction
 		# start-worker launches through env; hc preserves that complete argv.
-		if jq -e '.argv | index("pi") != null' <<<"$snapshot" >/dev/null; then
-			task=$(bd show "$bead" --json)
+		if [ -n "$new_context" ] && jq -e '.argv | index("pi") != null' <<<"$snapshot" >/dev/null; then
+			# Same sources as start-worker.sh: a reviewer's own comments, a worker's design.
+			if [[ $name == r-* ]]; then
+				source_text=$(bd comments "$bead" --json | jq -r --arg agent "agent=$name" '.[] | select(.text | split("\n")[0] | split(" ") | .[0] == "event=re-instructed" and any(.[]; . == $agent)) | .text')
+			else
+				source_text=$(bd show "$bead" --json | jq -r '.[0].design // ""')
+			fi
 			pointer+=" \$skill:orchestrated-worker"
-			# shellcheck disable=SC2016 # literal Pi skill triggers from design
-			while IFS= read -r skill; do pointer+=" $skill"; done < <(jq -r '.[0].design // ""' <<<"$task" | grep -oE '\$skill:[[:alnum:]_-]+' | sort -u)
+			# shellcheck disable=SC2016 # literal Pi skill triggers
+			while IFS= read -r skill; do pointer+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' <<<"$source_text" | sort -u)
 			pointer+=' ulw'
 		fi
-		record_instruction
 		hc send "$name" "$pointer" >/dev/null
 		printf 'agent %s: sent\n' "$name"
 		# Confirm the turn started, so the next slot check counts it.

@@ -203,7 +203,7 @@ check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]:0:${#argv[@]}-1} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent --label orch-context=$scripts/worker-context.sh env PATH=$PATH AGENT_BROWSER_NAMESPACE=w-worker-a BEADS_ACTOR=w-worker-a ORCH_BEAD=$launch_task BEADS_DIR=$BEADS_DIR BEADS_DOLT_SHARED_SERVER= pi" ]]
 # shellcheck disable=SC2016 # literal Pi triggers
-[[ ${argv[-1]} == *"bd show $launch_task"* && ${argv[-1]} == *"bd comments $launch_task"* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:x $skill:y ulw' && ${argv[*]} != *'Private body'* ]]
+[[ ${argv[-1]} == *"bd show $launch_task"* && ${argv[-1]} == *"agent=w-worker-a in bd comments $launch_task"* && ${argv[-1]} == *'work that bead'* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:x $skill:y ulw' && ${argv[*]} != *'Private body'* ]]
 [[ -x $scripts/worker-context.sh && ! -s $tmp/labels ]]
 # Exercise nonempty server passthrough without contacting any server: bd itself
 # still uses the embedded fixture, while hc captures the worker's environment.
@@ -269,15 +269,33 @@ printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"li
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 : > "$tmp/calls"
+# Transitional (wf-zr1.5): a reviewer's task definition is its own agent comment;
+# worker design tokens and reviewer comment tokens never cross.
+# shellcheck disable=SC2016 # literal Pi tokens
+bd comments add "$launch_task" $'event=re-instructed agent=r-task\n\nReview main...HEAD $skill:axis-review' >/dev/null
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+mapfile -d '' -t argv < "$tmp/argv"
+# shellcheck disable=SC2016 # literal Pi tokens
+[[ ${argv[-1]} == *"agent=r-task in bd comments $launch_task"* && ${argv[-1]} == *'review per it'* && ${argv[-1]} != *'work that bead'* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+mapfile -d '' -t argv < "$tmp/argv"
+# shellcheck disable=SC2016 # literal Pi tokens
+[[ ${argv[-1]} != *'axis-review'* && ${argv[-1]} == *' $skill:x $skill:y ulw' ]]
 
 # Re-instructions persist full text before sending only a bootstrap pointer.
 : > "$tmp/calls"
 check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled EXPECT_INSTRUCTION_BEAD="$launch_task" EXPECT_INSTRUCTION_TEXT="$instruction" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 bd comments "$launch_task" --json | jq -e --arg text "$instruction" '.[-1] | .author == "o-orch" and (.text | endswith("\n\n" + $text))' >/dev/null
 [[ $(cat "$tmp/calls") == *"bd comments $launch_task"* && $(cat "$tmp/calls") != *"$instruction"* ]]
+# An ordinary live relay is a plain agent-scoped pointer: no skill reload.
+rm -f "$tmp/sends"
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND=pi "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+sent=$(cat "$tmp/sent-text")
+# shellcheck disable=SC2016 # literal Pi triggers
+[[ $sent == *"agent=w-worker-a in bd comments $launch_task"* && $sent != *'$skill:'* && $sent != *' ulw' && $sent != *'bd prime'* ]]
 # A live Pi after /new needs the same skill activation as first launch.
 rm -f "$tmp/sends"
-check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND=pi AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND=pi AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction" --new-context
 sent=$(cat "$tmp/sent-text")
 # shellcheck disable=SC2016 # literal machine-consumed Pi triggers
 [[ $sent == *' $skill:orchestrated-worker $skill:x $skill:y ulw' && $sent != *'$skill:description-only'* ]]
@@ -285,7 +303,7 @@ sent=$(cat "$tmp/sent-text")
 # Claude and Codex keep plain bootstrap prompts, without Pi-only activation.
 for kind in claude codex; do
 	rm -f "$tmp/sends"
-	check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND="$kind" AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+	check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND="$kind" AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction" --new-context
 	sent=$(cat "$tmp/sent-text")
 	# shellcheck disable=SC2016 # Pi trigger must not route to other harnesses
 	[[ $sent != *'$skill:'* && $sent != *' ulw' ]]
@@ -314,9 +332,31 @@ check 2 'no turn started' env HC_TERMINAL_ID=orch MODE=send-stuck "$scripts/send
 bd update "$launch_task" --notes 'Plan: context fixture notes' >/dev/null
 bd comments add "$launch_task" $'event=re-instructed agent=w-worker-a\n\nLatest context instruction' >/dev/null
 bd comments add "$launch_task" 'event=note detail=not-an-instruction' >/dev/null
-out=$(BEADS_ACTOR=unassigned ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+bd comments add "$launch_task" $'event=re-instructed agent=r-worker-a\n\nReviewer-only instruction' >/dev/null
+out=$(BEADS_ACTOR=w-worker-a ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
 skill_text=$(cat "$scripts/../../orchestrated-worker/SKILL.md")
 [[ $out == "$skill_text"* && $out == *'context fixture notes'* && $out == *$'event=re-instructed agent=w-worker-a\n\nLatest context instruction' ]]
+out=$(BEADS_ACTOR=r-worker-a ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+[[ $out == *$'event=re-instructed agent=r-worker-a\n\nReviewer-only instruction' ]]
+# A failed assignee query still falls back to ORCH_BEAD.
+cat > "$tmp/bin/bd" <<'MOCK'
+#!/usr/bin/env bash
+[[ $1 != list ]] || exit 1
+exec "$REAL_BD" "$@"
+MOCK
+chmod +x "$tmp/bin/bd"
+out=$(BEADS_ACTOR=w-worker-a ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+[[ $out == *'context fixture notes'* ]]
+rm "$tmp/bin/bd"
+# Installed layout: the skill folder is a symlink into a store without siblings.
+mkdir -p "$tmp/store/pkg" "$tmp/harness"
+cp -r "$scripts/.." "$tmp/store/pkg/orchestrate-using-herdr-app"
+ln -s "$tmp/store/pkg/orchestrate-using-herdr-app" "$tmp/harness/orchestrate-using-herdr-app"
+printf 'Installed standing contract\n' > "$tmp/installed-skill"
+mkdir -p "$tmp/harness/orchestrated-worker"
+ln -s "$tmp/installed-skill" "$tmp/harness/orchestrated-worker/SKILL.md"
+out=$(BEADS_ACTOR=w-worker-a ORCH_BEAD="$launch_task" "$tmp/harness/orchestrate-using-herdr-app/scripts/worker-context.sh")
+[[ $out == 'Installed standing contract'* && $out == *'context fixture notes'* ]]
 current=$(bd create 'Current assigned work' --assignee w-context --silent)
 bd update "$current" --status in_progress --notes 'Current notepad' >/dev/null
 out=$(BEADS_ACTOR=w-context ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
@@ -468,6 +508,11 @@ bd comments "$review_task" --json | jq -e --arg base "$main" '.[-1].text | conta
 comments=$(bd comments "$review_task" --json)
 [[ $comments == *"$main..HEAD"* ]]
 [[ $(jq -r '.[-1].text' <<<"$comments") == *"$review_body" ]] || { echo 'FAIL: reviewer comment must preserve the full instructions'; exit 1; }
+# After /new, a Pi reviewer's tokens come from its own comments, never the worker's design.
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$launch_task" "$instruction" --last-reviewed "$main" --new-context
+sent=$(cat "$tmp/sent-text")
+# shellcheck disable=SC2016 # literal Pi tokens
+[[ $sent == *"bd prime"* && $sent == *"agent=r-task in bd comments $launch_task"* && $sent == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
 # Same reviewer name and session survive finished-terminal revival.
 rm -f "$tmp/removed"
 check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$head"
