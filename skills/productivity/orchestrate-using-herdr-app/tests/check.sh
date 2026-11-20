@@ -497,6 +497,27 @@ check 0 "epic=$peer_epic" env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" p
 bd dep list "$peer_epic" --type discovered-from --json | jq -e --arg h "$handoff" 'map(.id) == [$h]' >/dev/null
 check 0 "epic=$peer_epic" env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --mode '--off'
 [[ $(bd show "$peer_epic" --json | jq -r '.[0].status') == closed && $(bd show "$handoff" --json | jq -r '.[0].status') == closed ]]
+# An option-shaped ID is an ID, not a bd flag.
+check 1 'not found' env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --from --help
+# A failed handoff close after the epic closed is retried by the next --off.
+retry_handoff=$(bd create 'Retry side issue' --silent)
+bd update "$retry_handoff" --claim --actor h-retry >/dev/null
+out=$(HC_TERMINAL_ID=t6 "$scripts/orchestrate-init.sh" retry --from "$retry_handoff")
+retry_epic=$(sed -n 's/^epic=//p' <<<"$out")
+real_bd=$(command -v bd)
+cat > "$tmp/bin/bd" <<MOCK
+#!/usr/bin/env bash
+[[ \$1 == close && \$2 == "\${FAIL_CLOSE:-}" ]] && exit 1
+exec "$real_bd" "\$@"
+MOCK
+chmod +x "$tmp/bin/bd"
+check 1 '' env HC_TERMINAL_ID=t6 FAIL_CLOSE="$retry_handoff" "$scripts/orchestrate-init.sh" retry --mode '--off'
+[[ $(bd show "$retry_epic" --json | jq -r '.[0].status') == closed && $(bd show "$retry_handoff" --json | jq -r '.[0].status') != closed ]]
+count=$(bd list --type epic --all --limit 0 --json | jq 'length')
+check 0 'unset ORCH_EPIC' env HC_TERMINAL_ID=t6 "$scripts/orchestrate-init.sh" retry --mode '--off'
+[[ $(bd show "$retry_handoff" --json | jq -r '.[0].status') == closed && $(bd list --type epic --all --limit 0 --json | jq 'length') == "$count" ]]
+rm "$tmp/bin/bd"
+
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
 git -C "$tmp/work" config user.email fixture@example.invalid

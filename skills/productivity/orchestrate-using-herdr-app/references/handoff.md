@@ -10,7 +10,7 @@ The flags the user typed on this invocation, minus `--handoff`, belong to the pe
 ## Overlap
 
 - Hand off only work this session will no longer touch.
-- Refuse a task with a live worker or reviewer (`scripts/status.sh --live` shows its terminal live and the task not settled): ask the user to let it settle, stop it, or reap it, and stop. A kept worktree and branch pass to the peer by name in the handoff bead; never reap them afterwards.
+- Refuse a task with a live worker or reviewer: ask the user to let it settle, stop it, or reap it, and stop. Check both roles, because `scripts/status.sh --live` reads only the worker: in `hc ls --json`, a `w-<key>-…` or `r-<key>-…` terminal that is not `finished` is live unless a `settled` event follows the task bead's latest `dispatched` event. A kept worktree and branch pass to the peer by name in the handoff bead; never reap them afterwards.
 
 ## Handoff bead
 
