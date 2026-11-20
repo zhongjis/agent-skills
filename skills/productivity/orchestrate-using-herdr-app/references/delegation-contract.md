@@ -13,9 +13,9 @@ Fill each section from the agreed conversation and the ticket, if any. Write "No
 - **design — Context and inputs:** why this exists, rejected approaches and why, user preferences, conversation terms, current environment/known failures, linked spec/docs and prerequisite outputs. Inline anything the worker cannot open elsewhere.
 - **design — Transitional code:** code this task rewires that a later task deletes, with agreed seams.
 - **design — Out of scope:** explicit exclusions and protected work, each stated as work not to do, not as behavior to preserve.
-- **design — Deliverables:** external results the mode/task grants. Under `--watch` or `--auto`, state whether a PR is required and that the standing contract's PR worker contract applies: local review before publication, publication only on release, no merge. Include the [track.md](track.md) close-out under `--track`. Write "None" for a plain local task. Narrow any standing authority to match user restrictions such as read-only, no commit or no push.
+- **design — Deliverables:** external results the mode/task grants. Under `--watch` or `--auto`, state whether a PR is required and that the standing contract's PR worker contract applies: local review before publication, publication only on release, no merge. `--track` creates and imports tickets, never ticket close-out comments; reports stay local. Write "None" for a plain local task. Narrow any standing authority to match user restrictions such as read-only, no commit or no push.
 - **native dependencies — Blocked by:** prerequisite task beads; put artifact paths and outputs in design as inputs.
-- **metadata after claim — worktree, branch, base:** assigned worktree path, branch and agreed base. Write these only after the pre-dispatch claim; this task-definition step does not implement import, re-pull or claim.
+- **metadata after claim — worktree, branch, base:** assigned worktree path, branch and agreed base. Write these only after the pre-dispatch re-pull and claim ([import.md](import.md)).
 
 Use `bd update <bead> --description "<body>" --acceptance "<criteria>" --design "<design>"` to store the fields. After claim, use `bd update <bead> --metadata '{"worktree":"<path>","branch":"<branch>","base":"<base>"}'`. Keep dependency edits native to bd rather than encoding dependencies only in prose.
 

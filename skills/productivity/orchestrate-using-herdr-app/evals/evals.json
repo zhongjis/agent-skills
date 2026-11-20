@@ -29,12 +29,15 @@
       "id": 3,
       "name": "track-files-ticket-first",
       "prompt": "Use orchestrate-using-herdr-app --track for the agreed import validation repair. No ticket exists yet; the repository files issues in Linear.",
-      "expected_output": "Creates one Linear ticket from the spec in Markdown before any worktree or dispatch. Names the agent <issue-id>-<slug> and chooses the branch by repository convention. Creates the worktree with git worktree add at ~/.herdr/worktrees/<repo>/<agent> and confirms it in git worktree list. Links the ticket in the task definition with the close-out comment as a worker deliverable, then reports the handoff and stops because no supervision mode was given.",
+      "expected_output": "Creates one Linear ticket remotely from the spec in Markdown, then imports it by external_ref with scripts/import-ticket.sh before any worktree or dispatch. Imports only agreed tickets plus blockers, uses native blocks dependencies and computes readiness under ORCH_EPIC (not closed, every blocks prerequisite closed), and re-pulls before first dispatch. Claims only after the re-pull, then writes the task definition from the refreshed body, and holds remote done/cancelled tickets or lost claim races. Names the agent w-<issue-id>-<slug>, creates the worktree outside the source checkout, starts the worker by bead, reports the handoff and stops without supervision. Never pushes beads or requests a ticket close-out comment.",
       "expectations": [
         "Creates the ticket before creating the worktree or dispatching.",
         "Does not supervise: --track is not a mode.",
         "Never creates a worktree inside the source checkout.",
-        "Puts the ticket close-out in the task definition as a worker deliverable."
+        "Looks up external_ref before import, retries one skipped pull, and holds a second skip that follows a local change instead of dispatching.",
+        "Re-pulls before claim, records changed title/body locally, writes task-definition fields only after claim, and keeps remote done/cancelled tickets from dispatch.",
+        "Uses native blocks dependencies rather than needs= task-graph rows; claimed-bead and live-session conflicts stop import.",
+        "Never creates a bead first and pushes it, and never requests a ticket close-out comment."
       ],
       "files": []
     },
@@ -201,7 +204,7 @@
       "id": 17,
       "name": "reports-at-yield-from-beads",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its task definition answers, and B needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. The epic's first mode event is at 09:00, a second invocation's mode event at 09:30, and the latest event at 10:00. Describe what you record and report, including total time; do not run commands.",
-      "expected_output": "Creates or reuses one child task bead per task under ORCH_EPIC with key metadata before queue or dispatch, with the task definition in bead fields. Records task events with scripts/event.sh as o-<terminal>, PR metadata only after claim, and coarse bead status. Reports A and B working and C queued before waiting; answers A and compacts B silently with event comments; launches C after A's verified merged event (or settled succeeded for non-merge work), but cannot merge C before A's settled succeeded release event. Reports A settling as one line with PR #31 at def456 and C launched. Final bead-built table opens ALL WORK FINISHED, summarizes 60 minutes from the epic's first mode event to the latest event, result counts and epic ID.",
+      "expected_output": "Imports ticketed beads by external_ref and creates local ad-hoc beads under ORCH_EPIC before queue or dispatch; imported beads get key metadata and task-definition fields only after re-pull and claim. Records task events with scripts/event.sh as o-<terminal>, PR metadata only after claim, and coarse bead status. Reports A and B working and C queued before waiting; answers A and compacts B silently with event comments; launches C when every blocks prerequisite of C is closed, after A closes on a verified target merge SHA (or settled succeeded for non-merge work), but cannot merge C before A's settled succeeded release event. Reports A settling as one line with PR #31 at def456 and C launched. Final bead-built table opens ALL WORK FINISHED, summarizes 60 minutes from the epic's first mode event to the latest event, result counts and epic ID.",
       "expectations": [
         "Reports the dispatch wave before waiting on workers.",
         "Does not report the question its task definition answers or context transition; records them as bead event comments.",
@@ -345,7 +348,7 @@
       "id": 28,
       "name": "max-caps-working-agents",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch --max 2 for four agreed independent tasks A, B, C and D, Pi workers. Tests saturated the host's CPU when four workers ran at once. A and B start; A goes idle ready for local review while B keeps working; later B goes idle too. Describe how you initialize, dispatch, review, and release work, and what you log; do not run commands.",
-      "expected_output": "Runs orchestrate-init.sh with --watch --max 2 and applies ORCH_EPIC and ORCH_MAX exports. Creates task definitions on beads including Broad run: and dispatches A and B by bead. Holds C and D with queued needs=slot comments, no brief paths. When A idles, oldest wait gets the slot, either C or A reviewer; never three working agents. send-reinstruction.sh obeys cap and exit 4 queues without delivery. Idle, blocked and finished hold no slot.",
+      "expected_output": "Runs orchestrate-init.sh with --watch --max 2 and applies ORCH_EPIC and ORCH_MAX exports. Creates task definitions on beads including Broad run: and dispatches A and B by bead. Holds C and D with queued needs=slot comments, no brief paths. Imported tasks receive task-definition fields and key metadata only after re-pull and claim. When A idles, oldest wait gets the slot, either C or A reviewer; never three working agents. send-reinstruction.sh obeys cap and exit 4 queues without delivery. Idle, blocked and finished hold no slot.",
       "expectations": [
         "Exports ORCH_MAX=2 alongside ORCH_EPIC in dispatch and re-instruction shells.",
         "Never exceeds two working agents, including reviewers.",

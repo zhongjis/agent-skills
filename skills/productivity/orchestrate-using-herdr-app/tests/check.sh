@@ -750,6 +750,10 @@ check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" not
 [[ -z $("$scripts/compact-context.sh" "$status_epic") ]]
 checks=$((checks + 1))
 
+# Import fixtures reuse this isolated DB and real bd for every non-pull call.
+# shellcheck source=import.sh
+source "$(dirname -- "${BASH_SOURCE[0]}")/import.sh"
+
 # bot-active.sh: paginated API fixtures only, never real GitHub.
 cat > "$tmp/bin/gh" <<'MOCK'
 #!/usr/bin/env bash
