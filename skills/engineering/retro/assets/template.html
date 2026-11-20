@@ -192,9 +192,14 @@ kbd{font:12px var(--mono);border:1px solid var(--line);border-bottom-width:2px;b
 .decide textarea{background:var(--surface)}
 .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:480px){.choices{grid-template-columns:1fr}}
-.choice{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 6px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:1px;transition:border-color .15s,background .15s}
+.choice{position:relative;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 6px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:1px;transition:border-color .15s,background .15s}
 .choice:hover{border-color:var(--muted)}
 .choice small{font-weight:400;font-size:12.5px;color:var(--muted)}
+/* The choice the recommendation names: accent edge plus a tag on the top border. A decision's fill (aria-pressed, below) overrides the edge. */
+.choice[data-rec]{border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.choice[data-rec]:hover{border-color:var(--accent)}
+.choice .rectag{position:absolute;top:0;left:50%;transform:translate(-50%,-50%);font:600 11px/18px var(--sans);padding:0 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+@media (max-width:480px){.choices{gap:14px}}
 .choice[aria-pressed="true"][data-c="approve"]{background:var(--approve-bg);border-color:var(--approve);color:var(--approve)}
 .choice[aria-pressed="true"][data-c="later"]{background:var(--later-bg);border-color:var(--later);color:var(--later)}
 .choice[aria-pressed="true"][data-c="skip"]{background:var(--skip-bg);border-color:var(--skip);color:var(--skip)}
@@ -430,6 +435,15 @@ function renderCard(){
   $("f-fix").innerHTML = rich(f.fix); $("v-fix").innerHTML = visualHTML(v.fix);
   $("f-owner").innerHTML = badge(f.source) + " Owning source: " + esc(f.owner) + (f.stage ? " · " + esc(f.stage) : "");
   $("f-rec").hidden = !f.rec; $("f-rec-text").innerHTML = rich(f.rec);
+  // rec starts with Approve, Later or Skip; mark that choice. Any other opening marks none.
+  var rm = /^[\s*_]*(approve|later|skip)\b/i.exec(f.rec || ""), rc = rm ? rm[1].toLowerCase() : null;
+  document.querySelectorAll(".choice").forEach(function(b){
+    var on = b.dataset.c === rc, tag = b.querySelector(".rectag");
+    b.toggleAttribute("data-rec", on);
+    if (on && !tag) b.querySelector("small").insertAdjacentHTML("beforebegin", '<span class="rectag">Recommended</span>');
+    else if (!on && tag) tag.remove();
+    if (on) b.setAttribute("aria-describedby", "f-rec-text"); else b.removeAttribute("aria-describedby");
+  });
   $("f-outcome").hidden = !f.outcome; $("f-outcome-text").innerHTML = rich(f.outcome);
   var ev = f.evidence || [];
   $("ev-toggle").hidden = !ev.length; $("ev-label").textContent = "Evidence (" + ev.length + ")";
