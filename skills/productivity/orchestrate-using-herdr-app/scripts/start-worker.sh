@@ -92,7 +92,7 @@ log_dispatch() {
 	local address bead
 	address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
 	bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg name "${name:2}" '[.[] | select(.metadata.key as $key | $key != null and ($name == $key or ($name | startswith($key + "-"))))] | sort_by(.metadata.key | length) | last | .id // empty') || return 0
-	[ -n "$bead" ] || return 0
+	[ -n "$bead" ] || { printf 'warning: no task bead for %s under %s; event not recorded\n' "$name" "$ORCH_EPIC" >&2; return 0; }
 	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" dispatched \
 		"agent=$name" "terminal=$address" "worktree=$worktree" "brief=$brief" "kind=$kind" result=working >/dev/null 2>&1 || true
 }

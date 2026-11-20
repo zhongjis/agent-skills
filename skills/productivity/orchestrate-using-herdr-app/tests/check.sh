@@ -4,10 +4,6 @@ set -euo pipefail
 # Capture the real anchor before replacing HOME, and resolve symlink aliases too.
 global_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 global_anchor=$(realpath -m -- "$global_data_home/beads/global/.beads")
-if [[ -n ${BEADS_DIR:-} && $(realpath -m -- "$BEADS_DIR") == "$global_anchor" ]]; then
-	printf 'refusing global beads anchor: %s\n' "$BEADS_DIR" >&2
-	exit 1
-fi
 scripts=$(realpath "$(dirname -- "${BASH_SOURCE[0]}")/../scripts")
 tmp=$(realpath "$(mktemp -d)")
 trap 'rm -rf -- "$tmp"' EXIT
@@ -17,6 +13,11 @@ mkdir -p "$HOME" "$tmp/bin"
 export FIXTURE="$tmp" PATH="$tmp/bin:$PATH"
 unset HC_TERMINAL_ID ORCH_MAX ORCH_EPIC ORCH_SOURCE BEADS_DOLT_SHARED_SERVER
 export BEADS_DIR="$tmp/beads-project/.beads" BEADS_ACTOR=fixture
+# Check the effective isolated path, not the global defaults inherited at login.
+if [[ $(realpath -m -- "$BEADS_DIR") == "$global_anchor" ]]; then
+	printf 'refusing global beads anchor: %s\n' "$BEADS_DIR" >&2
+	exit 1
+fi
 checks=0
 check() {
 	local expected="$1" needle="$2" out status=0
@@ -28,17 +29,22 @@ check() {
 	fi
 	checks=$((checks + 1))
 }
-# Refuse a realpath alias before invoking bd, including when HOME is already isolated.
-ln -s "$global_anchor" "$tmp/global-alias"
+# Refuse an effective DB path aliased to the anchor before the first bd call.
+mkdir -p "$tmp/refusal/beads-project"
+ln -s "$global_anchor" "$tmp/refusal/beads-project/.beads"
+cat > "$tmp/bin/mktemp" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s/refusal\n' "$FIXTURE"
+MOCK
 cat > "$tmp/bin/bd" <<'MOCK'
 #!/usr/bin/env bash
-printf 'unexpected bd call\n' >> "$FIXTURE/bd-calls"
+printf 'unexpected bd call\n' >> "$BD_GUARD_CALLS"
 exit 99
 MOCK
-chmod +x "$tmp/bin/bd"
-check 1 'refusing global beads anchor' env XDG_DATA_HOME="$global_data_home" BEADS_DIR="$tmp/global-alias" bash "${BASH_SOURCE[0]}"
+chmod +x "$tmp/bin/bd" "$tmp/bin/mktemp"
+check 1 'refusing global beads anchor' env XDG_DATA_HOME="$global_data_home" BD_GUARD_CALLS="$tmp/bd-calls" bash "${BASH_SOURCE[0]}"
 [[ ! -e $tmp/bd-calls ]]
-rm "$tmp/bin/bd"
+rm "$tmp/bin/bd" "$tmp/bin/mktemp"
 mkdir -p "$tmp/beads-project"
 # init runs in the enclosing scratch project, never inside .beads or this repo.
 (pushd "$tmp/beads-project" >/dev/null; bd init --prefix orch --skip-hooks --skip-agents --non-interactive >/dev/null)
@@ -243,14 +249,15 @@ check 1 'name_taken' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=run-f
 [[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
 # Missing children and event-write failures never fail a dispatch or create tasks.
 children=$(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length')
-check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
+check 0 'warning: no task bead for w-unknown' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
+check 0 'warning: no task bead for w-unknown' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
 [[ $(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length') == "$children" ]]
 check 0 'working' env ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 [[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
 : > "$tmp/calls"
 check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 comments=$(bd comments "$launch_task" --json)
-jq -e 'length == 2 and (.[-1].text | startswith("event=re-instructed "))' <<<"$comments" >/dev/null
+jq -e 'length == 2 and (.[-1].text | startswith("event=re-instructed ") and (contains("last-reviewed=") | not))' <<<"$comments" >/dev/null
 rm -f "$tmp/removed"
 check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
 comments=$(bd comments "$launch_task" --json)
@@ -357,7 +364,18 @@ exit 1
 MOCK
 chmod +x "$tmp/bin/bd"
 check 1 'shared blocker' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
+check 1 'shared blocker' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'
+[[ $(tail -n 1 "$tmp/labels") == 'label t3 orch-context=' ]]
 rm "$tmp/bin/bd"
+# Outside Git, use the cwd as repo metadata and allow --off without creating an epic.
+count=$(bd list --type epic --all --limit 0 --json | jq 'length')
+out=$(pushd "$tmp/wt-a" >/dev/null; HC_TERMINAL_ID=outside "$scripts/orchestrate-init.sh" api --mode '--off')
+[[ $out == $'unset ORCH_EPIC\nunset ORCH_MAX' && $(bd list --type epic --all --limit 0 --json | jq 'length') == "$count" ]]
+out=$(pushd "$tmp/wt-a" >/dev/null; HC_TERMINAL_ID=outside "$scripts/orchestrate-init.sh" api)
+outside_epic=$(sed -n 's/^epic=//p' <<<"$out")
+bd show "$outside_epic" --json | jq -e --arg repo "$tmp/wt-a" '.[0].metadata.repo == $repo' >/dev/null
+out=$(pushd "$tmp/wt-a" >/dev/null; HC_TERMINAL_ID=outside "$scripts/orchestrate-init.sh" api --mode '--off')
+[[ $out == *"epic=$outside_epic"* && $(bd show "$outside_epic" --json | jq -r '.[0].status') == closed ]]
 rm -f "$tmp/herdr"
 out=$(HC_TERMINAL_ID=t3 ORCH_SOURCE=fixture-source "$scripts/orchestrate-init.sh" api --mode '--auto --track')
 epic=$(sed -n 's/^epic=//p' <<<"$out")
@@ -367,6 +385,9 @@ bd show "$epic" --json | jq -e --arg repo "$repo" '.[0] | .issue_type == "epic" 
 bd comments "$epic" --json | jq -e '.[-1] | .author == "o-t3" and .text == "event=mode flags=--auto --track max=none"' >/dev/null
 [[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <title>'; exit 1; }
 [[ $(tail -n 1 "$tmp/labels") == "label t3 orch-context=$scripts/compact-context.sh" ]]
+ln -s "$scripts" "$tmp/logical-scripts"
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$tmp/logical-scripts/orchestrate-init.sh" api
+[[ $(tail -n 1 "$tmp/labels") == "label t3 orch-context=$tmp/logical-scripts/compact-context.sh" ]]
 check 0 "epic=$epic" env HC_TERMINAL_ID=t3 ORCH_EPIC="$other_epic" "$scripts/orchestrate-init.sh" api
 check 0 "export ORCH_EPIC=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 rm -f "$tmp/herdr"
@@ -404,6 +425,10 @@ fresh_epic=$(sed -n 's/^epic=//p' <<<"$out")
 bd show "$fresh_epic" --json | jq -e '.[0].metadata.source == ""' >/dev/null
 check 0 "epic=$fresh_epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" fresh --mode '--off'
 [[ $(bd show "$fresh_epic" --json | jq -r '.[0].status') == closed ]]
+# Repeated --off leaves no junk epic after the previous one closed.
+count=$(bd list --type epic --all --limit 0 --json | jq 'length')
+check 0 'unset ORCH_EPIC' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" fresh --mode '--off'
+[[ $(bd list --type epic --all --limit 0 --json | jq 'length') == "$count" ]]
 
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
@@ -423,7 +448,9 @@ check 3 'not a commit' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp
 [[ ! -s $tmp/calls ]]
 review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
 printf '%s' "$review_body" > "$tmp/review-brief"
-check 0 'sent' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+review_task=$(bd create 'Reviewer event' --parent "$launch_epic" --metadata '{"key":"task"}' --silent)
+check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+bd comments "$review_task" --json | jq -e --arg base "$main" '.[-1].text | contains("last-reviewed=" + $base)' >/dev/null
 [[ $(cat "$tmp/calls") == *"$main..HEAD"* ]]
 [[ $(cat "$tmp/calls") == *"$review_body" ]] || { echo 'FAIL: live reviewer prompt must preserve the reporting footer and final ulw'; exit 1; }
 # Same reviewer name and session survive finished-terminal revival.
@@ -595,6 +622,7 @@ delta_since=$(bd show "$delta" --json | jq -r '.[0].created_at')
 out=$("$scripts/status.sh" "$status_epic")
 [[ $out == *'| Task | Worker | Event | Result | Evidence | Since |'* && $out == *'| alpha | w-alpha (t9) | reviewed | in_progress |'* && $out == *'| beta | w-beta (t10) | reaped | closed |'* ]]
 [[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
+[[ $(awk -F'|' '/^\| (alpha|beta|gamma|delta) \|/ { gsub(/ /, "", $2); print $2 }' <<<"$out") == $'alpha\nbeta\ngamma\ndelta' ]]
 for evidence in 'PR #7 &#124; green' 'findings=/review' 'pr_url=https://example.invalid/pr/7' 'head_sha=head7' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
 	[[ $out == *"$evidence"* ]] || { printf 'FAIL: missing evidence %s\n%s\n' "$evidence" "$out" >&2; exit 1; }
 done

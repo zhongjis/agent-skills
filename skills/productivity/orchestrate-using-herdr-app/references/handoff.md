@@ -18,10 +18,10 @@ The flags the user typed on this invocation, minus `--handoff`, belong to the pe
 
 ## Overlap
 
-Hand off only work this session will no longer touch. Before launch, check your log for a live worker, worktree, or branch on each task:
+Hand off only work this session will no longer touch. Before launch, check task-bead state and events (`scripts/status.sh --live`) for a live worker, worktree, or branch on each task:
 
 - None: hand the task off.
-- Some: the brief transfers each one to the peer by name (terminal, worktree, branch), you stop your own watcher on it, and you log it as handed off. Never read, send to, or reap it again.
+- Some: the brief transfers each one to the peer by name (terminal, worktree, branch), you stop your own watcher on it, and you record `handed-off` on its task bead with `scripts/event.sh <bead> handed-off k=v…`. Never read, send to, or reap it again.
 
 ## Launch
 
@@ -31,4 +31,4 @@ Start the peer top-level in a visible tab, never as your child: `herdr-app do ta
 
 ## The cut
 
-Once launch is done, the peer owns the tasks: workers, worktrees, reaping, merge, and the user's questions. It reports to the user in its own tab. Log `handed-off` with the tab and terminal IDs, report the handoff, and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.
+Once launch is done, the peer owns the tasks: workers, worktrees, reaping, merge, and the user's questions. It reports to the user in its own tab. Record `handed-off` on each existing task bead with `scripts/event.sh <bead> handed-off tab=<id> terminal=<id>`; without task beads, an active session epic holds the event. Report the handoff and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.

@@ -18,10 +18,12 @@ set -euo pipefail
 log_followup() {
 	[ -n "${ORCH_EPIC:-}" ] || return 0
 	local bead
+	local event_fields=("agent=$name" "brief=$brief" result=working)
+	[ -z "$base" ] || event_fields+=("last-reviewed=$base")
 	bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg name "${name:2}" '[.[] | select(.metadata.key as $key | $key != null and ($name == $key or ($name | startswith($key + "-"))))] | sort_by(.metadata.key | length) | last | .id // empty') || return 0
-	[ -n "$bead" ] || return 0
+	[ -n "$bead" ] || { printf 'warning: no task bead for %s under %s; event not recorded\n' "$name" "$ORCH_EPIC" >&2; return 0; }
 	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" re-instructed \
-		"agent=$name" "brief=$brief" "last-reviewed=$base" result=working >/dev/null 2>&1 || true
+		"${event_fields[@]}" >/dev/null 2>&1 || true
 }
 
 usage() {

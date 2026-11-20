@@ -69,5 +69,5 @@ while IFS= read -r task; do
 			.event, .result, .evidence, .ts] + (if $live == "" then [] else [$state] end) |
 		"| " + (map(gsub("[\\r\\n\\t]"; " ") | gsub("\\|"; "&#124;")) | join(" | ")) + " |"
 	' <<<"$row"
-done < <(jq -c '.[]' <<<"$children")
+done < <(jq -c 'sort_by(.created_at, .id)[]' <<<"$children")
 printf '\n%s notes (all).\n' "$notes"

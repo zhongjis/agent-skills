@@ -44,6 +44,12 @@ if ! command -v hc >/dev/null || [ -z "${HC_TERMINAL_ID:-}" ]; then
 	exit 1
 fi
 
+off=false
+if [[ " $mode " == *' --off '* ]]; then
+	off=true
+	# Ending local mode must not depend on database availability.
+	hc label "$HC_TERMINAL_ID" orch-context= >/dev/null 2>&1 || true
+fi
 if ! command -v bd >/dev/null || ! bd ping >/dev/null 2>&1; then
 	printf 'shared blocker: bd ping failed; restore the beads service before dispatch\n' >&2
 	exit 1
@@ -52,25 +58,28 @@ here="$(dirname -- "${BASH_SOURCE[0]}")"
 epics=$(bd list --type epic --metadata-field "session=$HC_TERMINAL_ID" --status open,in_progress,blocked,deferred --limit 0 --json)
 epic=$(jq -r '.[0].id // empty' <<<"$epics")
 if [ -z "$epic" ]; then
-	repo=$(git rev-parse --show-toplevel)
+	if "$off"; then
+		printf 'unset ORCH_EPIC\nunset ORCH_MAX\n'
+		exit 0
+	fi
+	repo=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 	metadata=$(jq -cn --arg repo "$repo" --arg session "$HC_TERMINAL_ID" --arg source "${ORCH_SOURCE:-}" '{repo: $repo, session: $session, source: $source}')
 	epic=$(bd create "$slug" --type epic --metadata "$metadata" --actor "o-$HC_TERMINAL_ID" --silent)
 fi
 # The latest mode event is invocation authority; recalled memory never replaces it.
 "$here/event.sh" "$epic" mode "flags=$mode" "max=${max:-none}" >/dev/null
-if [[ " $mode " == *' --off '* ]]; then
+if "$off"; then
 	children=$(bd list --parent "$epic" --all --limit 0 --json)
 	if jq -e 'all(.[]; .status == "closed")' <<<"$children" >/dev/null; then
 		bd close "$epic" --actor "o-$HC_TERMINAL_ID" >/dev/null
 	fi
-	hc label "$HC_TERMINAL_ID" orch-context= >/dev/null 2>&1 || true
 	printf 'epic=%s\nexport ORCH_EPIC=%q\nunset ORCH_MAX\n' "$epic" "$epic"
 	exit 0
 fi
 # The herdr-app session integrations run the labelled script after a compaction and
 # inject its output. Keep the logical path: a resolved Nix store path goes stale on the
 # next switch. Best effort: a missing label only loses that reminder.
-hc label "$HC_TERMINAL_ID" "orch-context=$(realpath -s -- "$here")/compact-context.sh" >/dev/null 2>&1 || true
+hc label "$HC_TERMINAL_ID" "orch-context=$(pushd -- "$here" >/dev/null && pwd)/compact-context.sh" >/dev/null 2>&1 || true
 printf 'epic=%s\n' "$epic"
 # Exporting it lets startup and re-instruction find their task beads.
 printf 'export ORCH_EPIC=%q\n' "$epic"
