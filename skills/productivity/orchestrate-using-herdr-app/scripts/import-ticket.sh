@@ -30,7 +30,11 @@ case "$tracker" in
 	jira)
 		[[ $ref =~ ^https://[^/]+/browse/([A-Za-z0-9]+-[0-9]+)$ ]] || fail 'expected Jira ticket URL'
 		identifier=${BASH_REMATCH[1]^^}
-		ref=${ref%/*}/$identifier ;;
+		# Native pull reads the configured site, so the URL must name that site.
+		jira_url=$(bd config get jira.url --json | jq -r '.value // ""')
+		jira_url=${jira_url%/}
+		[[ -n $jira_url && ${ref%/*} == "$jira_url/browse" ]] || fail "Jira URL must be on configured jira.url (${jira_url:-unset})"
+		ref=$jira_url/browse/$identifier ;;
 	github)
 		[[ $ref =~ ^https://github\.com/([^/]+)/([^/]+)/issues/([0-9]+)$ ]] || fail 'expected GitHub issue URL'
 		export GITHUB_OWNER=${BASH_REMATCH[1]} GITHUB_REPO=${BASH_REMATCH[2]}
@@ -44,19 +48,23 @@ key=${key:-${identifier,,}}
 [[ -n ${ORCH_EPIC:-} && -n ${HC_TERMINAL_ID:-} ]] || fail 'needs ORCH_EPIC and HC_TERMINAL_ID'
 scripts=$(dirname -- "${BASH_SOURCE[0]}")
 bd show "$ORCH_EPIC" --json | jq -e '.[0] | select(.issue_type == "epic" and .status == "open")' >/dev/null || fail 'ORCH_EPIC must be an open epic'
+# Local actors carry a role prefix (o- orchestrator, h- handoff peer, w- worker,
+# r- reviewer); any other assignee came from the tracker.
+# ponytail: a plain session claiming under an unprefixed actor looks remote.
+local_claim='(.assignee // "") | test("^[owrh]-")'
 lookup() {
 	bd list --all --limit 0 --external-ref "$ref" --json | jq -r 'if length > 1 then error("duplicate external_ref") else .[0].id // "" end'
 }
 bead=$(lookup)
-local_bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg key "$key" '[.[] | select(.metadata.key == $key and ((.external_ref // "") == ""))] | if length > 1 then error("ambiguous local key") else .[0].id // "" end')
+local_bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --metadata-field "key=$key" --brief --json | jq -r '[.[] | select((.external_ref // "") == "")] | if length > 1 then error("ambiguous local key") else .[0].id // "" end')
 [[ -z $bead || -z $local_bead || $bead == "$local_bead" ]] || fail "reconciliation conflict: $local_bead and $bead; resolve duplicate identity before pulling"
 bead=${bead:-$local_bead}
 old_epic=
 before=
 if [[ -n $bead ]]; then
 	before=$(bd show "$bead" --json | jq '.[0]')
-	# A tracker map may yield in_progress; only a w-/r- assignee is a local claim.
-	jq -e '(.assignee // "") | test("^[wr]-") | not' <<<"$before" >/dev/null || fail "claimed bead: $bead; no pull"
+	# A tracker map may yield in_progress; only a local actor's assignment is a claim.
+	jq -e "$local_claim | not" <<<"$before" >/dev/null || fail "claimed bead: $bead; no pull"
 	while IFS= read -r parent; do
 		[[ -n $parent && $parent != "$ORCH_EPIC" ]] || continue
 		parent_body=$(bd show "$parent" --json | jq '.[0]')
@@ -68,7 +76,10 @@ if [[ -n $bead ]]; then
 			terminal_status=0
 			terminal=$(hc get "$session" --json 2>&1) || terminal_status=$?
 			if [[ $terminal_status == 0 ]]; then
-				[[ $(jq -r '.state' <<<"$terminal") != live ]] || fail "conflict: $bead belongs to live session $parent ($session)"
+				# hc states are live or finished; anything else is uncertain.
+				state=$(jq -r '.state' <<<"$terminal" 2>/dev/null) || state=
+				[[ $state != live ]] || fail "conflict: $bead belongs to live session $parent ($session)"
+				[[ $state == finished ]] || fail "cannot inspect session $session: $terminal"
 			elif [[ $terminal_status != 3 ]]; then
 				fail "cannot inspect session $session: $terminal"
 			fi
@@ -94,6 +105,9 @@ pull_args=("$tracker" pull "$identifier" --json)
 # hold. Status writes bump updated_at, so pulled statuses are never normalized.
 watermark=
 for attempt in 1 2; do
+	# Re-check ownership before every pull: a claim can land between pulls.
+	current=$(lookup)
+	[[ -z $current ]] || bd show "$current" --json | jq -e ".[0] | $local_claim | not" >/dev/null || fail "claimed bead: $current; no pull"
 	result=$(bd "${pull_args[@]}")
 	jq -e '.stats | (.errors // 0) == 0 and (.skipped | type == "number")' <<<"$result" >/dev/null || fail "pull failed: $result"
 	[[ $(jq '.stats.skipped' <<<"$result") -gt 0 ]] || break
@@ -104,7 +118,10 @@ for attempt in 1 2; do
 			(.[0].updated_at | t) <= ($w | t)' >/dev/null; then
 			break
 		fi
-		[[ -z $current ]] || "$scripts/event.sh" "$current" blocked reason=pull-skipped >/dev/null
+		if [[ -n $current ]]; then
+			"$scripts/event.sh" "$current" blocked reason=pull-skipped >/dev/null
+			bd update "$current" --set-metadata blocked_reason=pull-skipped >/dev/null
+		fi
 		fail "held: second pull skipped $ref after local changes; no dispatch"
 	fi
 	watermark=$(jq -r '.last_sync // ""' <<<"$result")
@@ -112,7 +129,7 @@ done
 bead=$(lookup)
 [[ -n $bead ]] || fail "pull did not produce external_ref=$ref"
 after=$(bd show "$bead" --json | jq '.[0]')
-if [[ -n $worker && -n $before && $(jq -c '[.title,.description // ""]' <<<"$before") != "$(jq -c '[.title,.description // ""]' <<<"$after")" ]]; then
+if [[ -n $before && $(jq -c '[.title,.description // ""]' <<<"$before") != "$(jq -c '[.title,.description // ""]' <<<"$after")" ]]; then
 	bd comments add "$bead" "event=note detail=remote body changed before dispatch
 Before: $(jq -c '{title,description}' <<<"$before")
 After: $(jq -c '{title,description}' <<<"$after")" --actor "o-$HC_TERMINAL_ID" >/dev/null
@@ -121,8 +138,10 @@ if [[ $blocker == false ]]; then
 	while IFS= read -r parent; do
 		[[ -n $parent && $parent != "$ORCH_EPIC" ]] || continue
 		if [[ $parent != "$old_epic" ]]; then
+			# source is a space-separated set of planning references.
 			planning_ref=$(bd show "$parent" --json | jq -r '.[0].external_ref // .[0].id')
-			bd update "$ORCH_EPIC" --set-metadata "source=$planning_ref" >/dev/null
+			sources=$(bd show "$ORCH_EPIC" --json | jq -r '.[0].metadata.source // ""')
+			[[ " $sources " == *" $planning_ref "* ]] || bd update "$ORCH_EPIC" --set-metadata "source=${sources:+$sources }$planning_ref" >/dev/null
 		fi
 		bd dep remove "$bead" "$parent" >/dev/null
 	done < <(jq -r '.dependencies[]? | select(.dependency_type == "parent-child") | .id' <<<"$after")
@@ -141,7 +160,7 @@ if [[ $blocker == false ]]; then
 		# in_progress/blocked beads, so check blocks-prerequisites directly.
 		bd show "$bead" --json | jq -e '.[0] | all(.dependencies[]?; .dependency_type != "blocks" or .status == "closed")' >/dev/null || fail "not ready: $bead; no claim"
 		assignee=$(jq -r '.assignee // ""' <<<"$after")
-		[[ $assignee != w-* && $assignee != r-* ]] || fail "claimed bead: $bead"
+		jq -e "$local_claim | not" <<<"$after" >/dev/null || fail "claimed bead: $bead"
 		# Native --claim refuses in_progress/blocked/deferred and other
 		# assignees: reset only the observed remote state (exit 13 = race).
 		# This bumps updated_at; safe because no pull follows a claim.
