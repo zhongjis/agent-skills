@@ -11,7 +11,7 @@ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 export HOME="$tmp/home"
 mkdir -p "$HOME" "$tmp/bin"
 export FIXTURE="$tmp" PATH="$tmp/bin:$PATH"
-unset HC_TERMINAL_ID ORCH_MAX ORCH_EPIC ORCH_SOURCE BEADS_DOLT_SHARED_SERVER
+unset HC_TERMINAL_ID ORCH_MAX ORCH_EPIC ORCH_SOURCE ORCH_BEAD BEADS_DOLT_SHARED_SERVER
 export BEADS_DIR="$tmp/beads-project/.beads" BEADS_ACTOR=fixture
 # Check the effective isolated path, not the global defaults inherited at login.
 if [[ $(realpath -m -- "$BEADS_DIR") == "$global_anchor" ]]; then
@@ -71,7 +71,13 @@ case "$1" in
 	send|rm)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
 		[[ $1 != rm ]] || { touch "$FIXTURE/removed"; echo "$2" >> "$FIXTURE/removed-names"; }
-		[[ $1 != send ]] || echo sent >> "$FIXTURE/sends"
+		if [[ $1 == send ]]; then
+			printf '%s' "$3" > "$FIXTURE/sent-text"
+			if [[ -n ${EXPECT_INSTRUCTION_BEAD:-} ]]; then
+				bd comments "$EXPECT_INSTRUCTION_BEAD" --json | jq -e --arg text "$EXPECT_INSTRUCTION_TEXT" '.[-1].text | endswith("\n\n" + $text)' >/dev/null
+			fi
+			echo sent >> "$FIXTURE/sends"
+		fi
 		exit ;;
 	wait)
 		[[ $MODE != gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
@@ -107,7 +113,7 @@ fi
 [[ $2 != orch ]] || { echo '{"labels":{"herdr.space":"sp1"}}'; exit; }
 n=$(( $(cat "$FIXTURE/gets" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$FIXTURE/gets"
-state=live status="${AGENT_STATUS:-idle}" turn=1
+state=live status="${AGENT_STATUS:-idle}" turn="${AGENT_TURN:-1}"
 # Each hc send starts a turn, except in send-stuck.
 if [[ -e $FIXTURE/sends && $MODE != send-stuck ]]; then turn=$((turn + $(wc -l < "$FIXTURE/sends"))); fi
 if [[ $MODE == full ]]; then
@@ -125,7 +131,7 @@ case "$MODE" in
 	start-never) turn=0 ;;
 	hibernated) [[ -e $FIXTURE/removed ]] || state=finished ;;
 esac
-printf '{"state":"%s","status":{"state":"%s"},"turn":%s,"labels":{"resume":"%s"}}\n' "$state" "$status" "$turn" "${RESUME:-}"
+printf '{"state":"%s","status":{"state":"%s"},"turn":%s,"argv":["env","PATH=fixture","AGENT_BROWSER_NAMESPACE=w-worker-a","%s"],"labels":{"resume":"%s"}}\n' "$state" "$status" "$turn" "${AGENT_KIND:-pi}" "${RESUME:-}"
 MOCK
 cat > "$tmp/bin/sleep" <<'MOCK'
 #!/usr/bin/env bash
@@ -187,133 +193,141 @@ out=$(MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0)
 [[ $out =~ fp=[0-9a-f]{12}$ && $(sort -u "$tmp/hashes") == '-a 256' ]]
 rm "$tmp/bin/sha256sum" "$tmp/bin/shasum"
 
-# start-worker.sh: short prompt, literal brief outside cwd, confirm by turn.
+# start-worker.sh: bead bootstrap, explicit environment and design-only Pi tokens.
 mkdir -p "$tmp/wt-a"
-# shellcheck disable=SC2016 # literal brief text
-printf 'Fix $skill:x and $skill:y ; $(false)\nPrivate brief body\nulw' > "$tmp/brief with spaces"
-ln -s 'brief with spaces' "$tmp/brief"
-printf -v prompt 'Read the brief file at %q and follow it.' "$tmp/brief with spaces"
-pi_prompt="$prompt \$skill:x \$skill:y ulw"
+# shellcheck disable=SC2016 # literal Pi tokens
+bd update "$launch_task" --description 'Private body $skill:description-only' --design 'Use $skill:x and $skill:y and $skill:x' >/dev/null
 rm -f "$tmp/gets"
-check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 [[ $(cat "$tmp/gets") == 3 ]]
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent env PATH=$PATH AGENT_BROWSER_NAMESPACE=w-worker-a pi $pi_prompt" ]] || { echo 'FAIL: short Pi argv must reference absolute brief and preserve skill/ulw triggers'; exit 1; }
-[[ ${argv[-1]} == "$pi_prompt" && ${argv[*]} != *'Private brief body'* ]]
-[[ ! -s $tmp/labels ]]
-# A relative brief resolves before hc switches to the worker cwd.
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$(realpath --relative-to="$PWD" "$tmp/brief with spaces")"
+[[ ${argv[*]:0:${#argv[@]}-1} == "run --bg --json --no-notify --name w-worker-a --cwd $tmp/wt-a --outlive-parent --label orch-context=$scripts/worker-context.sh env PATH=$PATH AGENT_BROWSER_NAMESPACE=w-worker-a BEADS_ACTOR=w-worker-a ORCH_BEAD=$launch_task BEADS_DIR=$BEADS_DIR BEADS_DOLT_SHARED_SERVER= pi" ]]
+# shellcheck disable=SC2016 # literal Pi triggers
+[[ ${argv[-1]} == *"bd show $launch_task"* && ${argv[-1]} == *"bd comments $launch_task"* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:x $skill:y ulw' && ${argv[*]} != *'Private body'* ]]
+[[ -x $scripts/worker-context.sh && ! -s $tmp/labels ]]
+# Exercise nonempty server passthrough without contacting any server: bd itself
+# still uses the embedded fixture, while hc captures the worker's environment.
+export REAL_BD
+REAL_BD=$(command -v bd)
+cat > "$tmp/bin/bd" <<'MOCK'
+#!/usr/bin/env bash
+exec env -u BEADS_DOLT_SHARED_SERVER "$REAL_BD" "$@"
+MOCK
+chmod +x "$tmp/bin/bd"
+check 0 'turn 1' env MODE=settled BEADS_DOLT_SHARED_SERVER=fixture-server:3307 "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[-1]} == "$pi_prompt" ]]
-[[ $(cat "$tmp/brief") == "Fix \$skill:x and \$skill:y ; \$(false)"$'\nPrivate brief body\nulw' ]]
-check 0 '' env MODE=settled HC_TERMINAL_ID=orch "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(cat "$tmp/labels") == "label w-worker-a space=sp1" ]]
-: > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --resume s-1
+[[ ${argv[*]} == *'BEADS_DOLT_SHARED_SERVER=fixture-server:3307'* ]]
+rm "$tmp/bin/bd"
+check 0 'turn 1' env HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+[[ $(cat "$tmp/labels") == 'label w-worker-a space=sp1' ]]
+for kind in pi claude codex; do
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind "$kind"
+	mapfile -d '' -t argv < "$tmp/argv"
+	[[ ${argv[-1]} == *"bd prime"* && ${argv[-1]} == *"bd show $launch_task"* && ${argv[-1]} == *orchestrated-worker* ]]
+	if [[ $kind == pi ]]; then [[ ${argv[-1]} == *' ulw' ]]; fi
+	[[ $kind != codex || ${argv[*]} == *'codex --no-daemon '* ]]
+done
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --resume s-1
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-1 $pi_prompt" ]]
-: > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude --resume u-1
+[[ ${argv[*]} == *'pi --session s-1 '* ]]
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind claude --resume u-1
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a claude --resume u-1 $prompt" && ${argv[-1]} == "$prompt" ]]
-check 1 'cannot resume' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind codex --resume x
-: > "$tmp/calls"
-check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind codex
-mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a codex --no-daemon $prompt" && ${argv[-1]} == "$prompt" ]]
-check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-check 2 'terminal finished' env MODE=finished "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-check 2 'not confirmed' env MODE=start-never "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(tail -n 1 "$tmp/sleeps") == 2 ]]
-: > "$tmp/calls"
-check 1 'name_taken' env MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-: > "$tmp/calls"
-check 1 'invalid agent name' "$scripts/start-worker.sh" Worker_A "$tmp/wt-a" "$tmp/brief"
-# The role lives in the prefix: an unprefixed name is refused, and a worker
-# whose stem ends in -review is still a worker.
-check 1 'invalid agent name' "$scripts/start-worker.sh" a2a-618-mcp-review "$tmp/wt-a" "$tmp/brief"
-check 1 'no worktree' "$scripts/start-worker.sh" w-worker-a "$tmp/missing" "$tmp/brief"
-check 1 'unreadable brief' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/missing"
+[[ ${argv[*]} == *'claude --resume u-1 '* ]]
+check 1 'cannot resume' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind codex --resume x
+check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+check 2 'terminal finished' env MODE=finished "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+check 2 'not confirmed' env MODE=start-never "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+check 1 'name_taken' env MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+check 1 'invalid agent name' "$scripts/start-worker.sh" Worker_A "$tmp/wt-a" "$launch_task"
+check 1 'invalid agent name' "$scripts/start-worker.sh" no-prefix "$tmp/wt-a" "$launch_task"
+check 1 'no worktree' "$scripts/start-worker.sh" w-worker-a "$tmp/missing" "$launch_task"
+check 1 '' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" orch-missing
 check 1 'usage' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a"
-[[ ! -s $tmp/calls ]]
-
-# ORCH_EPIC: write events on the existing child only after successful delivery.
-check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(bd comments "$launch_task" --json | jq 'length') == 0 ]]
-check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-comments=$(bd comments "$launch_task" --json)
-jq -e --arg wt "$tmp/wt-a" --arg brief "$tmp/brief with spaces" 'length == 1 and .[0].author == "o-orch" and (.[0].text | startswith("event=dispatched ") and contains("agent=w-worker-a") and contains("terminal=t9") and contains("worktree=" + $wt) and contains("brief=" + $brief) and contains("kind=claude"))' <<<"$comments" >/dev/null
-check 2 'blocked' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-check 1 'name_taken' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
-# Missing children and event-write failures never fail a dispatch or create tasks.
-children=$(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length')
-check 0 'warning: no task bead for w-unknown' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
-check 0 'warning: no task bead for w-unknown' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
-[[ $(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length') == "$children" ]]
-check 0 'working' env ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
-: > "$tmp/calls"
-check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-comments=$(bd comments "$launch_task" --json)
-jq -e 'length == 2 and (.[-1].text | startswith("event=re-instructed ") and (contains("last-reviewed=") | not))' <<<"$comments" >/dev/null
-rm -f "$tmp/removed"
-check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-comments=$(bd comments "$launch_task" --json)
-jq -e 'length == 3 and ([.[] | select(.text | startswith("event=dispatched "))] | length == 1) and (.[-1].text | startswith("event=re-instructed "))' <<<"$comments" >/dev/null
-check 2 'blocked' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(bd comments "$launch_task" --json | jq 'length') == 3 ]]
-# Prefer the longest exact/hyphen-prefix metadata key; never match another epic.
-short_task=$(bd create 'Short key' --parent "$launch_epic" --metadata '{"key":"worker"}' --silent)
-other_epic=$(bd create 'Other launch session' --type epic --silent)
-other_task=$(bd create 'Same key elsewhere' --parent "$other_epic" --metadata '{"key":"worker-a"}' --silent)
-check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a-fix "$tmp/wt-a" "$tmp/brief"
-check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-worker-a-fix "$tmp/wt-a" "$tmp/brief"
-[[ $(bd comments "$launch_task" --json | jq 'length') == 5 && $(bd comments "$short_task" --json | jq 'length') == 0 && $(bd comments "$other_task" --json | jq 'length') == 0 ]]
-: > "$tmp/calls"
+# Events target the explicit bead, independent of epic and agent-name keys.
+check 0 'working' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unrelated "$tmp/wt-a" "$launch_task"
+bd comments "$launch_task" --json | jq -e '.[-1] | .author == "o-orch" and (.text | startswith("event=dispatched ") and contains("agent=w-unrelated"))' >/dev/null
+rows=$(bd comments "$launch_task" --json | jq length)
+check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+[[ $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
+other_epic=$(bd create 'Other session' --type epic --silent)
+instruction=$'Fix literal ; $(false)\nSecond line\nulw'
 
 # Reviewer startup uses hc ls's observed string status, not hc get's object.
 ln -s "$tmp/wt-a" "$tmp/wt-alias"
 printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
 : > "$tmp/calls"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
 [[ ! -s $tmp/calls ]]
 for terminal in 'live idle w-worker-a' 'finished working w-worker-a' 'live working r-other'; do
 	read -r state status name <<< "$terminal"
 	printf '{"terminals":[{"address":"t1","name":"%s","cwd":"%s","state":"%s","status":"%s"}]}\n' "$name" "$tmp/wt-a" "$state" "$status" > "$tmp/terminals.json"
-	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
 done
 printf '{"terminals":[{"address":"t1","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-a" > "$tmp/terminals.json"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
 printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp" > "$tmp/terminals.json"
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$tmp/brief"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 : > "$tmp/calls"
 
-# send-followup.sh: hc send to a live worker; revive a resumable finished one.
-check 0 'sent' env MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(cat "$tmp/calls") == "send w-worker-a $(cat "$tmp/brief")" ]]
+# Re-instructions persist full text before sending only a bootstrap pointer.
 : > "$tmp/calls"
-check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled EXPECT_INSTRUCTION_BEAD="$launch_task" EXPECT_INSTRUCTION_TEXT="$instruction" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+bd comments "$launch_task" --json | jq -e --arg text "$instruction" '.[-1] | .author == "o-orch" and (.text | endswith("\n\n" + $text))' >/dev/null
+[[ $(cat "$tmp/calls") == *"bd comments $launch_task"* && $(cat "$tmp/calls") != *"$instruction"* ]]
+# A live Pi after /new needs the same skill activation as first launch.
+rm -f "$tmp/sends"
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND=pi AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+sent=$(cat "$tmp/sent-text")
+# shellcheck disable=SC2016 # literal machine-consumed Pi triggers
+[[ $sent == *' $skill:orchestrated-worker $skill:x $skill:y ulw' && $sent != *'$skill:description-only'* ]]
+[[ $sent == *"bd prime"* && $sent == *"bd show $launch_task"* && $sent == *"bd comments $launch_task"* && $sent == *event=report* ]]
+# Claude and Codex keep plain bootstrap prompts, without Pi-only activation.
+for kind in claude codex; do
+	rm -f "$tmp/sends"
+	check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled AGENT_KIND="$kind" AGENT_TURN=0 "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+	sent=$(cat "$tmp/sent-text")
+	# shellcheck disable=SC2016 # Pi trigger must not route to other harnesses
+	[[ $sent != *'$skill:'* && $sent != *' ulw' ]]
+	[[ $sent == *orchestrated-worker* && $sent == *"bd prime"* && $sent == *"bd show $launch_task"* && $sent == *"bd comments $launch_task"* && $sent == *event=report* ]]
+done
+: > "$tmp/calls"
+rows=$(bd comments "$launch_task" --json | jq length)
+check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+[[ ! -s $tmp/calls && $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
+for resume in 'pi --session s-9' 'claude --resume u-9'; do
+	rm -f "$tmp/removed"
+	check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME="$resume" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+	mapfile -d '' -t argv < "$tmp/argv"
+	[[ ${argv[*]} == *"$resume"* && ${argv[-1]} == *"bd comments $launch_task"* ]]
+done
+: > "$tmp/calls"
+check 2 'without a resumable session' env HC_TERMINAL_ID=orch MODE=finished "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 [[ ! -s $tmp/calls ]]
-rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='env AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-9' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(head -n 1 "$tmp/calls") == "rm w-worker-a" ]]
-mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a pi --session s-9 $pi_prompt" && ${argv[-1]} == "$pi_prompt" ]]
+check 1 'usage' "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a"
 : > "$tmp/calls"
-rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='claude --resume u-9' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *"AGENT_BROWSER_NAMESPACE=w-worker-a claude --resume u-9 $prompt" && ${argv[-1]} == "$prompt" ]]
-: > "$tmp/calls"
-check 2 'without a resumable session' env MODE=finished "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 1 '' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" orch-missing "$instruction"
 [[ ! -s $tmp/calls ]]
-check 1 'unreadable brief' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/missing"
-check 1 'usage' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a"
-# A sent follow-up must start a turn before the script returns.
-check 2 'no turn started' env MODE=send-stuck "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 2 'no turn started' env HC_TERMINAL_ID=orch MODE=send-stuck "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+
+# Compaction context is all-or-nothing and resolves current assigned work.
+bd update "$launch_task" --notes 'Plan: context fixture notes' >/dev/null
+bd comments add "$launch_task" $'event=re-instructed agent=w-worker-a\n\nLatest context instruction' >/dev/null
+bd comments add "$launch_task" 'event=note detail=not-an-instruction' >/dev/null
+out=$(BEADS_ACTOR=unassigned ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+skill_text=$(cat "$scripts/../../orchestrated-worker/SKILL.md")
+[[ $out == "$skill_text"* && $out == *'context fixture notes'* && $out == *$'event=re-instructed agent=w-worker-a\n\nLatest context instruction' ]]
+current=$(bd create 'Current assigned work' --assignee w-context --silent)
+bd update "$current" --status in_progress --notes 'Current notepad' >/dev/null
+out=$(BEADS_ACTOR=w-context ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+[[ $out == *'Current notepad'* && $out != *'context fixture notes'* ]]
+newest=$(bd create 'Newer assigned work' --assignee w-context --silent)
+bd update "$newest" --status in_progress --notes 'Newest notepad' >/dev/null
+out=$(BEADS_ACTOR=w-context ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
+[[ $out == *'Newest notepad'* && $out != *'Current notepad'* ]]
+[[ -z $(env -u ORCH_BEAD BEADS_ACTOR=unassigned "$scripts/worker-context.sh") ]]
+[[ -z $(ORCH_BEAD=orch-missing BEADS_ACTOR=unassigned "$scripts/worker-context.sh") ]]
+[[ -z $(BEADS_DIR="$tmp/nonexistent/.beads" "$scripts/worker-context.sh" 2>&1) ]]
 
 # --max: only this orchestrator's live working w-/r- agents hold a slot.
 printf '{"terminals":[%s]}\n' '{"name":"w-a","state":"live","status":"working"},{"name":"r-b","state":"live","status":"working"},{"name":"w-c","state":"live","status":"idle"},{"name":"w-blocked","state":"live","status":"blocked"},{"name":"helper","state":"live","status":"working"},{"state":"live","status":"working"},{"name":"w-gone","state":"finished","status":"working"}' > "$tmp/terminals.json"
@@ -326,23 +340,23 @@ check 0 '' "$scripts/slot-free.sh"
 check 1 'invalid ORCH_MAX' env ORCH_MAX=0 HC_TERMINAL_ID=orch "$scripts/slot-free.sh"
 check 1 'needs HC_TERMINAL_ID' env ORCH_MAX=2 "$scripts/slot-free.sh"
 : > "$tmp/calls"
-brief_before=$(cat "$tmp/brief")
-check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$tmp/brief"
-check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-followup.sh" w-c "$tmp/wt-a" "$tmp/brief"
-check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-followup.sh" r-x "$tmp/wt-a" "$tmp/brief" --last-reviewed HEAD
-[[ ! -s $tmp/calls && $(cat "$tmp/brief") == "$brief_before" ]] || { echo 'FAIL: a refused start or follow-up must have no side effects'; exit 1; }
+rows=$(bd comments "$launch_task" --json | jq length)
+check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$launch_task"
+check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" w-c "$tmp/wt-a" "$launch_task" "$instruction"
+check 4 'no free slot' env HC_TERMINAL_ID=orch ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-x "$tmp/wt-a" "$launch_task" "$instruction" --last-reviewed HEAD
+[[ ! -s $tmp/calls && $(bd comments "$launch_task" --json | jq length) == "$rows" ]] || { echo 'FAIL: a refused start or follow-up must have no side effects'; exit 1; }
 # A follow-up to an agent already working takes no new slot.
-check 0 'sent' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$scripts/send-followup.sh" w-a "$tmp/wt-a" "$tmp/brief"
-check 0 'turn 1' env ORCH_MAX=3 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$tmp/brief"
+check 0 'sent' env HC_TERMINAL_ID=orch ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$scripts/send-reinstruction.sh" w-a "$tmp/wt-a" "$launch_task" "$instruction"
+check 0 'turn 1' env ORCH_MAX=3 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$launch_task"
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *'--outlive-parent --label orch=orch env '* ]] || { echo 'FAIL: a worker must carry its orchestrator label from launch'; exit 1; }
+[[ ${argv[*]} == *"--outlive-parent --label orch-context=$scripts/worker-context.sh --label orch=orch env "* ]] || { echo 'FAIL: a worker must carry its orchestrator label from launch'; exit 1; }
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 : > "$tmp/calls"
 
 # A later reviewer round cannot bypass the base gate, even on resume.
 : > "$tmp/calls"
-check 3 'requires --last-reviewed' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/wt-a" "$tmp/brief"
-check 3 'requires --last-reviewed' env MODE=finished "$scripts/send-followup.sh" r-task "$tmp/wt-a" "$tmp/brief"
+check 3 'requires --last-reviewed' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/wt-a" "$launch_task" "$instruction"
+check 3 'requires --last-reviewed' env HC_TERMINAL_ID=orch MODE=finished "$scripts/send-reinstruction.sh" r-task "$tmp/wt-a" "$launch_task" "$instruction"
 [[ ! -s $tmp/calls ]]
 
 # herdr-app mock: init never touches the person's real window.
@@ -444,22 +458,24 @@ git -C "$tmp/work" commit -qm feature --allow-empty
 head=$(git -C "$tmp/work" rev-parse HEAD)
 # Review scope must resolve to a commit in this worktree's HEAD history.
 : > "$tmp/calls"
-check 3 'not a commit' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/brief" --last-reviewed missing
+check 3 'not a commit' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$launch_task" "$instruction" --last-reviewed missing
 [[ ! -s $tmp/calls ]]
 review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
-printf '%s' "$review_body" > "$tmp/review-brief"
+instruction="$review_body"
 review_task=$(bd create 'Reviewer event' --parent "$launch_epic" --metadata '{"key":"task"}' --silent)
-check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
 bd comments "$review_task" --json | jq -e --arg base "$main" '.[-1].text | contains("last-reviewed=" + $base)' >/dev/null
-[[ $(cat "$tmp/calls") == *"$main..HEAD"* ]]
-[[ $(cat "$tmp/calls") == *"$review_body" ]] || { echo 'FAIL: live reviewer prompt must preserve the reporting footer and final ulw'; exit 1; }
+comments=$(bd comments "$review_task" --json)
+[[ $comments == *"$main..HEAD"* ]]
+[[ $(jq -r '.[-1].text' <<<"$comments") == *"$review_body" ]] || { echo 'FAIL: reviewer comment must preserve the full instructions'; exit 1; }
 # Same reviewer name and session survive finished-terminal revival.
 rm -f "$tmp/removed"
-check 0 'working' env MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$head"
+check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$head"
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *'pi --session review-9'* ]]
-[[ $(cat "$tmp/review-brief") == *"$head..HEAD"* ]]
-[[ $(cat "$tmp/review-brief") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: resumed reviewer brief and prompt must retain final ulw'; exit 1; }
+comments=$(bd comments "$review_task" --json)
+[[ $comments == *"$head..HEAD"* ]]
+[[ $(jq -r '.[-2].text' <<<"$comments") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: revived reviewer comment must preserve instructions and Pi bootstrap'; exit 1; }
 
 # Guard failures must happen before the passed command executes.
 check 1 'not on branch' "$scripts/push-pinned.sh" "$tmp/work" other "$main" -- touch "$tmp/built"
@@ -467,7 +483,7 @@ check 3 'expected wrong' "$scripts/push-pinned.sh" "$tmp/work" topic wrong -- to
 git -C "$tmp/work" switch -q --orphan unrelated
 git -C "$tmp/work" commit -qm unrelated --allow-empty
 : > "$tmp/calls"
-check 3 'not an ancestor' env MODE=settled "$scripts/send-followup.sh" r-task "$tmp/work" "$tmp/review-brief" --last-reviewed "$main"
+check 3 'not an ancestor' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
 [[ ! -s $tmp/calls ]]
 check 3 'not an ancestor' "$scripts/push-pinned.sh" "$tmp/work" unrelated "$main" -- touch "$tmp/built"
 [[ ! -e $tmp/built ]]

@@ -5,10 +5,11 @@
       "id": 1,
       "name": "default-fire-and-forget-single",
       "prompt": "Use orchestrate-using-herdr-app for the agreed cache-key validation fix. We are in the repository root checkout. We already agreed to validate keys in the save path and reuse the existing KeyError type. No flags.",
-      "expected_output": "Writes the spec as the brief (no ticket), carries the agreed save-path and KeyError details as binding, creates a worktree from the parent source outside the source checkout, starts a pi worker with scripts/start-worker.sh carrying one brief ending with ulw, confirms acceptance, reports the handoff, and stops.",
+      "expected_output": "Writes description, acceptance (including Broad run:) and design on a local task bead, with save-path validation and KeyError reuse binding in design; creates an external worktree, records worktree/branch/base metadata after claim and starts start-worker.sh <name> <worktree> <bead>. Pi receives $skill:orchestrated-worker, design skill tokens, bd prime, bd show and final ulw. Confirms acceptance, reports the handoff and stops without monitoring.",
       "expectations": [
-        "Creates no issue-tracker ticket without --track.",
-        "Marks the agreed implementation details binding in the brief.",
+        "Creates no issue-tracker ticket without --track, but creates a local task bead.",
+        "Stores agreed details in design and observable checks including Broad run: in acceptance; no brief file.",
+        "Passes the bead to startup; Pi loads standing contract and design skill tokens before final ulw.",
         "Stops after confirmed prompt acceptance without monitoring."
       ],
       "files": []
@@ -39,13 +40,14 @@
     },
     {
       "id": 4,
-      "name": "batch-shares-one-brief",
+      "name": "batch-target-beads",
       "prompt": "Earlier in this conversation we agreed: review PRs #41, #42 and #43 with code-review, draft verdicts only, no posting. Now: orchestrate-using-herdr-app.",
-      "expected_output": "Dispatches one worker per PR immediately without asking to confirm a plan, using one shared brief that differs only in the target PR; carries the draft-only, no-posting decision into every brief.",
+      "expected_output": "Creates a batch parent bead with the shared task definition and one child batch target bead per PR, each with key=<slug>-<target> and its target-specific fields. Claims and dispatches only target beads, never the batch parent. Carries draft-only and no-posting into every target design. Closes the parent only when all targets close; no brief files.",
       "expectations": [
         "Does not ask for plan confirmation of already agreed work.",
-        "Uses one shared brief with only the target differing.",
-        "Carries the no-posting decision as a binding decision."
+        "Creates one child batch target bead per PR with target-specific key and copied task fields.",
+        "Claims and dispatches targets only; closes parent only after all targets close.",
+        "Carries no-posting as a binding design decision and writes no brief file."
       ],
       "files": []
     },
@@ -223,12 +225,13 @@
     {
       "id": 19,
       "name": "pi-compaction-and-new-bug",
-      "prompt": "Offline simulation: a Pi worker reports done but its screen still says Compacting. A follow-up is ready. Later /new unexpectedly exits Pi and its hc terminal finishes. Describe safe delivery in both cases without running commands.",
-      "expected_output": "Waits until hc read <name> no longer shows Compacting before sending the follow-up; does not trust done or queue a message. Treats /new exiting as a bug: removes the finished terminal with hc rm <name>, restarts with scripts/start-worker.sh <name> <worktree> <brief-file> carrying the full brief, and verifies the replacement is working.",
+      "prompt": "Offline simulation: a Pi worker reports done but its screen still says Compacting. A re-instruction is ready. Later you type /new and Pi exits, leaving the terminal finished. Describe how you handle both, including bead recovery after compaction; do not run commands.",
+      "expected_output": "Waits until hc read no longer shows Compacting, then sends through send-reinstruction.sh with the bead and full text. Pi and Claude invoke the executable orch-context script with no arguments after compaction; it prints standing contract, current bead including notes and latest re-instruction. Treats /new exit as a bug and revives the resumable session through send-reinstruction.sh, or starts start-worker.sh with the bead if no resume is available, confirming working. Bootstrap repeats standing skill, bd prime and bd show, with Pi design tokens and final ulw. Codex recovery is deferred in wf-494.",
       "expectations": [
-        "Does not send or queue a message during compaction.",
-        "Preserves normal /new semantics and treats exit as an exceptional bug.",
-        "Restarts in the assigned worktree under the same name with the full brief and confirms the replacement is active."
+        "Does not queue a message during compaction.",
+        "Uses bead context rather than a brief file; current bead is latest in_progress assigned to BEADS_ACTOR, else ORCH_BEAD.",
+        "Explains Pi/Claude orch-context recovery and existing Codex follow-up wf-494.",
+        "Preserves normal /new semantics and confirms restarted worker is active."
       ],
       "files": []
     },
@@ -276,12 +279,12 @@
       "id": 23,
       "name": "pre-pr-review-by-other-kind",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --auto. Pi worker w-a2a-448-web in ~/.herdr/worktrees/xiangxi/w-a2a-448-web (base origin/main, branch server-agent-web) reports: committed locally, ready for local review before push, head 3793f059. git diff --shortstat origin/main...HEAD (lockfiles excluded) shows 73 files changed, 4100 insertions, including a new Prisma migration. Describe what you do until the PR opens, and how you retain the reviewer for the no-bot-review fallback.",
-      "expected_output": "Picks high, starts a claude reviewer named r-a2a-448-web in the same settled worktree for a whole-branch review with a plain prompt naming the range, the ticket and the task brief (not the bundled /code-review), handles folder trust, watches it, and relays its raw-review file to the Pi worker through send-followup.sh. Repairs stay local; at most one incremental round reuses the reviewer session with --last-reviewed and concrete base..HEAD scope. Every finding is relayed; valid in-scope non-blocking ones are fixed by default, listed in the PR body only when they need a user decision or fall out of scope, and never trigger rounds. Releases push and PR creation when no blocker remains and retains the reviewer for the post-push fallback taken only when no bot reviewed the head. Logs reviewed evidence; at a cap with a real bug under --auto decides and logs a note, asking only before merging a known issue.",
+      "expected_output": "Picks high, starts a claude reviewer named r-a2a-448-web in the same settled worktree for a whole-branch review with a plain prompt naming the range, the ticket and the task brief (not the bundled /code-review), handles folder trust, watches it, and relays its raw-review file to the Pi worker through send-reinstruction.sh. Repairs stay local; at most one incremental round reuses the reviewer session with --last-reviewed and concrete base..HEAD scope. Every finding is relayed; valid in-scope non-blocking ones are fixed by default, listed in the PR body only when they need a user decision or fall out of scope, and never trigger rounds. Releases push and PR creation when no blocker remains and retains the reviewer for the post-push fallback taken only when no bot reviewed the head. Logs reviewed evidence; at a cap with a real bug under --auto decides and logs a note, asking only before merging a known issue.",
       "expectations": [
         "Chooses level high from the shortstat and the migration, and records a reviewed event comment with the shortstat, kind, level, and result",
         "Starts the reviewer as a claude hc worker via start-worker.sh --kind claude after the worker settles, with a plain review prompt (not /code-review or /review) naming the range, ticket and task brief, with no $skill: token or ulw, and only the raw-review output file writable; handles folder trust",
-        "Relays every finding via a raw-review file reference in send-followup.sh; repairs remain local until release, and non-blocking fix-or-list findings never trigger rounds",
-        "Keeps the same reviewer session across at most one incremental round, requiring --last-reviewed through send-followup.sh; retains it for bot fallback and never reaps the shared worktree",
+        "Relays every finding via a raw-review file reference in send-reinstruction.sh; repairs remain local until release, and non-blocking fix-or-list findings never trigger rounds",
+        "Keeps the same reviewer session across at most one incremental round, requiring --last-reviewed through send-reinstruction.sh; retains it for bot fallback and never reaps the shared worktree",
         "At a cap with a real bug under --auto, decides and logs a note; asks the user only before merging a known issue"
       ],
       "files": []
@@ -289,14 +292,14 @@
     {
       "id": 24,
       "name": "workers-report-by-pull-only",
-      "prompt": "Offline simulation: orchestrate-using-herdr-app with no flag, then later --watch, in hc terminal t3. Dispatch Pi worker cache-fix in its worktree. Later, re-instruct it with a repair. Show the brief's Reporting line, the start command, what you do after dispatch, and the repair message. Then say what you do if a note tagged <hc from=\"t5 cache-fix\"> appears in your input mid-sentence of the user's prompt. Do not run commands or interact with live agents.",
-      "expected_output": "Starts the worker with scripts/start-worker.sh (which passes --no-notify). The brief tells the worker to report by ending its turn and never hc send to the orchestrator, ignoring reach= hints. In no-flag mode reports the handoff and stops, starting no watcher; under --watch it starts one background watch-agent.sh per worker. The repair message ends with the one-line reporting reminder. A stray <hc> note is treated as a child report, not user input; it separates the user's own text and inspects the worker with hc read before acting.",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app with no flag, then later --watch, in hc terminal t3. Dispatch Pi worker cache-fix on a task bead. Later send a repair re-instruction. Show startup, result reporting, and repair delivery. What if a stray <hc from=\"t5 cache-fix\"> note appears inside the user prompt? Do not run commands.",
+      "expected_output": "Uses start-worker.sh <name> <worktree> <bead>, with --no-notify, explicit bead env and orch-context label. Standing contract requires event=report kind=ready-local|pushed|pr-opened|blocked|done head=<sha> [pr=<url>] comments with result and evidence paths, then turn end, never hc send. Reads bd comments for results, not screen. No-flag mode hands off without watcher; --watch starts one background watcher per worker. Repair goes through send-reinstruction.sh as a full event=re-instructed comment plus pointer. Stray hc note is not a user instruction; inspect bead report and lifecycle separately.",
       "expectations": [
-        "Brief Reporting tells the worker to end its turn with the result and never hc send to the orchestrator, even with a reach= hint.",
-        "Starts the worker through start-worker.sh, whose hc run carries --no-notify.",
-        "In no-flag mode reports the handoff and stops without a watcher; under --watch starts one background watch-agent.sh per worker.",
-        "Ends the repair message with the reporting reminder line.",
-        "Treats a stray <hc> note as a child report, keeps the user's own text separate, and inspects the worker before acting."
+        "Reads worker result from event=report comment with head SHA and evidence paths, not screen.",
+        "Uses bead-based startup with --no-notify, env and orch-context label.",
+        "No-flag mode stops after handoff; --watch runs separate worker watchers.",
+        "Persists full repair in event=re-instructed comment and sends a pointer.",
+        "Treats stray hc note as child data and preserves user text."
       ],
       "files": []
     },
@@ -319,7 +322,7 @@
       "expectations": [
         "The peer brief transfers terminal t7k, the worktree path, and branch a2a-466-fix to the peer by name",
         "Stops its own watch-agent.sh watcher for a2a-466 and logs the worker as handed off",
-        "After launch, never runs hc read, hc send, send-followup.sh, or reap-worker.sh on t7k"
+        "After launch, never runs hc read, hc send, send-reinstruction.sh, or reap-worker.sh on t7k"
       ],
       "files": []
     },
@@ -339,12 +342,12 @@
       "id": 28,
       "name": "max-caps-working-agents",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch --max 2 for four agreed independent tasks A, B, C and D, Pi workers. Tests saturated the host's CPU when four workers ran at once. A and B start; A goes idle ready for local review while B keeps working; later B goes idle too. Describe how you initialize, dispatch, review, and release work, and what you log; do not run commands.",
-      "expected_output": "Runs orchestrate-init.sh with --mode '--watch --max 2' and runs both printed lines, export ORCH_EPIC and export ORCH_MAX=2. Dispatches A and B; start-worker.sh exits 4 for C (or C is held before calling), so C and D get child task beads under ORCH_EPIC with key metadata and queued event comments carrying needs=slot and a brief path. When A goes idle, the next slot goes to the oldest wait: either C's dispatch or A's claude reviewer, each counted as one working agent; never three agents working at once. Follow-ups through send-followup.sh obey the same cap, and an exit 4 is queued, not retried blindly. Idle, blocked and finished agents hold no slot.",
+      "expected_output": "Runs orchestrate-init.sh with --watch --max 2 and applies ORCH_EPIC and ORCH_MAX exports. Creates task definitions on beads including Broad run: and dispatches A and B by bead. Holds C and D with queued needs=slot comments, no brief paths. When A idles, oldest wait gets the slot, either C or A reviewer; never three working agents. send-reinstruction.sh obeys cap and exit 4 queues without delivery. Idle, blocked and finished hold no slot.",
       "expectations": [
-        "Initializes with --max 2 alongside --watch and exports ORCH_MAX=2 in the shells that start or follow up workers",
-        "Never has more than two of its agents working at once, counting the reviewer as an agent",
-        "Records held work as queued events on task beads with needs=slot and releases the oldest wait first when an agent goes idle",
-        "Treats exit 4 from start-worker.sh or send-followup.sh as no free slot: queues the call instead of retrying it"
+        "Exports ORCH_MAX=2 alongside ORCH_EPIC in dispatch and re-instruction shells.",
+        "Never exceeds two working agents, including reviewers.",
+        "Stores held work as queued bead events with needs=slot, not brief paths, and releases oldest wait first.",
+        "Treats exit 4 from start-worker.sh or send-reinstruction.sh as queued, not a retry."
       ],
       "files": []
     }

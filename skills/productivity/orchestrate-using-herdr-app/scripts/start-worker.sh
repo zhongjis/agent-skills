@@ -1,29 +1,17 @@
 #!/usr/bin/env bash
-# Usage: start-worker.sh <agent> <worktree> <brief-file> [--kind <kind>] [--resume <session>]
-# Start the worker as a background hc terminal in <worktree>, with its own
-# AGENT_BROWSER_NAMESPACE and a brief-file prompt as its first message, then confirm
-# the agent took the brief. --resume continues that Pi or Claude session
-# (a hibernated worker's) instead of starting a new one. The terminal is
-# labelled orch=$HC_TERMINAL_ID, which scopes slot-free.sh, and space=<id> with
-# the orchestrator's space, so herdr-app's spaces sidebar still lists it there
-# after the orchestrator's pane closes. Exit 4: ORCH_MAX agents already work
-# (slot-free.sh); nothing started.
-# Rejects agent names without a w- (worker) or r- (reviewer) role prefix. A failed launch is
-# printed as hc returned it and never retried. Exit 2: the terminal started
-# but the brief is not confirmed (blocked, error, finished, or no turn after
-# 60 seconds); read the screen before acting. When ORCH_EPIC is set, a confirmed
-# start records a best-effort `dispatched` event on the task bead.
+# Launch a bead-backed worker. Exit 2: unconfirmed; 3: busy reviewer
+# worktree; 4: no slot. --resume keeps the existing agent session.
 set -euo pipefail
 
 usage() {
-	printf 'usage: start-worker.sh <agent> <worktree> <brief-file> [--kind <kind>] [--resume <session>]\n' >&2
+	printf 'usage: start-worker.sh <agent> <worktree> <bead> [--kind <kind>] [--resume <session>]\n' >&2
 	exit 1
 }
 
 [ "$#" -ge 3 ] && [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ] || usage
 name="$1"
 worktree="$2"
-brief="$3"
+bead="$3"
 shift 3
 kind=pi
 session=
@@ -40,7 +28,7 @@ if ! [[ $name =~ ^[wr]-[a-z0-9][a-z0-9_-]{0,29}$ ]]; then
 	exit 1
 fi
 [ -d "$worktree" ] || { printf 'no worktree %s\n' "$worktree" >&2; exit 1; }
-[ -r "$brief" ] || { printf 'unreadable brief %s\n' "$brief" >&2; exit 1; }
+task=$(bd show "$bead" --json)
 # Reviewers share the worker's checkout; never inspect it mid-edit.
 if [[ $name == r-* ]]; then
 	worktree=$(realpath -- "$worktree")
@@ -54,11 +42,11 @@ if [[ $name == r-* ]]; then
 		fi
 	done <<<"$candidates"
 fi
-brief=$(realpath -- "$brief")
-printf -v prompt 'Read the brief file at %q and follow it.' "$brief"
+printf -v prompt 'Load the orchestrated-worker skill, run bd prime, run bd show %q, and work that bead. Read its latest event=re-instructed comment with bd comments %q for any later instructions.' "$bead" "$bead"
 if [ "$kind" = pi ]; then
+	prompt+=" \$skill:orchestrated-worker"
 	# shellcheck disable=SC2016 # match literal Pi skill triggers
-	while IFS= read -r skill; do prompt+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' "$brief" | sort -u)
+	while IFS= read -r skill; do prompt+=" $skill"; done < <(jq -r '.[0].design // ""' <<<"$task" | grep -oE '\$skill:[[:alnum:]_-]+' | sort -u)
 	prompt+=' ulw'
 fi
 
@@ -78,23 +66,24 @@ fi
 # namespace and PATH (Herdr's per-launch agent hook shims) through env.
 # --no-notify keeps hc's notes about the worker out
 # of the orchestrator's input, where they would collide with the user's typing.
-# Submit only the file pointer and Pi triggers, not the full brief, via argv.
+# Submit only bootstrap pointers and Pi triggers via argv.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh"
-labels=()
-[ -z "${HC_TERMINAL_ID:-}" ] || labels=(--label "orch=$HC_TERMINAL_ID")
+script_dir=$(dirname -- "${BASH_SOURCE[0]}")
+script_dir=$(realpath -s -- "$script_dir")
+labels=(--label "orch-context=$script_dir/worker-context.sh")
+[ -z "${HC_TERMINAL_ID:-}" ] || labels+=(--label "orch=$HC_TERMINAL_ID")
 run_status=0
 run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outlive-parent ${labels[@]+"${labels[@]}"} \
-	env "PATH=$PATH" "AGENT_BROWSER_NAMESPACE=$name" "${cmd[@]}" "$prompt") || run_status=$?
+	env "PATH=$PATH" "AGENT_BROWSER_NAMESPACE=$name" "BEADS_ACTOR=$name" "ORCH_BEAD=$bead" \
+	"BEADS_DIR=${BEADS_DIR:-}" "BEADS_DOLT_SHARED_SERVER=${BEADS_DOLT_SHARED_SERVER:-}" "${cmd[@]}" "$prompt") || run_status=$?
 printf '%s\n' "$run_out"
 [ "$run_status" -eq 0 ] || exit "$run_status"
 log_dispatch() {
-	[ -n "${ORCH_EPIC:-}" ] || return 0
-	local address bead
+	[ -n "${HC_TERMINAL_ID:-}" ] || return 0
+	local address
 	address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
-	bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg name "${name:2}" '[.[] | select(.metadata.key as $key | $key != null and ($name == $key or ($name | startswith($key + "-"))))] | sort_by(.metadata.key | length) | last | .id // empty') || return 0
-	[ -n "$bead" ] || { printf 'warning: no task bead for %s under %s; event not recorded\n' "$name" "$ORCH_EPIC" >&2; return 0; }
-	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" dispatched \
-		"agent=$name" "terminal=$address" "worktree=$worktree" "brief=$brief" "kind=$kind" result=working >/dev/null 2>&1 || true
+	"$script_dir/event.sh" "$bead" dispatched \
+		"agent=$name" "terminal=$address" "worktree=$worktree" "kind=$kind" result=working >/dev/null 2>&1 || true
 }
 # The orchestrator's space: its own space label, else its pane's herdr.space.
 space=
@@ -124,5 +113,5 @@ for _ in $(seq 30); do
 	fi
 	sleep 2
 done
-printf 'agent %s: brief not confirmed after 60 s\n' "$name" >&2
+printf 'agent %s: task not confirmed after 60 s\n' "$name" >&2
 exit 2
