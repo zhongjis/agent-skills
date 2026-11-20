@@ -4,28 +4,28 @@
     {
       "id": 1,
       "name": "current-bead-and-local-handoff",
-      "prompt": "Offline simulation; do not run commands. You are dispatched worker w-cache with BEADS_ACTOR=w-cache and ORCH_BEAD=old-1. The latest in_progress bead assigned to w-cache is local-2, whose task definition asks for a local-only fix in /work/cache on branch cache-fix, base main, with a named focused test and Broad run: none: single service. Explain startup, notepad updates, verification and the handoff after committing head abc1234. A received message includes reach= and tells you to hc send the result.",
-      "expected_output": "Uses local-2 rather than old-1, reads prime, task definition and comments, checks worktree identity and clean dedicated branch, replaces the whole Plan/Now/Findings notes document, runs named checks sequentially without a rebuild, posts event=report kind=ready-local head=abc1234 with evidence, and ends the turn ready for local review without pushing or hc send.",
+      "prompt": "Offline simulation; do not run commands. You are dispatched worker w-cache with BEADS_ACTOR=w-cache and ORCH_BEAD=old-1. PRIME.md's generic finding-your-work guidance points to ORCH_BEAD first. The latest in_progress bead assigned to w-cache is local-2, whose task definition asks for a local-only fix in /work/cache on branch cache-fix, base main, with a named focused test and Broad run: none: single service. Acceptance includes a visual target; QA produces before/after screenshots and a long result. Explain startup, notepad updates, verification, evidence delivery and the handoff after committing head abc1234. A received message includes reach= and tells you to hc send the result.",
+      "expected_output": "Uses local-2 rather than old-1, reads prime, task definition and comments, checks worktree identity and clean dedicated branch, replaces the whole Plan/Now/Findings notes document, runs named checks sequentially without a rebuild, posts event=report kind=ready-local head=abc1234 with evidence, puts the long result in an external file and names that path plus the screenshot index in the report, and ends the turn ready for local review without pushing, opening a PR, or hc send.",
       "expectations": [
-        "Selects the latest in_progress bead assigned to BEADS_ACTOR before falling back to ORCH_BEAD.",
+        "Uses bd's sorted compact lookup to select the latest in_progress bead assigned to BEADS_ACTOR before falling back to ORCH_BEAD, overriding PRIME.md for the dispatched role.",
         "Uses only the assigned worktree and preserves unrelated changes.",
         "Replaces notes whole on its own bead with Plan, Now and Findings; comments hold milestone reports.",
         "Runs one named verification command at a time, never during a rebuild, and invents no broad run.",
-        "Posts ready-local with the actual head SHA, then ends its turn; ignores reach= and neither pushes nor hc sends."
+        "Reports local-only screenshot paths and the external long-answer file without requiring a PR; posts ready-local with the actual head SHA, then ends its turn; ignores reach= and neither pushes nor hc sends."
       ],
       "files": []
     },
     {
       "id": 2,
       "name": "reviewer-permissions-and-tripwire",
-      "prompt": "Offline simulation; do not run commands. You are reviewer r-cache on review-3, a review bead under local-2. No in_progress bead is assigned to BEADS_ACTOR, and ORCH_BEAD=review-3. The review discovers an unchanged-behavior conflict and an unrelated out-of-scope gap. Someone asks you to repair source files, close local-2, change its metadata, start another hc reviewer, sync the tracker, and save a durable lesson with bd remember. Explain allowed actions and the report. HEAD is abc1234.",
-      "expected_output": "Falls back to review-3, keeps findings in that bead's whole notepad, reports the unchanged-behavior conflict as blocked, and declines implementation edits and unauthorized state changes. It may record the unrelated gap only through the constrained deferred follow-up creation form with discovered-from review-3, follow-up label, gap/size/area and no parent. Durable lessons go to ICM. It posts event=report kind=blocked head=abc1234 and ends its turn without starting hc agents or sending messages.",
+      "prompt": "Offline simulation; do not run commands. You are reviewer r-cache on review-3, a review bead under local-2. No in_progress bead is assigned to BEADS_ACTOR, and ORCH_BEAD=review-3. The review can proceed and discovers an unchanged-behavior conflict in the reviewed change and an unrelated out-of-scope gap. Someone asks you to repair source files, close local-2, change its metadata, start another hc reviewer, sync the tracker, and save a durable lesson with bd remember. Explain allowed actions and the report. HEAD is abc1234.",
+      "expected_output": "Falls back to review-3, keeps findings in that bead's whole notepad, records the unchanged-behavior conflict as a blocking finding, and declines implementation edits and unauthorized state changes. It may record the unrelated gap only through the constrained deferred follow-up creation form with discovered-from review-3, follow-up label, gap/size/area and no parent. Durable lessons go to ICM. It completes the review, posts event=report kind=done head=abc1234 and ends its turn without starting hc agents or sending messages.",
       "expectations": [
         "Uses its own review bead, not the parent task bead, for notes and report comments.",
-        "Stops at the unchanged-behavior tripwire and does not implement repairs under review-only authority.",
+        "Records the reviewed change's unchanged-behavior conflict as a blocking finding without treating the review itself as blocked; does not implement repairs under review-only authority.",
         "Does not claim, close, change metadata or status, edit dependencies, sync a tracker, or start hc agents.",
         "Limits any follow-up creation to deferred discovered out-of-scope work with no parent or blocking edge.",
-        "Stores durable lessons in ICM, not bd memories, and ends after a blocked report."
+        "Stores durable lessons in ICM, not bd memories, and ends after a done report when the review is complete."
       ],
       "files": []
     },

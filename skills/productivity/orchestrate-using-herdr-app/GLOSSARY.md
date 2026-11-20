@@ -5,7 +5,7 @@ Local orchestration connects agreed planning work to workers, reviews, and deliv
 ## Language
 
 **Ticket**:
-A planning item in a remote tracker that is authoritative for the work it describes.
+A planning item in an external planning source (remote tracker, Lark document, or spec) that is authoritative for the work it describes.
 _Avoid_: Bead when referring to the planning source.
 
 **Bead**:
