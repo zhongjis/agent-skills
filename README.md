@@ -5,6 +5,7 @@ Canonical, public-safe agent skills for Nix and non-Nix consumers.
 ## Layout
 
 Authored and adapted skills live in root `skills/`; vendored common skills remain in `.agents/skills/`. Relative `.agents/skills/` symlinks project centrally excluded authored skills to local agents. Harness-specific physical skills use their agent folders. `skill-harnesses.nix` logically routes sparse root exceptions.
+[`skills/productivity/orchestrated-worker`](skills/productivity/orchestrated-worker/SKILL.md) is the standing contract that every worker or reviewer dispatched by `orchestrate-using-herdr-app` loads.
 
 | Folder | Role | Skills |
 | --- | --- | ---: |
