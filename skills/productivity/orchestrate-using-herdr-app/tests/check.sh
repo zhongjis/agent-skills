@@ -484,6 +484,19 @@ count=$(bd list --type epic --all --limit 0 --json | jq 'length')
 check 0 'unset ORCH_EPIC' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" fresh --mode '--off'
 [[ $(bd list --type epic --all --limit 0 --json | jq 'length') == "$count" ]]
 
+# --from links a peer's epic discovered-from its handoff bead; --off closes both.
+count=$(bd list --type epic --all --limit 0 --json | jq 'length')
+check 1 'orch-missing not found' env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --from orch-missing
+[[ $(bd list --type epic --all --limit 0 --json | jq 'length') == "$count" ]]
+check 1 'usage' env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --from
+handoff=$(bd create 'Side issue' --silent)
+bd update "$handoff" --claim --actor h-side >/dev/null
+out=$(HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --mode '--watch' --from "$handoff")
+peer_epic=$(sed -n 's/^epic=//p' <<<"$out")
+check 0 "epic=$peer_epic" env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --from "$handoff"
+bd dep list "$peer_epic" --type discovered-from --json | jq -e --arg h "$handoff" 'map(.id) == [$h]' >/dev/null
+check 0 "epic=$peer_epic" env HC_TERMINAL_ID=t5 "$scripts/orchestrate-init.sh" peer --mode '--off'
+[[ $(bd show "$peer_epic" --json | jq -r '.[0].status') == closed && $(bd show "$handoff" --json | jq -r '.[0].status') == closed ]]
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
 git -C "$tmp/work" config user.email fixture@example.invalid

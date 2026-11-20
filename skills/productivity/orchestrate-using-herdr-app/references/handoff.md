@@ -1,34 +1,53 @@
 # Handoff (`--handoff`)
 
-Hand the tasks to one peer, an orchestrator or a normal agent (see Brief): a new top-level conversation that owns them end to end. Use it when a side issue comes up mid-conversation and needs its own context, apart from this one.
+Transfer work out of this session to one peer, a new top-level conversation that owns it end to end, through one handoff bead. Two cases:
 
-## Brief
+- **A small task the user supervises in person:** `--handoff` alone starts a normal-agent peer that does the work itself, on its own branch, apart from this session's work.
+- **A side conversation in its own thread:** `--handoff` with flags starts a peer orchestrator, which may plan again (`--track` files tickets), create its own session epic, and dispatch its own workers.
 
-The peer starts cold and never sees this conversation. Write the brief per [delegation-contract.md](delegation-contract.md), plus what only this conversation knows:
-
-- the side issue: what came up and why it matters
-- decisions already made, with the user's words where they set scope
-- what stays out of scope, including work this session keeps
-- pointers: ticket, PR, files, logs, prior findings
-
-The flags the user typed on this invocation, minus `--handoff`, belong to the peer's session; act on none of them here, and never carry the session's earlier flags.
-
-- With flags: open the brief with the skill invocation for the peer's kind (see Launch), carrying exactly those flags. Under `--track` the peer files the tickets; file none yourself.
-- With `--handoff` alone: the peer is a normal agent, not an orchestrator. Invoke no skill in the brief; keep the kind's other launch requirements from Launch. The peer does the tasks itself, on its own branch, apart from this session's work.
+The flags the user typed on this invocation, minus `--handoff`, belong to the peer's session; act on none of them here, and never carry the session's earlier flags. Under `--track` the peer files the tickets; file none yourself.
 
 ## Overlap
 
-Hand off only work this session will no longer touch. Before launch, check task-bead state and events (`scripts/status.sh --live`) for a live worker, worktree, or branch on each task:
+- Hand off only work this session will no longer touch.
+- Refuse a task with a live worker or reviewer (`scripts/status.sh --live` shows its terminal live and the task not settled): ask the user to let it settle, stop it, or reap it, and stop. A kept worktree and branch pass to the peer by name in the handoff bead; never reap them afterwards.
 
-- None: hand the task off.
-- Some: the brief transfers each one to the peer by name (terminal, worktree, branch), you stop your own watcher on it, and you record `handed-off` on its task bead with `scripts/event.sh <bead> handed-off k=v…`. Never read, send to, or reap it again.
+## Handoff bead
+
+The peer starts cold and never sees this conversation; the handoff bead is everything it gets. Create exactly one per `--handoff`, with no parent:
+
+```bash
+bd create "<side issue>" --type task --actor "o-$HC_TERMINAL_ID" \
+  --deps "discovered-from:<source>[,discovered-from:<source>…]" \
+  --metadata "$(jq -cn --arg repo "<git root, else pwd>" '{repo: $repo}')" \
+  --description "<text>" --silent
+bd update <handoff> --claim --actor h-<slug>
+```
+
+- **Sources:** each named task bead; for a conversation without one, the session epic. A normal session has neither, so the bead has no link and its pointers carry the trace.
+- **Description**, written per [delegation-contract.md](delegation-contract.md) where it applies, plus what only this conversation knows:
+  - the side issue: what came up and why it matters
+  - decisions already made, in the user's words where they set scope
+  - what stays out of scope, including work this session keeps
+  - pointers: ticket, PR, files, logs, prior findings, and each kept worktree and branch by name
+- `bd ping` failing is a shared blocker: report it and keep the tasks.
+
+## First prompt
+
+The peer's first prompt carries no task content; the bead does:
+
+- **Peer orchestrator:** open with the skill invocation for the peer's kind (see Launch) carrying exactly the flags, then: run `bd prime`, then `bd show <handoff>`, which holds the work handed to you; pass `--from <handoff>` to `orchestrate-init.sh`. Its init links the new session epic `discovered-from` the handoff bead, and its `--off` closes the handoff bead when it closes that epic.
+- **Plain peer:** no skill invocation and no flags: run `bd prime`, then `bd show <handoff>` and do that work yourself on your own branch; close it with `bd close <handoff> --actor h-<slug>`, its claimant, when it is done. Keep the kind's other launch requirements from Launch.
 
 ## Launch
 
-The peer runs your own agent kind unless the user names another. Read your kind from the `agent` field of `hc get $HC_TERMINAL_ID` (`claude-code` maps to the `claude` section), and take the peer's argv and skill invocation from that kind's **Peer orchestrator** line in [agent-quirks.md](agent-quirks.md).
+The peer runs your own agent kind unless the user names another. Read your kind from the `agent` field of `hc get $HC_TERMINAL_ID` (`claude-code` maps to the `claude` section), and take the peer's argv and first-prompt shape from that kind's **Peer orchestrator** line in [agent-quirks.md](agent-quirks.md).
 
-Start the peer top-level in a visible tab, never as your child: `herdr-app do tab.new '{"name":…,"space":…,"folder":<source>,"argv":<kind argv>,"task":<brief>}'`, with the space ID from `herdr-app ls`. **Done when** `hc get` shows the peer `working` with no parent; on failure, report the exact error and keep the tasks.
+Start the peer top-level in a visible tab, never as your child: `herdr-app do tab.new '{"name":…,"space":…,"folder":<source>,"argv":<kind argv>,"task":<first prompt>}'`, with the space ID from `herdr-app ls`. **Done when** `hc get` shows the peer `working` with no parent; on failure, report the exact error and keep the tasks.
 
 ## The cut
 
-Once launch is done, the peer owns the tasks: workers, worktrees, reaping, merge, and the user's questions. It reports to the user in its own tab. Record `handed-off` on each existing task bead with `scripts/event.sh <bead> handed-off tab=<id> terminal=<id>`; without task beads, an active session epic holds the event. Report the handoff and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.
+Once launch is done, the peer owns the work: workers, worktrees, reaping, merge, and the user's questions. It reports to the user in its own tab.
+
+- Close each named task bead in your epic with `bd supersede <task> --with <handoff> --actor "o-$HC_TERMINAL_ID"` and record `scripts/event.sh <task> handed-off handoff=<handoff> tab=<id> terminal=<id>`; without task beads, an active session epic holds the event.
+- Report the handoff with the handoff bead ID and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.

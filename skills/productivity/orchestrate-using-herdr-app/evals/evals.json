@@ -265,12 +265,13 @@
       "id": 22,
       "name": "handoff-starts-peer-in-visible-tab",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (hc get shows agent: claude-code), supervising A2A-466 in apps/network-connector-cli. Mid-conversation a Web regression side issue comes up; the user agrees one ticket per regression batch and that Settings pages stay out of scope, then runs /orchestrate-using-herdr-app --handoff --watch --track for it. Describe the exact commands and checks.",
-      "expected_output": "Files no tickets itself (the peer owns --track), reads its own kind from hc get t1j, then starts one peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv [\"claude\"] and a brief opening with /orchestrate-using-herdr-app --watch --track that carries the side issue, the agreed decisions, and the out-of-scope Settings pages; confirms it is working with no parent, logs handed-off, reports the handoff, and has no further contact with the peer.",
+      "expected_output": "Files no tickets itself (the peer owns --track) and reads its own kind from hc get t1j. Creates one handoff bead with no parent, discovered-from the session epic, metadata repo, a description holding the side issue, the agreed decisions in the user's words, the out-of-scope Settings pages and pointers, claimed for h-<slug>. Starts one peer orchestrator top-level in a visible herdr-app tab via herdr-app do tab.new with argv [\"claude\"] and a first prompt opening with /orchestrate-using-herdr-app --watch --track, then bd prime, bd show <handoff bead>, and --from <handoff bead> for orchestrate-init.sh; confirms it is working with no parent, records handed-off on the session epic, reports the handoff with the bead ID, and has no further contact with the peer.",
       "expectations": [
         "Reads its own kind from hc get $HC_TERMINAL_ID and starts the peer with herdr-app do tab.new (space from herdr-app ls, folder at the source checkout, argv [\"claude\"]), not start-worker.sh, hc run, or the harness agent tool",
-        "The peer brief opens with /orchestrate-using-herdr-app --watch --track (no --handoff) and carries the side issue, the decisions already agreed, and that Settings pages stay out of scope, disjoint from A2A-466",
+        "Creates exactly one handoff bead: no parent, discovered-from the session epic, metadata repo, claimed for h-<slug>, and a description carrying the side issue, the decisions already agreed, that Settings pages stay out of scope (disjoint from A2A-466), and pointers",
+        "The peer first prompt opens with /orchestrate-using-herdr-app --watch --track (no --handoff), then bd prime and bd show <handoff bead>, and tells the peer to pass --from <handoff bead> to orchestrate-init.sh; it writes no brief file",
         "Starts no watcher, hc read, hc send, or SendMessage toward the peer; the peer owns its workers, worktrees, reaping, and reports to the user in its own tab",
-        "Confirms with hc get that the peer terminal is working and has no parent, then logs handed-off and reports the handoff as final for those tasks",
+        "Confirms with hc get that the peer terminal is working and has no parent, then records handed-off on the session epic and reports the handoff as final for those tasks",
         "Files no tickets itself; --track goes to the peer, which files them"
       ],
       "files": []
@@ -307,22 +308,23 @@
       "id": 25,
       "name": "handoff-inherits-pi-kind",
       "prompt": "Offline simulation: orchestrate-using-herdr-app is active in hc terminal t3p, and hc get t3p shows agent: pi. The user runs /orchestrate-using-herdr-app --handoff --auto for a CI flake side issue without naming an agent. Describe the peer launch.",
-      "expected_output": "Starts the peer as Pi, inherited from its own kind: herdr-app do tab.new with argv [\"pi\"] and a brief opening with $skill:orchestrate-using-herdr-app --auto and ending with ulw.",
+      "expected_output": "Starts the peer as Pi, inherited from its own kind: herdr-app do tab.new with argv [\"pi\"] and a first prompt opening with $skill:orchestrate-using-herdr-app --auto, then bd prime, bd show <handoff bead> and --from <handoff bead>, and ending with ulw.",
       "expectations": [
         "Reads its own kind from hc get t3p and starts the peer with argv [\"pi\"], not claude",
-        "The brief opens with $skill:orchestrate-using-herdr-app --auto, omits --handoff, and ends with ulw"
+        "The first prompt opens with $skill:orchestrate-using-herdr-app --auto, omits --handoff, runs bd prime and bd show <handoff bead>, passes --from <handoff bead> to orchestrate-init.sh, and ends with ulw"
       ],
       "files": []
     },
     {
       "id": 26,
-      "name": "handoff-transfers-live-worker",
-      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (agent: claude-code). Worker a2a-466 is live in terminal t7k, worktree ~/.herdr/worktrees/repo/a2a-466-fix, branch a2a-466-fix, with a watch-agent.sh watcher running. The user runs /orchestrate-using-herdr-app --handoff --watch A2A-466 to move that work to its own conversation. Describe what you do.",
-      "expected_output": "Names t7k, the worktree, and the branch in the peer brief as transferred, stops its own watcher, logs them handed-off, launches the peer, and never reads, sends to, or reaps t7k again.",
+      "name": "handoff-refuses-live-worker",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch is active in hc terminal t1j (agent: claude-code). Task bead orch-466 (A2A-466) has worker w-a2a-466-fix live and working in terminal t7k, worktree ~/.herdr/worktrees/repo/a2a-466-fix, branch a2a-466-fix, with a watch-agent.sh watcher running. The user runs /orchestrate-using-herdr-app --handoff --watch A2A-466 to move that work to its own conversation. Describe what you do. Later the worker settles, it is reaped with reap-worker.sh --keep-agent keeping the worktree, and the user repeats the same command; describe that handoff too.",
+      "expected_output": "First refuses: the task has a live worker, so it asks the user to let it settle, stop it, or reap it, and creates no handoff bead and launches no peer. On the repeat, creates one handoff bead discovered-from orch-466 that names the kept worktree and branch, launches the peer orchestrator, supersedes orch-466 with the handoff bead, records event=handed-off on it, and never reaps or touches the worktree, branch, or t7k again.",
       "expectations": [
-        "The peer brief transfers terminal t7k, the worktree path, and branch a2a-466-fix to the peer by name",
-        "Stops its own watch-agent.sh watcher for a2a-466 and logs the worker as handed off",
-        "After launch, never runs hc read, hc send, send-reinstruction.sh, or reap-worker.sh on t7k"
+        "Refuses the first handoff because w-a2a-466-fix is live: asks the user to let it settle, stop it, or reap it; creates no handoff bead, supersedes nothing, and launches no peer",
+        "On the repeat, the handoff bead is discovered-from orch-466 and names the worktree path and branch a2a-466-fix for the peer",
+        "Closes orch-466 with bd supersede orch-466 --with <handoff bead> and records event=handed-off on it",
+        "After launch, never runs hc read, hc send, send-reinstruction.sh, reap-worker.sh, or git worktree remove on t7k or that worktree"
       ],
       "files": []
     },
@@ -330,9 +332,9 @@
       "id": 27,
       "name": "bare-handoff-starts-plain-agent",
       "prompt": "Offline simulation: a normal Claude Code session in hc terminal t2m (agent: claude-code), not in orchestrator mode. A flaky-test side issue comes up and the user runs /orchestrate-using-herdr-app --handoff for it. Describe the peer launch, then what you do when the user next asks you to fix a typo in README.md.",
-      "expected_output": "Starts the peer with herdr-app do tab.new and argv [\"claude\"], with a plain brief that carries the side issue but no skill invocation and no flags, so the peer is a normal agent that does the task itself on its own branch. Files no tickets and starts no workers. Stays a normal session afterwards and fixes the README typo itself instead of dispatching a worker.",
+      "expected_output": "Creates one handoff bead claimed for h-<slug> with the side issue, decisions, out of scope and pointers (no source bead exists in a normal session, so it has no discovered-from link), then starts the peer with herdr-app do tab.new and argv [\"claude\"], with a plain first prompt: bd prime, bd show <handoff bead>, do that work yourself on your own branch and close the handoff bead when done; no skill invocation and no flags. Files no tickets and starts no workers. Stays a normal session afterwards and fixes the README typo itself instead of dispatching a worker.",
       "expectations": [
-        "The peer brief contains no /orchestrate-using-herdr-app invocation and no flags",
+        "The peer first prompt runs bd prime and bd show <handoff bead>, tells the peer to close the handoff bead itself when done, and contains no /orchestrate-using-herdr-app invocation and no flags",
         "Files no tickets, starts no workers, and has no further contact with the peer",
         "Does not enter orchestrator mode: fixes the README typo itself rather than dispatching a worker"
       ],

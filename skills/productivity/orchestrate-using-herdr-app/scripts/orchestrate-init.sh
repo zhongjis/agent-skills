@@ -2,13 +2,15 @@
 # Start an orchestration: verify hc and bd, print the session epic,
 # record the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
 # smart-sessions tab standard, at most four slug words with hyphens as spaces.
-# Usage: orchestrate-init.sh <slug> [--mode <flags>]
+# Usage: orchestrate-init.sh <slug> [--mode <flags>] [--from <handoff bead>]
+# A peer orchestrator passes --from: its epic is linked discovered-from that
+# handoff bead, and --off closes the handoff bead when it closes the epic.
 # With `--max <N>` in the flags (which then need --watch or --auto), it also
 # prints `export ORCH_MAX=<N>`; otherwise `unset ORCH_MAX`.
 set -euo pipefail
 
 usage() {
-	printf 'usage: orchestrate-init.sh <slug> [--mode <flags>]\n' >&2
+	printf 'usage: orchestrate-init.sh <slug> [--mode <flags>] [--from <handoff bead>]\n' >&2
 	exit 1
 }
 
@@ -16,9 +18,11 @@ usage() {
 slug="$1"
 shift
 mode=none
+from=
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 		--mode) [ "$#" -ge 2 ] || usage; mode="${2:-none}"; shift 2 ;;
+		--from) [ "$#" -ge 2 ] && [ -n "$2" ] || usage; from="$2"; shift 2 ;;
 		*) usage ;;
 	esac
 done
@@ -55,6 +59,8 @@ if ! command -v bd >/dev/null || ! bd ping >/dev/null 2>&1; then
 	exit 1
 fi
 here="$(dirname -- "${BASH_SOURCE[0]}")"
+# Check the handoff bead before creating an epic that would link to nothing.
+[ -z "$from" ] || bd show "$from" --json >/dev/null
 epics=$(bd list --type epic --metadata-field "session=$HC_TERMINAL_ID" --status open,in_progress,blocked,deferred --limit 0 --json)
 epic=$(jq -r '.[0].id // empty' <<<"$epics")
 if [ -z "$epic" ]; then
@@ -66,12 +72,18 @@ if [ -z "$epic" ]; then
 	metadata=$(jq -cn --arg repo "$repo" --arg session "$HC_TERMINAL_ID" --arg source "${ORCH_SOURCE:-}" '{repo: $repo, session: $session, source: $source}')
 	epic=$(bd create "$slug" --type epic --metadata "$metadata" --actor "o-$HC_TERMINAL_ID" --silent)
 fi
+# Idempotent: a reused epic keeps one link.
+[ -z "$from" ] || bd dep add "$epic" "$from" --type discovered-from --actor "o-$HC_TERMINAL_ID" >/dev/null
 # The latest mode event is invocation authority; recalled memory never replaces it.
 "$here/event.sh" "$epic" mode "flags=$mode" "max=${max:-none}" >/dev/null
 if "$off"; then
 	children=$(bd list --parent "$epic" --all --limit 0 --json)
 	if jq -e 'all(.[]; .status == "closed")' <<<"$children" >/dev/null; then
 		bd close "$epic" --actor "o-$HC_TERMINAL_ID" >/dev/null
+		# A peer orchestrator's handoff bead ends with its epic, closed as its h-<slug> claimant.
+		bd dep list "$epic" --type discovered-from --json |
+			jq -r --arg me "o-$HC_TERMINAL_ID" '.[] | select(.status != "closed") | [.id, (.assignee // $me)] | @tsv' |
+			while IFS=$'\t' read -r handoff claimant; do bd close "$handoff" --actor "$claimant" >/dev/null; done
 	fi
 	printf 'epic=%s\nexport ORCH_EPIC=%q\nunset ORCH_MAX\n' "$epic" "$epic"
 	exit 0
