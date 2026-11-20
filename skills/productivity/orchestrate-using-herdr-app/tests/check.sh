@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Run isolated CLI fixtures; never contacts a live remote or herdr-core session.
 set -euo pipefail
+trap 'printf "FAIL: %s:%s (exit %s): %s\n" "${BASH_SOURCE[0]}" "$LINENO" "$?" "$BASH_COMMAND" >&2' ERR
 # Capture the real anchor before replacing HOME, and resolve symlink aliases too.
 global_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
 global_anchor=$(realpath -m -- "$global_data_home/beads/global/.beads")
@@ -15,7 +16,7 @@ unset HC_TERMINAL_ID ORCH_MAX ORCH_EPIC ORCH_SOURCE ORCH_BEAD BEADS_DOLT_SHARED_
 export BEADS_DIR="$tmp/beads-project/.beads" BEADS_ACTOR=fixture
 # Check the effective isolated path, not the global defaults inherited at login.
 if [[ $(realpath -m -- "$BEADS_DIR") == "$global_anchor" ]]; then
-	printf 'refusing global beads anchor: %s\n' "$BEADS_DIR" >&2
+	printf 'FAIL: refusing global beads anchor: %s\n' "$BEADS_DIR" >&2
 	exit 1
 fi
 checks=0
@@ -42,7 +43,7 @@ printf 'unexpected bd call\n' >> "$BD_GUARD_CALLS"
 exit 99
 MOCK
 chmod +x "$tmp/bin/bd" "$tmp/bin/mktemp"
-check 1 'refusing global beads anchor' env XDG_DATA_HOME="$global_data_home" BD_GUARD_CALLS="$tmp/bd-calls" bash "${BASH_SOURCE[0]}"
+check 1 'FAIL: refusing global beads anchor' env XDG_DATA_HOME="$global_data_home" BD_GUARD_CALLS="$tmp/bd-calls" bash "${BASH_SOURCE[0]}"
 [[ ! -e $tmp/bd-calls ]]
 rm "$tmp/bin/bd" "$tmp/bin/mktemp"
 mkdir -p "$tmp/beads-project"
@@ -252,7 +253,7 @@ check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$sc
 other_epic=$(bd create 'Other session' --type epic --silent)
 instruction=$'Fix literal ; $(false)\nSecond line\nulw'
 
-# Create and claim before linking, as in supervise.md.
+# Mirrors the create-and-claim block in references/supervise.md, local review step 2.
 create_review() {
 	local round=$1 design=$2 review
 	review=$(bd create --title "Review $launch_task round $round" --description "Review $launch_task" --design "$design" --silent) &&
@@ -344,12 +345,11 @@ check 2 'no turn started' env HC_TERMINAL_ID=orch MODE=send-stuck "$scripts/send
 bd update "$launch_task" --notes 'Plan: context fixture notes' >/dev/null
 bd comments add "$launch_task" $'event=re-instructed agent=w-worker-a\n\nLatest context instruction' >/dev/null
 bd comments add "$launch_task" 'event=note detail=not-an-instruction' >/dev/null
-bd comments add "$launch_task" $'event=re-instructed agent=r-worker-a\n\nReviewer-only instruction' >/dev/null
+bd comments add "$launch_task" $'event=re-instructed agent=w-previous\n\nPrevious assignee instruction' >/dev/null
 out=$(BEADS_ACTOR=w-worker-a ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
 skill_text=$(cat "$scripts/../../orchestrated-worker/SKILL.md")
-[[ $out == "$skill_text"* && $out == *'context fixture notes'* && $out == *$'event=re-instructed agent=w-worker-a\n\nLatest context instruction' ]]
-out=$(BEADS_ACTOR=r-worker-a ORCH_BEAD="$launch_task" "$scripts/worker-context.sh")
-[[ $out == *$'event=re-instructed agent=r-worker-a\n\nReviewer-only instruction' ]]
+# bd show includes comment history; the final block is the selected instruction.
+[[ $out == "$skill_text"* && $out == *'context fixture notes'* && $out == *$'\n\nevent=re-instructed agent=w-worker-a\n\nLatest context instruction' ]]
 # A failed assignee query still falls back to ORCH_BEAD.
 cat > "$tmp/bin/bd" <<'MOCK'
 #!/usr/bin/env bash
@@ -548,6 +548,7 @@ check 3 'not a commit' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reins
 [[ ! -s $tmp/calls ]]
 bd update "$review_one" --notes 'Round one findings' --actor r-task >/dev/null
 bd comments add "$review_one" "event=report kind=done head=$main" --actor r-task >/dev/null
+check 1 'assignee is "r-task", actor is "o-orch"' bd close "$review_one" --actor o-orch
 bd close "$review_one" --actor r-task >/dev/null
 review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
 instruction="$review_body"
@@ -568,11 +569,14 @@ sent=$(cat "$tmp/sent-text")
 [[ $sent == *"bd prime"* && $sent == *"agent=r-task in bd comments $review_task"* && $sent == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
 # Same reviewer name and session survive finished-terminal revival.
 rm -f "$tmp/removed"
-check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
+check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$head"
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *"ORCH_BEAD=$review_task"* && ${argv[*]} == *'pi --session review-9'* && ${argv[-1]} == *' ulw' ]]
 
-# Workers and reviewers use the same parentless deferred follow-up form.
+bd comments "$review_task" --json | jq -e --arg bead "$review_task" --arg base "$head" --arg body "$review_body" '
+	any(.[]; .text | startswith("event=re-instructed agent=r-task bead=" + $bead + " last-reviewed=" + $base + "\n\n") and contains($base + "..HEAD") and endswith("\n\n" + $body))' >/dev/null
+
+# Mirrors the one-write follow-up form in orchestrated-worker/SKILL.md (Bead permissions and notepad).
 for source_bead in "$launch_task" "$review_task"; do
 	gap=$(bd create --title 'Later gap' --deps "discovered-from:$source_bead" --labels follow-up --description 'Gap: missing example; small; docs' --status deferred --silent)
 	bd show "$gap" --json | jq -e --arg source "$source_bead" '.[0] | .status == "deferred" and (.assignee // "") == "" and .labels == ["follow-up"] and ((.metadata // {}) | length == 0) and (.dependencies | length == 1 and .[0].id == $source and .[0].dependency_type == "discovered-from")' >/dev/null

@@ -27,7 +27,7 @@ done
 # Before any side effect, including recording a re-instruction.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh" "$name"
 if [[ $name == r-* ]]; then
-	[ -n "$base" ] || { printf 'reviewer follow-up requires --last-reviewed <commit>\n' >&2; exit 3; }
+	[ -n "$base" ] || { printf 'reviewer re-instruction requires --last-reviewed <commit>\n' >&2; exit 3; }
 	base=$(git -C "$worktree" rev-parse --verify --end-of-options "$base^{commit}" 2>/dev/null) || {
 		printf 'last-reviewed is not a commit\n' >&2; exit 3;
 	}
