@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Run isolated CLI fixtures; never contacts a live remote or herdr-core session.
 set -euo pipefail
+# Capture the real anchor before replacing HOME, and resolve symlink aliases too.
+global_data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+global_anchor=$(realpath -m -- "$global_data_home/beads/global/.beads")
+if [[ -n ${BEADS_DIR:-} && $(realpath -m -- "$BEADS_DIR") == "$global_anchor" ]]; then
+	printf 'refusing global beads anchor: %s\n' "$BEADS_DIR" >&2
+	exit 1
+fi
 scripts=$(realpath "$(dirname -- "${BASH_SOURCE[0]}")/../scripts")
 tmp=$(realpath "$(mktemp -d)")
 trap 'rm -rf -- "$tmp"' EXIT
@@ -8,7 +15,8 @@ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 export HOME="$tmp/home"
 mkdir -p "$HOME" "$tmp/bin"
 export FIXTURE="$tmp" PATH="$tmp/bin:$PATH"
-unset HC_TERMINAL_ID ORCH_MAX
+unset HC_TERMINAL_ID ORCH_MAX ORCH_EPIC ORCH_SOURCE BEADS_DOLT_SHARED_SERVER
+export BEADS_DIR="$tmp/beads-project/.beads" BEADS_ACTOR=fixture
 checks=0
 check() {
 	local expected="$1" needle="$2" out status=0
@@ -20,6 +28,23 @@ check() {
 	fi
 	checks=$((checks + 1))
 }
+# Refuse a realpath alias before invoking bd, including when HOME is already isolated.
+ln -s "$global_anchor" "$tmp/global-alias"
+cat > "$tmp/bin/bd" <<'MOCK'
+#!/usr/bin/env bash
+printf 'unexpected bd call\n' >> "$FIXTURE/bd-calls"
+exit 99
+MOCK
+chmod +x "$tmp/bin/bd"
+check 1 'refusing global beads anchor' env XDG_DATA_HOME="$global_data_home" BEADS_DIR="$tmp/global-alias" bash "${BASH_SOURCE[0]}"
+[[ ! -e $tmp/bd-calls ]]
+rm "$tmp/bin/bd"
+mkdir -p "$tmp/beads-project"
+# init runs in the enclosing scratch project, never inside .beads or this repo.
+(pushd "$tmp/beads-project" >/dev/null; bd init --prefix orch --skip-hooks --skip-agents --non-interactive >/dev/null)
+launch_epic=$(bd create 'Launch fixtures' --type epic --silent)
+launch_task=$(bd create 'Worker A' --parent "$launch_epic" --metadata '{"key":"worker-a"}' --silent)
+
 cat > "$tmp/bin/hc" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -207,26 +232,38 @@ check 1 'unreadable brief' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$t
 check 1 'usage' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a"
 [[ ! -s $tmp/calls ]]
 
-# ORCH_LOG: dispatch and follow-up append rows only on success and only when set.
-orch_log="$tmp/orch.tsv"
-rm -f "$orch_log"
+# ORCH_EPIC: write events on the existing child only after successful delivery.
 check 0 'working' env MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ ! -e $orch_log ]]
-check 0 'working' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
-[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tdispatched\tterminal=t9 worktree='"$tmp/wt-a"' brief='"$tmp/brief with spaces"$' kind=claude\tworking' ]]
-check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-check 1 'name_taken' env ORCH_LOG="$orch_log" MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(wc -l < "$orch_log") -eq 2 ]]
-# A logging failure never fails the dispatch.
-check 0 'working' env ORCH_LOG="$tmp/wt-a" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(bd comments "$launch_task" --json | jq 'length') == 0 ]]
+check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief" --kind claude
+comments=$(bd comments "$launch_task" --json)
+jq -e --arg wt "$tmp/wt-a" --arg brief "$tmp/brief with spaces" 'length == 1 and .[0].author == "o-orch" and (.[0].text | startswith("event=dispatched ") and contains("agent=w-worker-a") and contains("terminal=t9") and contains("worktree=" + $wt) and contains("brief=" + $brief) and contains("kind=claude"))' <<<"$comments" >/dev/null
+check 2 'blocked' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+check 1 'name_taken' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=run-fail "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
+# Missing children and event-write failures never fail a dispatch or create tasks.
+children=$(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length')
+check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unknown "$tmp/wt-a" "$tmp/brief"
+[[ $(bd list --parent "$launch_epic" --all --limit 0 --json | jq 'length') == "$children" ]]
+check 0 'working' env ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(bd comments "$launch_task" --json | jq 'length') == 1 ]]
 : > "$tmp/calls"
-check 0 'sent' env ORCH_LOG="$orch_log" MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tre-instructed\tbrief='"$tmp/brief"$'\tworking' ]]
+check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+comments=$(bd comments "$launch_task" --json)
+jq -e 'length == 2 and (.[-1].text | startswith("event=re-instructed "))' <<<"$comments" >/dev/null
 rm -f "$tmp/removed"
-check 0 'working' env ORCH_LOG="$orch_log" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(tail -n 1 "$orch_log") == *$'\tw-worker-a\tre-instructed\t'* && $(grep -c dispatched "$orch_log") -eq 1 ]]
-check 2 'blocked' env ORCH_LOG="$orch_log" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
-[[ $(wc -l < "$orch_log") -eq 4 ]]
+check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=hibernated AGENT_STATUS=working RESUME='pi --session s-8' "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+comments=$(bd comments "$launch_task" --json)
+jq -e 'length == 3 and ([.[] | select(.text | startswith("event=dispatched "))] | length == 1) and (.[-1].text | startswith("event=re-instructed "))' <<<"$comments" >/dev/null
+check 2 'blocked' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=blocked "$scripts/send-followup.sh" w-worker-a "$tmp/wt-a" "$tmp/brief"
+[[ $(bd comments "$launch_task" --json | jq 'length') == 3 ]]
+# Prefer the longest exact/hyphen-prefix metadata key; never match another epic.
+short_task=$(bd create 'Short key' --parent "$launch_epic" --metadata '{"key":"worker"}' --silent)
+other_epic=$(bd create 'Other launch session' --type epic --silent)
+other_task=$(bd create 'Same key elsewhere' --parent "$other_epic" --metadata '{"key":"worker-a"}' --silent)
+check 0 'working' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-worker-a-fix "$tmp/wt-a" "$tmp/brief"
+check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-followup.sh" w-worker-a-fix "$tmp/wt-a" "$tmp/brief"
+[[ $(bd comments "$launch_task" --json | jq 'length') == 5 && $(bd comments "$short_task" --json | jq 'length') == 0 && $(bd comments "$other_task" --json | jq 'length') == 0 ]]
 : > "$tmp/calls"
 
 # Reviewer startup uses hc ls's observed string status, not hc get's object.
@@ -310,33 +347,63 @@ case "$1" in
 esac
 MOCK
 chmod +x "$tmp/bin/herdr-app"
-# orchestrate-init.sh: requires an hc terminal; log keyed by terminal id.
-check 1 'not inside' env -u HC_TERMINAL_ID -u XDG_STATE_HOME "$scripts/orchestrate-init.sh" api
-check 0 "log=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
-check 0 "export ORCH_LOG=$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv" env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
-check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh"
-# The invocation's flags land in the log; the orchestrator's own tab is marked once.
+# orchestrate-init.sh: requires hc and bd, creates/reuses this terminal's epic.
+check 1 'not inside' env -u HC_TERMINAL_ID "$scripts/orchestrate-init.sh" api
+check 1 'usage' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh"
+cat > "$tmp/bin/bd" <<'MOCK'
+#!/usr/bin/env bash
+[[ $1 == ping ]] || { echo 'unexpected bd call' >&2; exit 99; }
+exit 1
+MOCK
+chmod +x "$tmp/bin/bd"
+check 1 'shared blocker' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
+rm "$tmp/bin/bd"
 rm -f "$tmp/herdr"
-check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --track'
-[[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\torchestrator\tmode\tflags=--auto --track slug=api\tok' ]] || { echo 'FAIL: init must log the invocation flags'; exit 1; }
+out=$(HC_TERMINAL_ID=t3 ORCH_SOURCE=fixture-source "$scripts/orchestrate-init.sh" api --mode '--auto --track')
+epic=$(sed -n 's/^epic=//p' <<<"$out")
+[[ -n $epic && $out == *"export ORCH_EPIC=$epic"* ]]
+repo=$(git rev-parse --show-toplevel)
+bd show "$epic" --json | jq -e --arg repo "$repo" '.[0] | .issue_type == "epic" and .status == "open" and .metadata == {session:"t3",repo:$repo,source:"fixture-source"}' >/dev/null
+bd comments "$epic" --json | jq -e '.[-1] | .author == "o-t3" and .text == "event=mode flags=--auto --track max=none"' >/dev/null
 [[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <title>'; exit 1; }
+[[ $(tail -n 1 "$tmp/labels") == "label t3 orch-context=$scripts/compact-context.sh" ]]
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 ORCH_EPIC="$other_epic" "$scripts/orchestrate-init.sh" api
+check 0 "export ORCH_EPIC=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 rm -f "$tmp/herdr"
-check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" retro-skills_ui-audit-fix
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" retro-skills_ui-audit-fix
 [[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] retro skills ui audit' ]] || { echo 'FAIL: init tab title must split hyphens into at most four words'; exit 1; }
 rm -f "$tmp/herdr"
-check 0 'log=' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scripts/orchestrate-init.sh" api
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scripts/orchestrate-init.sh" api
 [[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked tab'; exit 1; }
-[[ $(tail -n 1 "$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv") == *$'\tflags=none slug=api\tok' ]] || { echo 'FAIL: init without --mode must log flags=none'; exit 1; }
-check 1 'usage' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode
-# --max needs a positive N and a supervising mode; a refusal logs nothing.
-init_log="$HOME/.local/state/orchestrate-using-herdr-app/t3.tsv"
-rows=$(wc -l < "$init_log")
-check 1 'needs --watch or --auto' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--track --max 2'
-check 1 'positive integer, got nothing' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max'
-check 1 'positive integer, got 0' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --max 0'
-[[ $(wc -l < "$init_log") == "$rows" ]] || { echo 'FAIL: a refused --max must not log a mode row'; exit 1; }
-check 0 'export ORCH_MAX=2' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max 2 --track'
-check 0 'unset ORCH_MAX' env -u XDG_STATE_HOME HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto'
+bd comments "$epic" --json | jq -e '.[-1].text == "event=mode flags=none max=none"' >/dev/null
+check 1 'usage' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode
+rows=$(bd comments "$epic" --json | jq 'length')
+check 1 'needs --watch or --auto' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--track --max 2'
+check 1 'positive integer, got nothing' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max'
+check 1 'positive integer, got 0' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto --max 0'
+[[ $(bd comments "$epic" --json | jq 'length') == "$rows" ]]
+check 0 'export ORCH_MAX=2' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--watch --max 2 --track'
+bd comments "$epic" --json | jq -e '.[-1].text == "event=mode flags=--watch --max 2 --track max=2"' >/dev/null
+check 0 'unset ORCH_MAX' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--auto'
+# A second terminal gets its own epic, regardless of inherited ORCH_EPIC.
+out=$(HC_TERMINAL_ID=t4 ORCH_EPIC="$epic" "$scripts/orchestrate-init.sh" second)
+second_epic=$(sed -n 's/^epic=//p' <<<"$out")
+[[ -n $second_epic && $second_epic != "$epic" ]]
+# --off always records mode and clears context; open children prevent closure.
+init_child=$(bd create 'Unfinished' --parent "$epic" --metadata '{"key":"unfinished"}' --silent)
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'
+[[ $(bd show "$epic" --json | jq -r '.[0].status') == open && $(tail -n 1 "$tmp/labels") == 'label t3 orch-context=' ]]
+bd comments "$epic" --json | jq -e '.[-1].text == "event=mode flags=--off max=none"' >/dev/null
+bd close "$init_child" >/dev/null
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'
+[[ $(bd show "$epic" --json | jq -r '.[0].status') == closed ]]
+# Closed session epics are not reused; an empty session can close too.
+out=$(HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" fresh)
+fresh_epic=$(sed -n 's/^epic=//p' <<<"$out")
+[[ -n $fresh_epic && $fresh_epic != "$epic" ]]
+bd show "$fresh_epic" --json | jq -e '.[0].metadata.source == ""' >/dev/null
+check 0 "epic=$fresh_epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" fresh --mode '--off'
+[[ $(bd show "$fresh_epic" --json | jq -r '.[0].status') == closed ]]
 
 git init -q --bare "$tmp/remote"
 git init -q -b main "$tmp/work"
@@ -484,76 +551,80 @@ printf 'w-a1-topic\nr-a1-topic\n' > "$tmp/full-terms"
 check 0 'full cleanup w-a1-topic' env MODE=full "$scripts/reap-worker.sh" "$tmp/full-wt" w-a1-topic --full topic-full
 [[ $(sort "$tmp/removed-names") == $'r-a1-topic\nw-a1-topic' ]]
 [[ ! -e $tmp/full-wt ]]
-! git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full >/dev/null
-! git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-full >/dev/null
+check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full
+check 1 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-full
 rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 
-# status.sh: latest stem/worker/reviewer row wins; live uses the worker dispatch.
-cat > "$tmp/status.tsv" <<'TSV'
-ts	task	event	evidence	result
-2026-01-01T00:00:00Z	orchestrator	mode	flags=--auto	ok
-2026-01-01T00:01:00Z	w-alpha	dispatched	terminal=t9 brief=/brief	working
-2026-01-01T00:02:00Z	w-beta	dispatched	terminal=t10	working
-2026-01-01T00:03:00Z	all	note	one	ok
-2026-01-01T00:04:00Z	alpha	settled	PR #7 | green	succeeded
-2026-01-01T00:05:00Z	beta	reaped	terminal=reviewer	ok
-2026-01-01T00:06:00Z	all	note	two	ok
-2026-01-01T00:07:00Z	w-gamma	dispatched	terminal=t11	working
-2026-01-01T00:08:00Z	delta	queued	needs=alpha	pending
-TSV
-check 0 '| alpha | w-alpha (t9) | settled | succeeded | PR #7 &#124; green | 2026-01-01T00:04:00Z |' "$scripts/status.sh" "$tmp/status.tsv"
-out=$("$scripts/status.sh" "$tmp/status.tsv")
-[[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *orchestrator* && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
-check 0 '| Since | Live |' env MODE=status-live "$scripts/status.sh" "$tmp/status.tsv" --live
-out=$(MODE=status-live "$scripts/status.sh" "$tmp/status.tsv" --live)
-[[ $out == *'00:04:00Z | working |'* && $out == *'00:05:00Z | finished |'* && $out == *'00:07:00Z | gone |'* && $out == *'00:08:00Z |  |'* ]]
+# event.sh: real comments, fixed event vocabulary, attributed one-line fields.
+status_epic=$(bd create 'Status session' --type epic --metadata '{"session":"status-orch"}' --silent)
+alpha=$(bd create Alpha --parent "$status_epic" --metadata '{"key":"alpha"}' --silent)
+for event in mode ticketed dispatched handed-off queued re-instructed reviewed ready merged settled reaped blocked decided note adopted; do
+	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" 'detail=spaces stay together'
+done
+comments=$(bd comments "$alpha" --json)
+jq -e 'length == 15 and all(.[]; .author == "o-events" and (.text | endswith(" detail=spaces stay together")))' <<<"$comments" >/dev/null
+check 1 'usage' "$scripts/event.sh"
+check 1 'invalid event' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" unknown
+check 1 'HC_TERMINAL_ID' env -u HC_TERMINAL_ID "$scripts/event.sh" "$alpha" note
+for field in missing-equals '=empty-key' 'event=note' $'detail=new\nline' $'detail=carriage\rreturn' $'detail=tab\tvalue'; do
+	check 1 'invalid event field' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note "$field"
+done
+[[ $(bd comments "$alpha" --json | jq 'length') == 15 ]]
+check 1 '' env HC_TERMINAL_ID=events "$scripts/event.sh" orch-nonexistent note
+
+# Status reads native state, latest event plus metadata, and the latest worker dispatch.
+beta=$(bd create Beta --parent "$status_epic" --metadata '{"key":"beta"}' --silent)
+gamma=$(bd create Gamma --parent "$status_epic" --metadata '{"key":"gamma"}' --silent)
+delta=$(bd create Delta --parent "$status_epic" --metadata '{"key":"delta"}' --silent)
+bd update "$alpha" --status in_progress --metadata '{"key":"alpha","pr_url":"https://example.invalid/pr/7","head_sha":"head7","merged_sha":"merge7","review_round":3,"blocked_reason":"needs approval"}' >/dev/null
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode 'flags=--auto' max=none
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=old
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=t9
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=r-alpha terminal=t11
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" reviewed 'detail=PR #7 | green' findings=/review
+# Non-event comments do not replace the latest milestone.
+bd comments add "$alpha" 'Human observation, not an event' >/dev/null
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" dispatched agent=w-beta terminal=t10
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" reaped terminal=reviewer
+bd close "$beta" >/dev/null
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$gamma" dispatched agent=w-gamma terminal=t11
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=one
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=two
+alpha_since=$(bd comments "$alpha" --json | jq -r '[.[] | select(.text | startswith("event=reviewed "))][-1].created_at')
+delta_since=$(bd show "$delta" --json | jq -r '.[0].created_at')
+out=$("$scripts/status.sh" "$status_epic")
+[[ $out == *'| Task | Worker | Event | Result | Evidence | Since |'* && $out == *'| alpha | w-alpha (t9) | reviewed | in_progress |'* && $out == *'| beta | w-beta (t10) | reaped | closed |'* ]]
+[[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
+for evidence in 'PR #7 &#124; green' 'findings=/review' 'pr_url=https://example.invalid/pr/7' 'head_sha=head7' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
+	[[ $out == *"$evidence"* ]] || { printf 'FAIL: missing evidence %s\n%s\n' "$evidence" "$out" >&2; exit 1; }
+done
+[[ $out == *"$alpha_since"* && $out == *"$delta_since"* ]]
+# ORCH_EPIC takes precedence; otherwise resolve by this terminal's metadata.
+[[ $(ORCH_EPIC="$status_epic" HC_TERMINAL_ID=t4 "$scripts/status.sh") == "$out" ]]
+[[ $(HC_TERMINAL_ID=status-orch "$scripts/status.sh") == "$out" ]]
+[[ $(ORCH_EPIC="$other_epic" "$scripts/status.sh" "$status_epic") == "$out" ]]
+check 0 '| Since | Live |' env MODE=status-live "$scripts/status.sh" "$status_epic" --live
+out=$(MODE=status-live "$scripts/status.sh" "$status_epic" --live)
+[[ $(grep '^| alpha |' <<<"$out") == *'| working |' && $(grep '^| beta |' <<<"$out") == *'| finished |' && $(grep '^| gamma |' <<<"$out") == *'| gone |' && $(grep '^| delta |' <<<"$out") == *'|  |' ]]
 [[ $(sort -u "$tmp/live-calls") == $'get t10 --json\nget t11 --json\nget t9 --json' ]]
-check 1 'unauthorized' env MODE=auth "$scripts/status.sh" "$tmp/status.tsv" --live
-check 1 'usage' "$scripts/status.sh" "$tmp/status.tsv" --unknown
-check 1 '' "$scripts/status.sh" "$tmp/missing.tsv"
+check 1 'unauthorized' env MODE=auth "$scripts/status.sh" "$status_epic" --live
+check 1 'usage' "$scripts/status.sh" "$status_epic" --unknown
+check 1 '' "$scripts/status.sh" orch-nonexistent
 
-# Mixed names collapse to one task; the newest reviewer row cannot replace its worker.
-cat > "$tmp/mixed.tsv" <<'TSV'
-ts	task	event	evidence	result
-2026-01-01T00:00:00Z	w-x	dispatched	terminal=old	working
-2026-01-01T00:01:00Z	w-x	dispatched	terminal=t9	working
-2026-01-01T00:02:00Z	x	settled	PR #8	succeeded
-2026-01-01T00:03:00Z	r-x	dispatched	terminal=t11	working
-2026-01-01T00:04:00Z	r-x	reviewed	findings=/review	approved
-TSV
-check 0 '| x | w-x (t9) | reviewed | approved | findings=/review | 2026-01-01T00:04:00Z |' "$scripts/status.sh" "$tmp/mixed.tsv"
-out=$("$scripts/status.sh" "$tmp/mixed.tsv")
-[[ $(grep -c '^| ' <<<"$out") == 3 && $(grep -c '^| x |' <<<"$out") == 1 ]]
-check 0 '| 2026-01-01T00:04:00Z | working |' env MODE=status-live "$scripts/status.sh" "$tmp/mixed.tsv" --live
-
-# Ticket keys: queued, agent and short rows of one ticket fold into one task.
-cat > "$tmp/keys.tsv" <<'TSV'
-ts	task	event	evidence	result
-2026-01-01T00:00:00Z	a2a-610-sender-provider	queued	needs=a2a-608	queued
-2026-01-01T00:01:00Z	w-a2a-610-sender-provider	dispatched	terminal=t9	working
-2026-01-01T00:02:00Z	r-a2a-610-sender-provider	reviewed	findings=/r	approved
-2026-01-01T00:03:00Z	a2a-610	settled	PR #9	succeeded
-TSV
-out=$("$scripts/status.sh" "$tmp/keys.tsv")
-[[ $(grep -c '^| a2a-610' <<<"$out") == 1 && $out == *'| a2a-610 | w-a2a-610-sender-provider (t9) | settled |'* ]] || { echo "FAIL: ticket rows must fold into one task"; echo "$out"; exit 1; }
-checks=$((checks + 1))
-
-# log.sh refuses a key with no queued/ticketed/dispatched row, except on those events, decided and note.
-cp "$tmp/keys.tsv" "$tmp/log.tsv"
-check 0 '' "$scripts/log.sh" "$tmp/log.tsv" a2a-610 merged sha ok
-check 0 '' "$scripts/log.sh" "$tmp/log.tsv" w-a2a-610-x re-instructed brief ok
-check 1 'unknown task a2a-999' "$scripts/log.sh" "$tmp/log.tsv" a2a-999 merged sha ok
-check 0 '' "$scripts/log.sh" "$tmp/log.tsv" a2a-999 decided 'by=user q=x a=y' ok
-check 0 '' "$scripts/log.sh" "$tmp/log.tsv" orchestrator mode 'flags=--auto' ok
-check 1 'unknown task' "$scripts/log.sh" "$tmp/fresh.tsv" alpha settled x ok
-
-# compact-context.sh: silent without a log or after --off; otherwise mode row plus table.
-check 0 '' "$scripts/compact-context.sh" "$tmp/missing.tsv"
-check 0 'Latest mode row: flags=--auto' "$scripts/compact-context.sh" "$tmp/status.tsv"
-out=$("$scripts/compact-context.sh" "$tmp/status.tsv")
-[[ $out == *'Re-read the orchestrate-using-herdr-app SKILL.md'* && $out == *'| alpha |'* ]] || { echo "FAIL: compact-context table"; exit 1; }
-printf '2026-01-01T00:09:00Z\torchestrator\tmode\tflags=--off\toff\n' >> "$tmp/status.tsv"
-[[ -z $("$scripts/compact-context.sh" "$tmp/status.tsv") ]] || { echo "FAIL: compact-context must be silent after --off"; exit 1; }
+# Compaction uses the latest mode event, not the latest comment/event of any kind.
+no_mode=$(bd create 'No mode yet' --type epic --silent)
+[[ -z $("$scripts/compact-context.sh" "$no_mode") ]]
+[[ -z $(env -u ORCH_EPIC -u HC_TERMINAL_ID "$scripts/compact-context.sh") ]]
+out=$(MODE=status-live "$scripts/compact-context.sh" "$status_epic")
+[[ $out == *'flags=--auto'* && $out == *'| alpha |'* && $out == *'| Since | Live |'* ]]
+[[ $(MODE=status-live ORCH_EPIC="$status_epic" "$scripts/compact-context.sh") == "$out" ]]
+[[ $(MODE=status-live HC_TERMINAL_ID=status-orch "$scripts/compact-context.sh") == "$out" ]]
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode 'flags=--watch --max 2' max=2
+out=$(MODE=status-live "$scripts/compact-context.sh" "$status_epic")
+[[ $out == *'flags=--watch --max 2'* && $out != *'flags=--auto'* ]]
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode flags=--off max=none
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=after-off
+[[ -z $("$scripts/compact-context.sh" "$status_epic") ]]
 checks=$((checks + 1))
 
 # bot-active.sh: paginated API fixtures only, never real GitHub.

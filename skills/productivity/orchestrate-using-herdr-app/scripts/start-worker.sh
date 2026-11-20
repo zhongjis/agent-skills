@@ -11,8 +11,8 @@
 # Rejects agent names without a w- (worker) or r- (reviewer) role prefix. A failed launch is
 # printed as hc returned it and never retried. Exit 2: the terminal started
 # but the brief is not confirmed (blocked, error, finished, or no turn after
-# 60 seconds); read the screen before acting. When ORCH_LOG is set, a confirmed
-# start appends a best-effort `dispatched` row to that log.
+# 60 seconds); read the screen before acting. When ORCH_EPIC is set, a confirmed
+# start records a best-effort `dispatched` event on the task bead.
 set -euo pipefail
 
 usage() {
@@ -88,11 +88,13 @@ run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outl
 printf '%s\n' "$run_out"
 [ "$run_status" -eq 0 ] || exit "$run_status"
 log_dispatch() {
-	[ -n "${ORCH_LOG:-}" ] || return 0
-	local address
+	[ -n "${ORCH_EPIC:-}" ] || return 0
+	local address bead
 	address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
-	"$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$ORCH_LOG" "$name" dispatched \
-		"terminal=$address worktree=$worktree brief=$brief kind=$kind" working >/dev/null 2>&1 || true
+	bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg name "${name:2}" '[.[] | select(.metadata.key as $key | $key != null and ($name == $key or ($name | startswith($key + "-"))))] | sort_by(.metadata.key | length) | last | .id // empty') || return 0
+	[ -n "$bead" ] || return 0
+	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" dispatched \
+		"agent=$name" "terminal=$address" "worktree=$worktree" "brief=$brief" "kind=$kind" result=working >/dev/null 2>&1 || true
 }
 # The orchestrator's space: its own space label, else its pane's herdr.space.
 space=

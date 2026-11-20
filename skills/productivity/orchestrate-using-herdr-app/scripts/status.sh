@@ -1,41 +1,53 @@
 #!/usr/bin/env bash
-# Usage: status.sh <logfile> [--live]
-# One Markdown row per task key: a leading ticket key (`a2a-610`) or the name,
-# with w-/r- agent rows folded in (log.sh uses the same rule).
-# Worker names/terminals come from the latest w- dispatch; all/note rows are counted.
-# --live adds hc state using the worker's dispatched terminal.
-# Exit nonzero on unreadable logs or hc errors other than missing terminals (gone).
+# Usage: status.sh [<epic>] [--live]
+# Read one row per child task bead. Default to ORCH_EPIC or this terminal's epic.
+# --live adds hc state from the latest worker dispatch, not a reviewer dispatch.
+# Exit nonzero on bd errors or hc errors other than missing terminals (gone).
 set -euo pipefail
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 2 ] || { [ "$#" -eq 2 ] && [ "$2" != --live ]; }; then
-	printf 'usage: status.sh <logfile> [--live]\n' >&2
-	exit 1
+epic=
+live=
+for arg in "$@"; do
+	case "$arg" in
+		--live) live=--live ;;
+		-*) printf 'usage: status.sh [<epic>] [--live]\n' >&2; exit 1 ;;
+		*) [ -z "$epic" ] || { printf 'usage: status.sh [<epic>] [--live]\n' >&2; exit 1; }; epic="$arg" ;;
+	esac
+done
+epic="${epic:-${ORCH_EPIC:-}}"
+if [ -z "$epic" ]; then
+	[ -n "${HC_TERMINAL_ID:-}" ] || { printf 'no session epic: set ORCH_EPIC or HC_TERMINAL_ID\n' >&2; exit 1; }
+	epics=$(bd list --type epic --metadata-field "session=$HC_TERMINAL_ID" --status open,in_progress,blocked,deferred --limit 0 --json)
+	epic=$(jq -r '.[0].id // empty' <<<"$epics")
 fi
-live="${2:-}"
-summary=$(jq -Rn '
-	def terminal: [.evidence | scan("(?:^|[[:space:]])terminal=([^[:space:]]+)") | .[0]] | first;
-	reduce (inputs | split("\t") | select(.[0] != "ts") |
-		{ts: .[0], task: .[1], event: .[2], evidence: .[3], result: .[4]}) as $row
-		({order: [], tasks: {}, workers: {}, notes: 0};
-		if $row.task == "all" and $row.event == "note" then .notes += 1
-		elif $row.task == "orchestrator" and $row.event == "mode" then .
-		else
-			($row.task | sub("^[wr]-"; "") | (capture("^(?<k>[a-z][a-z0-9]*-[0-9]+)").k // .)) as $task |
-			if .tasks[$task] == null then .order += [$task] else . end |
-			.tasks[$task] = ($row + {task: $task}) |
-			if $row.event == "dispatched" and ($row.task | startswith("w-"))
-			then .workers[$task] = {name: $row.task, terminal: ($row | terminal)} else . end
-		end) |
-	. as $summary |
-	{notes, rows: [.order[] as $task | .tasks[$task] |
-		. + {worker: ($summary.workers[$task].name // ""), terminal: $summary.workers[$task].terminal}]}
-' < "$1")
+[ -n "$epic" ] || { printf 'no session epic\n' >&2; exit 1; }
+bd show "$epic" --json >/dev/null
+children=$(bd list --parent "$epic" --all --limit 0 --json)
+comments=$(bd comments "$epic" --json)
+notes=$(jq '[.[] | select(.text | test("^event=note( |$)"))] | length' <<<"$comments")
 printf '| Task | Worker | Event | Result | Evidence | Since |'
 [ -z "$live" ] || printf ' Live |'
 printf '\n| --- | --- | --- | --- | --- | --- |'
 [ -z "$live" ] || printf ' --- |'
 printf '\n'
-while IFS= read -r row; do
+while IFS= read -r task; do
+	id=$(jq -r '.id' <<<"$task")
+	comments=$(bd comments "$id" --json)
+	row=$(jq -cn --argjson task "$task" --argjson comments "$comments" '
+		def field($key): [scan("(?:^| )" + $key + "=([^ ]+)") | .[0]] | first;
+		($comments | map(select(.text | test("^event=[a-z-]+( |$)")))) as $events |
+		($events | last // {}) as $latest |
+		([$events[] | select(.text | test("^event=dispatched ")) |
+			{agent: (.text | field("agent")), terminal: (.text | field("terminal"))} |
+			select(.agent // "" | startswith("w-"))] | last // {}) as $worker |
+		{task: ($task.metadata.key // $task.id), worker: ($worker.agent // ""), terminal: $worker.terminal,
+		 event: ($latest.text // "" | split("\n")[0] // "" | field("event") // ""),
+		 result: $task.status, ts: ($latest.created_at // $task.created_at),
+		 evidence: ([($latest.text // "" | split("\n")[0] // "" | sub("^event=[^ ]+ ?"; ""))] +
+			[["pr_url", "head_sha", "merged_sha", "review_round", "blocked_reason"][] as $key |
+			select($task.metadata[$key] != null) | $key + "=" + ($task.metadata[$key] | tostring)] |
+			map(select(. != "")) | join(" "))}
+	')
 	state=
 	if [ -n "$live" ]; then
 		terminal=$(jq -r '.terminal // empty' <<<"$row")
@@ -55,7 +67,7 @@ while IFS= read -r row; do
 	jq -r --arg live "$live" --arg state "$state" '
 		[.task, (.worker + (if .terminal == null then "" else " (" + .terminal + ")" end)),
 			.event, .result, .evidence, .ts] + (if $live == "" then [] else [$state] end) |
-		"| " + (map(gsub("\\|"; "&#124;")) | join(" | ")) + " |"
+		"| " + (map(gsub("[\\r\\n\\t]"; " ") | gsub("\\|"; "&#124;")) | join(" | ")) + " |"
 	' <<<"$row"
-done < <(jq -c '.rows[]' <<<"$summary")
-printf '\n%s notes (all).\n' "$(jq -r '.notes' <<<"$summary")"
+done < <(jq -c '.[]' <<<"$children")
+printf '\n%s notes (all).\n' "$notes"

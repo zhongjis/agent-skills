@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Start an orchestration: verify this runs in an hc terminal, print the log path,
-# log the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
+# Start an orchestration: verify hc and bd, print the session epic,
+# record the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
 # smart-sessions tab standard, at most four slug words with hyphens as spaces.
 # Usage: orchestrate-init.sh <slug> [--mode <flags>]
 # With `--max <N>` in the flags (which then need --watch or --auto), it also
@@ -44,21 +44,36 @@ if ! command -v hc >/dev/null || [ -z "${HC_TERMINAL_ID:-}" ]; then
 	exit 1
 fi
 
-# One log per orchestrator terminal, outside every repo: a later invocation
-# from the same terminal appends to the same log.
-dir="${XDG_STATE_HOME:-$HOME/.local/state}/orchestrate-using-herdr-app"
-mkdir -p "$dir"
-log="$dir/$(printf '%s' "$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '-').tsv"
-# The latest `mode` row is the invocation's authority (for example --auto);
-# recalled memory never replaces it.
-"$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$log" orchestrator mode "flags=$mode slug=$slug" ok
+if ! command -v bd >/dev/null || ! bd ping >/dev/null 2>&1; then
+	printf 'shared blocker: bd ping failed; restore the beads service before dispatch\n' >&2
+	exit 1
+fi
+here="$(dirname -- "${BASH_SOURCE[0]}")"
+epics=$(bd list --type epic --metadata-field "session=$HC_TERMINAL_ID" --status open,in_progress,blocked,deferred --limit 0 --json)
+epic=$(jq -r '.[0].id // empty' <<<"$epics")
+if [ -z "$epic" ]; then
+	repo=$(git rev-parse --show-toplevel)
+	metadata=$(jq -cn --arg repo "$repo" --arg session "$HC_TERMINAL_ID" --arg source "${ORCH_SOURCE:-}" '{repo: $repo, session: $session, source: $source}')
+	epic=$(bd create "$slug" --type epic --metadata "$metadata" --actor "o-$HC_TERMINAL_ID" --silent)
+fi
+# The latest mode event is invocation authority; recalled memory never replaces it.
+"$here/event.sh" "$epic" mode "flags=$mode" "max=${max:-none}" >/dev/null
+if [[ " $mode " == *' --off '* ]]; then
+	children=$(bd list --parent "$epic" --all --limit 0 --json)
+	if jq -e 'all(.[]; .status == "closed")' <<<"$children" >/dev/null; then
+		bd close "$epic" --actor "o-$HC_TERMINAL_ID" >/dev/null
+	fi
+	hc label "$HC_TERMINAL_ID" orch-context= >/dev/null 2>&1 || true
+	printf 'epic=%s\nexport ORCH_EPIC=%q\nunset ORCH_MAX\n' "$epic" "$epic"
+	exit 0
+fi
 # The herdr-app session integrations run the labelled script after a compaction and
 # inject its output. Keep the logical path: a resolved Nix store path goes stale on the
 # next switch. Best effort: a missing label only loses that reminder.
-hc label "$HC_TERMINAL_ID" "orch-context=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/compact-context.sh" >/dev/null 2>&1 || true
-printf 'log=%s\n' "$log"
-# Exporting it lets start-worker.sh and send-followup.sh log their own rows.
-printf 'export ORCH_LOG=%q\n' "$log"
+hc label "$HC_TERMINAL_ID" "orch-context=$(realpath -s -- "$here")/compact-context.sh" >/dev/null 2>&1 || true
+printf 'epic=%s\n' "$epic"
+# Exporting it lets startup and re-instruction find their task beads.
+printf 'export ORCH_EPIC=%q\n' "$epic"
 # A flag applies only to its invocation, so a later one without --max lifts the cap.
 if [ -n "$max" ]; then printf 'export ORCH_MAX=%s\n' "$max"; else printf 'unset ORCH_MAX\n'; fi
 

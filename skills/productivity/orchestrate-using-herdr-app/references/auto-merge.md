@@ -9,7 +9,7 @@ Complete [supervise.md](supervise.md)'s local whole-branch review before push, s
 Immediately before merging, confirm all of these for the recorded head SHA:
 
 - a [claims audit](supervise.md#local-review-before-push) of the worker's evidence since publication finds nothing open;
-- the log's latest `mode` row shows `--auto` for this task; under it, merge when the remaining gates close, without asking ([SKILL.md](../SKILL.md) Authority);
+- the session epic's latest `event=mode` comment shows `--auto` for this task; under it, merge when the remaining gates close, without asking ([SKILL.md](../SKILL.md) Authority);
 - the head SHA is unchanged and has no unexpected third-party commits;
 - the PR is open, non-draft, and mergeable;
 - CI is green for that SHA, including every required check, and no blocker remains;
@@ -21,4 +21,4 @@ Merge through the repository's merge queue when it has one, otherwise its suppor
 
 ## After merge
 
-Read back the merged state and merge commit before reporting success. When the repository deploys on merge, watch that merge's release run to completion. The task is settled only when every deploy job succeeded at the merge SHA. A failed release is a shared blocker ([supervise.md](supervise.md)): merge nothing more until it is understood. Report a merged change as live only with that evidence. Then reap the settled task with full cleanup ([reap.md](reap.md)). On any blocker, keep the PR, worktree, and evidence intact.
+Read back the merged state and verify the merge SHA on the target branch before reporting success or closing the task bead; record the `merged` event and `merged_sha` metadata. A changed PR head reopens the task bead for re-review. When the repository deploys on merge, watch that merge's release run to completion. The task is settled only when every deploy job succeeded at the merge SHA; record `settled result=succeeded` only with that evidence. A dependent's PR cannot merge before each prerequisite has that event. A failed release is a shared blocker ([supervise.md](supervise.md)): merge nothing more until it is understood. Report a merged change as live only with that evidence. Then reap the settled task with full cleanup ([reap.md](reap.md)). On any blocker, keep the PR, worktree, and evidence intact.

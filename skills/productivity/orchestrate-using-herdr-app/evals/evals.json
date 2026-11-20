@@ -53,9 +53,9 @@
       "id": 5,
       "name": "auto-merge-fails-closed",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --auto. The worker reported PR #12 at head abc123. CI is green, no blocker remains, and local review is complete. Case A: an OPTIONAL configured bot has not responded to abc123 after 15 minutes; all repository-required approvals, protection, and review-thread resolution are satisfied. Case B: the same bot is silent, but a repository-REQUIRED approval is missing. What do you do in each case?",
-      "expected_output": "Re-checks the head and repository gates. In Case A the optional bot timeout is not itself a merge blocker; merges through the supported protected path if all gates remain satisfied. In Case B leaves PR #12 open with evidence of the missing required approval. Never bypasses protection, including required CHANGES_REQUESTED or thread-resolution gates.",
+      "expected_output": "Reads the epic's latest event=mode comment for --auto and re-checks the head and repository gates. Reopens a closed task bead for re-review on PR head change. Closes the task bead only after verifying the merge SHA on the target branch (non-merge work closes at settled succeeded). In Case A the optional bot timeout is not itself a merge blocker; merges through the supported protected path if all gates remain satisfied. In Case B leaves PR #12 open with evidence of the missing required approval. Never bypasses protection, including required CHANGES_REQUESTED or thread-resolution gates.",
       "expectations": [
-        "Re-checks the head SHA before any merge.",
+        "Checks the epic's latest mode comment and head SHA before merge; a head change requires reopening for re-review, and task closure requires a verified target merge SHA.",
         "Does not block Case A solely on an optional configured bot remaining silent after 15 minutes.",
         "Blocks Case B on the missing repository-required approval and reports evidence.",
         "Honors repository protection, including required CHANGES_REQUESTED and review-thread resolution."
@@ -128,7 +128,7 @@
       "id": 11,
       "name": "off-ends-mode",
       "prompt": "Earlier this session you ran orchestrate-using-herdr-app. Now: orchestrate-using-herdr-app --off. Then: fix the typo in README.md.",
-      "expected_output": "Ends orchestrator mode, then fixes the typo directly under normal rules without creating a worktree or starting a hc worker.",
+      "expected_output": "Runs orchestrate-init.sh <slug> --mode '--off', records the mode event on the session epic, closes the epic only if all children are closed, and removes orch-context. Ends orchestrator mode, then fixes the typo directly under normal rules without creating a worktree or starting a hc worker.",
       "expectations": [
         "Treats --off as ending the mode and the skill rules.",
         "Starts no hc worker for the later task."
@@ -175,11 +175,11 @@
       "id": 15,
       "name": "init-requires-hc-terminal",
       "prompt": "Use orchestrate-using-herdr-app for the agreed cache-key validation fix. Case A: you run in hc terminal t3. Case B: HC_TERMINAL_ID is unset. Case C: the skill is invoked again from t3.",
-      "expected_output": "Runs scripts/orchestrate-init.sh with a slug of at most 4 words before any dispatch and keeps the printed log path. In Case A it prints the t3 log path; in Case B it reports the failure and stops; in Case C it appends to the same t3 log. The orchestrator creates, renames, or focuses no space, tab, or pane.",
+      "expected_output": "Runs scripts/orchestrate-init.sh <slug> --mode '<flags>' before dispatch. Checks hc, HC_TERMINAL_ID and bd ping; a beads connection failure is a shared blocker. In Case A creates a session epic with repo, session=t3 and source metadata and keeps epic=<id> and export ORCH_EPIC=<id>; in Case B reports the failure and stops; in Case C reuses t3's open epic and appends event=mode flags=… max=<N>. Only startup's own-tab [o] rename changes the user's window.",
       "expectations": [
-        "Runs orchestrate-init.sh once at the start and keeps its log path.",
+        "Runs orchestrate-init.sh at startup, exports ORCH_EPIC and preserves ORCH_MAX handling; reuses the terminal's open epic on later invocations.",
         "Stops on the init failure without starting workers.",
-        "Does not change the user's herdr-app window."
+        "Only startup's own-tab [o] rename changes the user's herdr-app window; bd ping failure pauses dispatch as a shared blocker."
       ],
       "files": []
     },
@@ -197,14 +197,14 @@
     },
     {
       "id": 17,
-      "name": "reports-at-yield-from-log",
-      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its brief answers, and B needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. Describe what you log and what you report to the user, and when; do not run commands.",
-      "expected_output": "Logs every task event with scripts/log.sh. Reports the first dispatch wave (A and B working, C queued behind A) before waiting; answers A from the brief and compacts B silently, logging both; reports A settling as one line with PR #31 at def456 and C launched; ends with a final per-task report built from the log, opening with the exact line ALL WORK FINISHED and a summary line with total time since the mode row and result counts, including the log path.",
+      "name": "reports-at-yield-from-beads",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its brief answers, and B needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. The epic's first mode event is at 09:00, a second invocation's mode event at 09:30, and the latest event at 10:00. Describe what you record and report, including total time; do not run commands.",
+      "expected_output": "Creates or reuses one child task bead per task under ORCH_EPIC with key metadata before queue or dispatch, keeping brief-file APIs. Records task events with scripts/event.sh as o-<terminal>, PR metadata only after claim, and coarse bead status. Reports A and B working and C queued before waiting; answers A and compacts B silently with event comments; launches C after A's verified merged event (or settled succeeded for non-merge work), but cannot merge C before A's settled succeeded release event. Reports A settling as one line with PR #31 at def456 and C launched. Final bead-built table opens ALL WORK FINISHED, summarizes 60 minutes from the epic's first mode event to the latest event, result counts and epic ID.",
       "expectations": [
         "Reports the dispatch wave before waiting on workers.",
-        "Does not report the brief-answered question or the context transition; logs them.",
-        "Builds settle and final reports from log rows with returned evidence.",
-        "The final report opens with the exact line ALL WORK FINISHED, then total time computed from the log's mode-row timestamp and result counts."
+        "Does not report the brief-answered question or context transition; records them as bead event comments.",
+        "Builds reports from task-bead status, metadata and events with returned evidence, using status.sh [epic] --live and compact-context.sh [epic] after compaction.",
+        "The final report opens ALL WORK FINISHED, then 60 minutes from the first mode event, not 30 minutes from the latest invocation, and result counts."
       ],
       "files": []
     },
@@ -278,7 +278,7 @@
       "prompt": "Offline simulation: orchestrate-using-herdr-app --auto. Pi worker w-a2a-448-web in ~/.herdr/worktrees/xiangxi/w-a2a-448-web (base origin/main, branch server-agent-web) reports: committed locally, ready for local review before push, head 3793f059. git diff --shortstat origin/main...HEAD (lockfiles excluded) shows 73 files changed, 4100 insertions, including a new Prisma migration. Describe what you do until the PR opens, and how you retain the reviewer for the no-bot-review fallback.",
       "expected_output": "Picks high, starts a claude reviewer named r-a2a-448-web in the same settled worktree for a whole-branch review with a plain prompt naming the range, the ticket and the task brief (not the bundled /code-review), handles folder trust, watches it, and relays its raw-review file to the Pi worker through send-followup.sh. Repairs stay local; at most one incremental round reuses the reviewer session with --last-reviewed and concrete base..HEAD scope. Every finding is relayed; valid in-scope non-blocking ones are fixed by default, listed in the PR body only when they need a user decision or fall out of scope, and never trigger rounds. Releases push and PR creation when no blocker remains and retains the reviewer for the post-push fallback taken only when no bot reviewed the head. Logs reviewed evidence; at a cap with a real bug under --auto decides and logs a note, asking only before merging a known issue.",
       "expectations": [
-        "Chooses level high from the shortstat and the migration, and logs a reviewed row with the shortstat, kind, level, and result",
+        "Chooses level high from the shortstat and the migration, and records a reviewed event comment with the shortstat, kind, level, and result",
         "Starts the reviewer as a claude hc worker via start-worker.sh --kind claude after the worker settles, with a plain review prompt (not /code-review or /review) naming the range, ticket and task brief, with no $skill: token or ulw, and only the raw-review output file writable; handles folder trust",
         "Relays every finding via a raw-review file reference in send-followup.sh; repairs remain local until release, and non-blocking fix-or-list findings never trigger rounds",
         "Keeps the same reviewer session across at most one incremental round, requiring --last-reviewed through send-followup.sh; retains it for bot fallback and never reaps the shared worktree",
@@ -339,11 +339,11 @@
       "id": 28,
       "name": "max-caps-working-agents",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch --max 2 for four agreed independent tasks A, B, C and D, Pi workers. Tests saturated the host's CPU when four workers ran at once. A and B start; A goes idle ready for local review while B keeps working; later B goes idle too. Describe how you initialize, dispatch, review, and release work, and what you log; do not run commands.",
-      "expected_output": "Runs orchestrate-init.sh with --mode '--watch --max 2' and runs both printed lines, export ORCH_LOG and export ORCH_MAX=2. Dispatches A and B; start-worker.sh exits 4 for C (or C is held before calling), so C and D are logged queued with needs=slot and a brief path. When A goes idle, the next slot goes to the oldest wait: either C's dispatch or A's claude reviewer, each counted as one working agent; never three agents working at once. Follow-ups through send-followup.sh obey the same cap, and an exit 4 is queued, not retried blindly. Idle, blocked and finished agents hold no slot.",
+      "expected_output": "Runs orchestrate-init.sh with --mode '--watch --max 2' and runs both printed lines, export ORCH_EPIC and export ORCH_MAX=2. Dispatches A and B; start-worker.sh exits 4 for C (or C is held before calling), so C and D get child task beads under ORCH_EPIC with key metadata and queued event comments carrying needs=slot and a brief path. When A goes idle, the next slot goes to the oldest wait: either C's dispatch or A's claude reviewer, each counted as one working agent; never three agents working at once. Follow-ups through send-followup.sh obey the same cap, and an exit 4 is queued, not retried blindly. Idle, blocked and finished agents hold no slot.",
       "expectations": [
         "Initializes with --max 2 alongside --watch and exports ORCH_MAX=2 in the shells that start or follow up workers",
         "Never has more than two of its agents working at once, counting the reviewer as an agent",
-        "Logs held work as queued with needs=slot and releases the oldest wait first when an agent goes idle",
+        "Records held work as queued events on task beads with needs=slot and releases the oldest wait first when an agent goes idle",
         "Treats exit 4 from start-worker.sh or send-followup.sh as no free slot: queues the call instead of retrying it"
       ],
       "files": []

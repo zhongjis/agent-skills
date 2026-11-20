@@ -11,16 +11,17 @@
 # first message. Exit 2: the worker waits on a dialog, finished without a
 # resume label, or did not start a turn within 60 seconds; read its screen
 # before acting. Exit 4: ORCH_MAX agents already work (slot-free.sh); nothing
-# sent. When ORCH_LOG is set, a confirmed
-# delivery or revival appends a best-effort `re-instructed` row to that log.
+# sent. When ORCH_EPIC is set, a confirmed
+# delivery or revival records a best-effort `re-instructed` event on the task bead.
 set -euo pipefail
 
 log_followup() {
-	[ -n "${ORCH_LOG:-}" ] || return 0
-	local evidence="brief=$brief"
-	[ -z "$base" ] || evidence+=" last-reviewed=$base"
-	"$(dirname -- "${BASH_SOURCE[0]}")/log.sh" "$ORCH_LOG" "$name" re-instructed \
-		"$evidence" working >/dev/null 2>&1 || true
+	[ -n "${ORCH_EPIC:-}" ] || return 0
+	local bead
+	bead=$(bd list --parent "$ORCH_EPIC" --all --limit 0 --json | jq -r --arg name "${name:2}" '[.[] | select(.metadata.key as $key | $key != null and ($name == $key or ($name | startswith($key + "-"))))] | sort_by(.metadata.key | length) | last | .id // empty') || return 0
+	[ -n "$bead" ] || return 0
+	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" re-instructed \
+		"agent=$name" "brief=$brief" "last-reviewed=$base" result=working >/dev/null 2>&1 || true
 }
 
 usage() {
@@ -101,9 +102,9 @@ case "$state" in
 		fi
 		session="${BASH_REMATCH[3]}"
 		hc rm "$name" >/dev/null
-		# Blank ORCH_LOG so start-worker.sh does not log a `dispatched` row.
+		# Blank ORCH_EPIC so revival does not record a new dispatch.
 		rc=0
-		ORCH_LOG='' "$(dirname -- "${BASH_SOURCE[0]}")/start-worker.sh" "$name" "$worktree" "$brief" --kind "$kind" --resume "$session" || rc=$?
+		ORCH_EPIC='' "$(dirname -- "${BASH_SOURCE[0]}")/start-worker.sh" "$name" "$worktree" "$brief" --kind "$kind" --resume "$session" || rc=$?
 		if [ "$rc" -eq 0 ]; then log_followup; fi
 		exit "$rc"
 		;;
