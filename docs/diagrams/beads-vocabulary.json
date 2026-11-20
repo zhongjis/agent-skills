@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Beads orchestration vocabulary",
+    "output": "beads-vocabulary.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "legend": {
+      "entries": {
+        "cloud": {
+          "label": "Remote record, people read"
+        },
+        "database": {
+          "label": "Bead, local only"
+        },
+        "external": {
+          "label": "Agent (actor)"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "spec",
+      "type": "cloud",
+      "label": "Remote spec / project",
+      "sublabel": "planning parent",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "ticket",
+      "type": "cloud",
+      "label": "Ticket",
+      "sublabel": "remote issue",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "epic",
+      "type": "database",
+      "label": "Session epic",
+      "sublabel": "one orchestrator session",
+      "pos": [
+        330,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "tag": "actor o-<terminal>"
+    },
+    {
+      "id": "task",
+      "type": "database",
+      "label": "Task bead",
+      "sublabel": "1 ticket = 1 task bead",
+      "pos": [
+        330,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ],
+      "tag": "definition, notepad, events"
+    },
+    {
+      "id": "target",
+      "type": "database",
+      "label": "Batch target bead",
+      "sublabel": "one per target",
+      "pos": [
+        330,
+        360
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "external",
+      "label": "Worker w-<key>",
+      "sublabel": "standing contract",
+      "pos": [
+        620,
+        200
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "review",
+      "type": "database",
+      "label": "Review bead",
+      "sublabel": "one per review round",
+      "pos": [
+        620,
+        360
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "external",
+      "label": "Reviewer r-<key>",
+      "sublabel": "standing contract",
+      "pos": [
+        910,
+        360
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "followup",
+      "type": "database",
+      "label": "Follow-up bead",
+      "sublabel": "deferred, no parent",
+      "pos": [
+        620,
+        520
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "newticket",
+      "type": "cloud",
+      "label": "New ticket",
+      "sublabel": "only on your yes",
+      "pos": [
+        910,
+        520
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "handoff",
+      "type": "database",
+      "label": "Handoff bead",
+      "sublabel": "claimed by peer h-<slug>",
+      "pos": [
+        620,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "peerepic",
+      "type": "database",
+      "label": "Peer session epic",
+      "sublabel": "if the peer orchestrates",
+      "pos": [
+        910,
+        40
+      ],
+      "size": [
+        170,
+        60
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "source",
+      "from": "spec",
+      "to": "epic",
+      "label": "source",
+      "variant": "dashed"
+    },
+    {
+      "id": "import",
+      "from": "ticket",
+      "to": "task",
+      "label": "import, re-pull",
+      "variant": "emphasis"
+    },
+    {
+      "id": "parent",
+      "from": "epic",
+      "to": "task",
+      "label": "parent",
+      "variant": "emphasis"
+    },
+    {
+      "id": "claims",
+      "from": "worker",
+      "to": "task",
+      "label": "claim + write"
+    },
+    {
+      "id": "targets",
+      "from": "task",
+      "to": "target",
+      "label": "batch child"
+    },
+    {
+      "id": "rounds",
+      "from": "task",
+      "to": "review",
+      "label": "child"
+    },
+    {
+      "id": "reviews",
+      "from": "reviewer",
+      "to": "review",
+      "label": "claim + write"
+    },
+    {
+      "id": "discovered",
+      "from": "followup",
+      "to": "review",
+      "label": "discovered-from",
+      "variant": "dashed"
+    },
+    {
+      "id": "sync",
+      "from": "followup",
+      "to": "newticket",
+      "label": "create, import",
+      "variant": "dashed"
+    },
+    {
+      "id": "handed",
+      "from": "handoff",
+      "to": "epic",
+      "label": "discovered-from",
+      "variant": "dashed"
+    },
+    {
+      "id": "peer",
+      "from": "peerepic",
+      "to": "handoff",
+      "label": "discovered-from",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Records",
+      "items": [
+        "Ticket: remote, optional; a task bead can exist without one",
+        "Task bead: one outcome, one worker holding the claim at a time",
+        "Task beads block each other with `blocks` links"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Writing",
+      "items": [
+        "Actor: name a write is recorded under (o-, w-, r-, h-)",
+        "Claim: atomically make an actor the assignee",
+        "Notepad: the living doc in the notes field",
+        "Event: milestone comment, first line event=<name>; Report: a worker's handoff-point event"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Flow words",
+      "items": [
+        "Import / re-pull: ticket into its bead, one way, never sync",
+        "Re-instruction: a later message to a worker",
+        "Settled: result accounted for with evidence",
+        "Follow-up discovered-from may also point at a task bead"
+      ]
+    }
+  ]
+}

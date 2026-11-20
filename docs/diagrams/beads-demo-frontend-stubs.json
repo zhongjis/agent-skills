@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Demo: frontend-only stubs run as beads",
+    "output": "beads-demo-frontend-stubs.html",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "legend": {
+      "entries": {
+        "cloud": {
+          "label": "Remote, human view"
+        },
+        "backend": {
+          "label": "Task bead (imported)"
+        },
+        "database": {
+          "label": "Epic bead"
+        },
+        "messagebus": {
+          "label": "Follow-up bead, local only"
+        }
+      }
+    }
+  },
+  "components": [
+    {
+      "id": "linear",
+      "type": "cloud",
+      "label": "Linear",
+      "sublabel": "A2A-728 to 732",
+      "pos": [
+        40,
+        320
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "epic",
+      "type": "database",
+      "label": "Epic bead",
+      "sublabel": "frontend-only stubs",
+      "pos": [
+        240,
+        320
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "b728",
+      "type": "backend",
+      "label": "A2A-728 dev stubs",
+      "sublabel": "PR 498 + repair PR 499",
+      "pos": [
+        440,
+        320
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "b729",
+      "type": "backend",
+      "label": "A2A-729 agents",
+      "sublabel": "PR 502, 2 reviews",
+      "pos": [
+        640,
+        180
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "b730",
+      "type": "backend",
+      "label": "A2A-730 conversations",
+      "sublabel": "PR 501, 5 reviews",
+      "pos": [
+        640,
+        320
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "b731",
+      "type": "backend",
+      "label": "A2A-731 admin",
+      "sublabel": "PR 500, 1 review",
+      "pos": [
+        640,
+        460
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "b732",
+      "type": "backend",
+      "label": "A2A-732 retire old",
+      "sublabel": "PR 504, 1 review",
+      "pos": [
+        860,
+        320
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "fgap",
+      "type": "messagebus",
+      "label": "Follow-up bead",
+      "sublabel": "presence gap",
+      "pos": [
+        640,
+        40
+      ],
+      "size": [
+        150,
+        60
+      ],
+      "tag": "ask: sync?"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Beads server (local only)",
+      "wraps": [
+        "epic",
+        "b728",
+        "b729",
+        "b730",
+        "b731",
+        "b732",
+        "fgap"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "import",
+      "from": "linear",
+      "to": "epic",
+      "label": "pull",
+      "variant": "dashed"
+    },
+    {
+      "id": "child",
+      "from": "epic",
+      "to": "b728",
+      "label": "parent",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d729",
+      "from": "b728",
+      "to": "b729"
+    },
+    {
+      "id": "d730",
+      "from": "b728",
+      "to": "b730",
+      "label": "blocks",
+      "variant": "emphasis"
+    },
+    {
+      "id": "d731",
+      "from": "b728",
+      "to": "b731"
+    },
+    {
+      "id": "e729",
+      "from": "b729",
+      "to": "b732"
+    },
+    {
+      "id": "e730",
+      "from": "b730",
+      "to": "b732",
+      "label": "blocks",
+      "variant": "emphasis"
+    },
+    {
+      "id": "e731",
+      "from": "b731",
+      "to": "b732"
+    },
+    {
+      "id": "gap",
+      "from": "b729",
+      "to": "fgap",
+      "label": "discovered",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Real run (19 Nov, --auto)",
+      "items": [
+        "5 Linear tickets, 6 PRs merged, all released",
+        "Log had 132 rows: queued needs= rows encoded this graph by hand",
+        "Orchestrator log key t1hd.tsv"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "With beads",
+      "items": [
+        "bd ready returns 728, then 729/730/731 at once, then 732",
+        "Review rounds and decided rows become notes on each bead",
+        "Peer handoff would pass only the epic id"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Follow-ups",
+      "items": [
+        "Heap fix is a repair: it stays in A2A-728 as a second PR",
+        "Presence gap becomes a deferred follow-up bead",
+        "Orchestrator asks before creating a Linear ticket"
+      ]
+    }
+  ]
+}

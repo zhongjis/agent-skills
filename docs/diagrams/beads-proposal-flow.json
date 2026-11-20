@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Proposal: remote planning, local-only work in beads",
+    "output": "beads-proposal-flow.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "components": [
+    {
+      "id": "tracker",
+      "type": "cloud",
+      "label": "Remote tracker + spec docs",
+      "sublabel": "Linear / GitHub / docs/specs / Lark",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        520,
+        60
+      ],
+      "tag": "human view"
+    },
+    {
+      "id": "pr",
+      "type": "cloud",
+      "label": "GitHub PR",
+      "sublabel": "code + review",
+      "pos": [
+        960,
+        40
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "plan",
+      "type": "frontend",
+      "label": "wayfinder / grill-me",
+      "sublabel": "HITL decisions",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "spec",
+      "type": "backend",
+      "label": "to-spec",
+      "sublabel": "spec doc",
+      "pos": [
+        240,
+        200
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "tickets",
+      "type": "backend",
+      "label": "to-tickets",
+      "sublabel": "tickets + blocking",
+      "pos": [
+        440,
+        200
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "Orchestrator",
+      "sublabel": "init: pull once",
+      "pos": [
+        640,
+        200
+      ],
+      "size": [
+        200,
+        60
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "frontend",
+      "label": "Pi worker",
+      "sublabel": "hc terminal + worktree",
+      "pos": [
+        960,
+        200
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "beads",
+      "type": "database",
+      "label": "Global beads server",
+      "sublabel": "bd --global (beads_global), no repo files",
+      "pos": [
+        640,
+        380
+      ],
+      "size": [
+        460,
+        64
+      ],
+      "tag": "session epics, task beads, notepads, events"
+    },
+    {
+      "id": "peer",
+      "type": "external",
+      "label": "Peer orchestrator",
+      "sublabel": "gets one handoff bead",
+      "pos": [
+        680,
+        560
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "reviewer",
+      "type": "frontend",
+      "label": "Reviewer worker",
+      "sublabel": "other model family",
+      "pos": [
+        960,
+        560
+      ],
+      "size": [
+        140,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Local only",
+      "wraps": [
+        "orch",
+        "worker",
+        "beads",
+        "peer",
+        "reviewer"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "plan-spec",
+      "from": "plan",
+      "to": "spec",
+      "label": "decisions",
+      "variant": "emphasis"
+    },
+    {
+      "id": "spec-tickets",
+      "from": "spec",
+      "to": "tickets",
+      "label": "spec",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tickets-orch",
+      "from": "tickets",
+      "to": "orch",
+      "label": "ticket ids",
+      "variant": "emphasis"
+    },
+    {
+      "id": "orch-worker",
+      "from": "orch",
+      "to": "worker",
+      "label": "bead id + ulw",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plan-tracker",
+      "from": "plan",
+      "to": "tracker",
+      "label": "map issues"
+    },
+    {
+      "id": "spec-tracker",
+      "from": "spec",
+      "to": "tracker",
+      "label": "publish"
+    },
+    {
+      "id": "tickets-tracker",
+      "from": "tickets",
+      "to": "tracker",
+      "label": "publish"
+    },
+    {
+      "id": "tracker-orch",
+      "from": "tracker",
+      "to": "orch",
+      "label": "pull at init + before dispatch",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "id": "orch-beads",
+      "from": "orch",
+      "to": "beads",
+      "label": "claim, state, read notes"
+    },
+    {
+      "id": "worker-beads",
+      "from": "worker",
+      "to": "beads",
+      "label": "notepad, reports"
+    },
+    {
+      "id": "worker-pr",
+      "from": "worker",
+      "to": "pr",
+      "label": "push",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "beads-peer",
+      "from": "beads",
+      "to": "peer",
+      "label": "bd show handoff bead",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "reviewer-beads",
+      "from": "reviewer",
+      "to": "beads",
+      "label": "review bead",
+      "fromSide": "top",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Replaces",
+      "items": [
+        "TSV log and status.sh: bead status, metadata, event comments",
+        "queued needs= rows: imported blocking deps + bd ready",
+        "Brief and handoff files: task bead + orchestrated-worker skill; handoff bead",
+        "ulw notepad: the bead notes field"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Import",
+      "items": [
+        "Linear: bd linear pull --relations",
+        "Jira: bd jira pull, full body via MCP",
+        "GitHub: bd github pull",
+        "Lark, docs/specs: by hand with external_ref"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Decided",
+      "items": [
+        "No close-out comment: the PR description is the result",
+        "Follow-up beads stay local; the user decides whether to sync",
+        "Re-pull each ticket before dispatch",
+        "Pi Task tool stays until a bd adapter exists"
+      ]
+    }
+  ]
+}

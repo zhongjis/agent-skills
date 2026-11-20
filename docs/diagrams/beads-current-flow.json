@@ -1,0 +1,265 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Current flow: planning to herdr orchestration",
+    "output": "beads-current-flow.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "components": [
+    {
+      "id": "plan",
+      "type": "frontend",
+      "label": "wayfinder / grill-me",
+      "sublabel": "HITL decisions",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        130,
+        60
+      ]
+    },
+    {
+      "id": "spec",
+      "type": "backend",
+      "label": "to-spec",
+      "sublabel": "spec issue",
+      "pos": [
+        240,
+        200
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "tickets",
+      "type": "backend",
+      "label": "to-tickets",
+      "sublabel": "tracer slices",
+      "pos": [
+        440,
+        200
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "Orchestrator",
+      "sublabel": "orchestrate-using-herdr-app",
+      "pos": [
+        640,
+        200
+      ],
+      "size": [
+        200,
+        60
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "frontend",
+      "label": "Pi worker",
+      "sublabel": "hc terminal + worktree",
+      "pos": [
+        960,
+        200
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "tracker",
+      "type": "cloud",
+      "label": "Issue tracker",
+      "sublabel": "Linear / GitHub / .scratch md",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        520,
+        60
+      ]
+    },
+    {
+      "id": "log",
+      "type": "database",
+      "label": "TSV log",
+      "sublabel": "log.sh / status.sh",
+      "pos": [
+        600,
+        380
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "briefs",
+      "type": "database",
+      "label": "Brief files",
+      "sublabel": "brief + handoff md",
+      "pos": [
+        760,
+        380
+      ],
+      "size": [
+        120,
+        60
+      ]
+    },
+    {
+      "id": "notes",
+      "type": "database",
+      "label": "Pi-private state",
+      "sublabel": "ulw notepad + Task JSON",
+      "pos": [
+        960,
+        380
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "peer",
+      "type": "external",
+      "label": "Peer orchestrator",
+      "sublabel": "new tab, starts cold",
+      "pos": [
+        760,
+        540
+      ],
+      "size": [
+        120,
+        60
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "plan-spec",
+      "from": "plan",
+      "to": "spec",
+      "label": "decisions",
+      "variant": "emphasis"
+    },
+    {
+      "id": "spec-tickets",
+      "from": "spec",
+      "to": "tickets",
+      "label": "spec",
+      "variant": "emphasis"
+    },
+    {
+      "id": "tickets-orch",
+      "from": "tickets",
+      "to": "orch",
+      "label": "tickets",
+      "variant": "emphasis"
+    },
+    {
+      "id": "orch-worker",
+      "from": "orch",
+      "to": "worker",
+      "label": "hc send brief",
+      "variant": "emphasis"
+    },
+    {
+      "id": "plan-tracker",
+      "from": "plan",
+      "to": "tracker",
+      "label": "map issues"
+    },
+    {
+      "id": "spec-tracker",
+      "from": "spec",
+      "to": "tracker",
+      "label": "publish"
+    },
+    {
+      "id": "tickets-tracker",
+      "from": "tickets",
+      "to": "tracker",
+      "label": "blocking links"
+    },
+    {
+      "id": "orch-log",
+      "from": "orch",
+      "to": "log",
+      "label": "rows",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "orch-briefs",
+      "from": "orch",
+      "to": "briefs",
+      "label": "write",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "worker-notes",
+      "from": "worker",
+      "to": "notes",
+      "label": "private",
+      "variant": "dashed"
+    },
+    {
+      "id": "briefs-peer",
+      "from": "briefs",
+      "to": "peer",
+      "label": "--handoff",
+      "variant": "dashed"
+    },
+    {
+      "id": "worker-tracker",
+      "from": "worker",
+      "to": "tracker",
+      "label": "close-out comment",
+      "fromSide": "top",
+      "toSide": "right"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Friction",
+      "items": [
+        "Five stores: tracker, TSV log, brief files, ulw notepad, Pi Task JSON",
+        "Orchestrator cannot read worker notes; it scrapes the screen with hc read",
+        "Handoff is a one-shot file; nothing tracks it after the cut"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Duplication",
+      "items": [
+        "Task graph lives twice: tracker blocking links and queued needs= log rows",
+        "log.sh re-implements task keys, latest-row state and dependency gating"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Already good",
+      "items": [
+        "Tracker stays authoritative for scope",
+        "Workers report by ending their turn, never by hc send"
+      ]
+    }
+  ]
+}

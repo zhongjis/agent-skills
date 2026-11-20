@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Orchestration flow with global beads",
+    "output": "beads-orchestration-sequence.html",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "participants": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "User",
+      "sublabel": "decides"
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "Orchestrator",
+      "sublabel": "hc terminal"
+    },
+    {
+      "id": "tracker",
+      "type": "cloud",
+      "label": "Remote tracker",
+      "sublabel": "human view"
+    },
+    {
+      "id": "beads",
+      "type": "database",
+      "label": "Beads server",
+      "sublabel": "bd --global"
+    },
+    {
+      "id": "worker",
+      "type": "frontend",
+      "label": "Worker w-",
+      "sublabel": "worktree"
+    },
+    {
+      "id": "reviewer",
+      "type": "frontend",
+      "label": "Reviewer r-",
+      "sublabel": "other model"
+    },
+    {
+      "id": "github",
+      "type": "cloud",
+      "label": "GitHub",
+      "sublabel": "PR + CI"
+    }
+  ],
+  "segments": [
+    {
+      "from": 150,
+      "to": 290,
+      "label": "Init: import"
+    },
+    {
+      "from": 300,
+      "to": 520,
+      "label": "Dispatch each ready bead"
+    },
+    {
+      "from": 530,
+      "to": 690,
+      "label": "Review, publish, merge"
+    },
+    {
+      "from": 700,
+      "to": 872,
+      "label": "Follow-up proposal"
+    }
+  ],
+  "messages": [
+    {
+      "id": "invoke",
+      "from": "user",
+      "to": "orch",
+      "y": 165,
+      "label": "/orchestrate --auto tickets",
+      "variant": "emphasis"
+    },
+    {
+      "id": "pull",
+      "from": "orch",
+      "to": "tracker",
+      "y": 193,
+      "label": "pull tickets (read only)"
+    },
+    {
+      "id": "pulled",
+      "from": "tracker",
+      "to": "orch",
+      "y": 221,
+      "label": "bodies + blocking links",
+      "variant": "return"
+    },
+    {
+      "id": "upsert",
+      "from": "orch",
+      "to": "beads",
+      "y": 249,
+      "label": "epic + task beads, deps",
+      "variant": "emphasis",
+      "note": "external_ref = ticket URL; repo/session on the epic"
+    },
+    {
+      "id": "ready",
+      "from": "orch",
+      "to": "beads",
+      "y": 315,
+      "label": "bd ready --parent epic"
+    },
+    {
+      "id": "ready-list",
+      "from": "beads",
+      "to": "orch",
+      "y": 343,
+      "label": "ready beads",
+      "variant": "return"
+    },
+    {
+      "id": "repull",
+      "from": "orch",
+      "to": "tracker",
+      "y": 371,
+      "label": "re-pull ticket"
+    },
+    {
+      "id": "repulled",
+      "from": "tracker",
+      "to": "orch",
+      "y": 399,
+      "label": "current body",
+      "variant": "return"
+    },
+    {
+      "id": "claim",
+      "from": "orch",
+      "to": "beads",
+      "y": 427,
+      "label": "claim for w-<key>"
+    },
+    {
+      "id": "send",
+      "from": "orch",
+      "to": "worker",
+      "y": 455,
+      "label": "hc send: skill, bd prime, bead",
+      "variant": "emphasis"
+    },
+    {
+      "id": "notes",
+      "from": "worker",
+      "to": "beads",
+      "y": 483,
+      "label": "bd show; notepad",
+      "variant": "dashed"
+    },
+    {
+      "id": "local-ready",
+      "from": "worker",
+      "to": "orch",
+      "y": 511,
+      "label": "report comment + end turn",
+      "variant": "return"
+    },
+    {
+      "id": "review",
+      "from": "orch",
+      "to": "reviewer",
+      "y": 545,
+      "label": "review bead (claimed)"
+    },
+    {
+      "id": "findings",
+      "from": "reviewer",
+      "to": "beads",
+      "y": 573,
+      "label": "findings in notepad",
+      "variant": "dashed"
+    },
+    {
+      "id": "fix",
+      "from": "orch",
+      "to": "worker",
+      "y": 601,
+      "label": "fix findings, then push"
+    },
+    {
+      "id": "pr",
+      "from": "worker",
+      "to": "github",
+      "y": 629,
+      "label": "push; PR description = result",
+      "variant": "emphasis"
+    },
+    {
+      "id": "merge",
+      "from": "orch",
+      "to": "github",
+      "y": 657,
+      "label": "pr-wait; merge (--auto)"
+    },
+    {
+      "id": "close",
+      "from": "orch",
+      "to": "beads",
+      "y": 685,
+      "label": "verify merge; close",
+      "variant": "emphasis",
+      "note": "unblocks dependents for the next bd ready"
+    },
+    {
+      "id": "propose",
+      "from": "worker",
+      "to": "beads",
+      "y": 740,
+      "label": "deferred follow-up bead",
+      "variant": "dashed",
+      "note": "local only; discovered-from parent"
+    },
+    {
+      "id": "ask",
+      "from": "orch",
+      "to": "user",
+      "y": 796,
+      "label": "sync follow-up to remote?"
+    },
+    {
+      "id": "answer",
+      "from": "user",
+      "to": "orch",
+      "y": 824,
+      "label": "yes / keep local",
+      "variant": "return"
+    },
+    {
+      "id": "sync",
+      "from": "orch",
+      "to": "tracker",
+      "y": 858,
+      "label": "create ticket (yes only)",
+      "variant": "dashed"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "orch",
+      "from": 165,
+      "to": 850,
+      "type": "backend"
+    },
+    {
+      "participant": "worker",
+      "from": 455,
+      "to": 745,
+      "type": "frontend"
+    },
+    {
+      "participant": "reviewer",
+      "from": 545,
+      "to": 578,
+      "type": "frontend"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Remote writes",
+      "items": [
+        "PR and its description",
+        "A follow-up ticket, only on the user's yes",
+        "No close-out comments, no agent notes"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Beads replaces",
+      "items": [
+        "TSV log rows: bead status, metadata, event comments",
+        "Brief files: task bead + orchestrated-worker skill",
+        "ulw notepad: bead notes field"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "hc keeps",
+      "items": [
+        "start, send, read, wait, reap",
+        "Workers report by ending their turn"
+      ]
+    }
+  ]
+}
