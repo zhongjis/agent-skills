@@ -252,31 +252,43 @@ check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$sc
 other_epic=$(bd create 'Other session' --type epic --silent)
 instruction=$'Fix literal ; $(false)\nSecond line\nulw'
 
+# Create and claim before linking, as in supervise.md.
+create_review() {
+	local round=$1 design=$2 review
+	review=$(bd create --title "Review $launch_task round $round" --description "Review $launch_task" --design "$design" --silent) &&
+		bd update "$review" --claim --actor r-task >/dev/null &&
+		bd dep add "$review" "$launch_task" --type parent-child >/dev/null &&
+		bd update "$launch_task" --set-metadata "review_round=$round" >/dev/null &&
+		printf '%s\n' "$review"
+}
+# shellcheck disable=SC2016 # literal Pi tokens
+review_one=$(create_review 1 'Review main...HEAD $skill:axis-review')
+bd show "$review_one" --json | jq -e --arg task "$launch_task" '.[0] | .assignee == "r-task" and .status == "in_progress" and (.design | contains("main...HEAD")) and any(.dependencies[]; .id == $task and .dependency_type == "parent-child")' >/dev/null
+bd show "$launch_task" --json | jq -e '.[0].metadata.review_round | tostring == "1"' >/dev/null
+check 1 'issue already claimed by' bd update "$review_one" --claim --actor r-other
+check 3 'not assigned in progress' env MODE=settled "$scripts/start-worker.sh" r-other "$tmp/wt-a" "$review_one"
+
 # Reviewer startup uses hc ls's observed string status, not hc get's object.
 ln -s "$tmp/wt-a" "$tmp/wt-alias"
 printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-alias" > "$tmp/terminals.json"
 : > "$tmp/calls"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one"
 [[ ! -s $tmp/calls ]]
 for terminal in 'live idle w-worker-a' 'finished working w-worker-a' 'live working r-other'; do
 	read -r state status name <<< "$terminal"
 	printf '{"terminals":[{"address":"t1","name":"%s","cwd":"%s","state":"%s","status":"%s"}]}\n' "$name" "$tmp/wt-a" "$state" "$status" > "$tmp/terminals.json"
-	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one"
 done
 printf '{"terminals":[{"address":"t1","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp/wt-a" > "$tmp/terminals.json"
-check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+check 3 'working in worktree' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one"
 printf '{"terminals":[{"address":"t1","name":"w-worker-a","cwd":"%s","state":"live","status":"working"}]}\n' "$tmp" > "$tmp/terminals.json"
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one"
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 : > "$tmp/calls"
-# Transitional (wf-zr1.5): a reviewer's task definition is its own agent comment;
-# worker design tokens and reviewer comment tokens never cross.
-# shellcheck disable=SC2016 # literal Pi tokens
-bd comments add "$launch_task" $'event=re-instructed agent=r-task\n\nReview main...HEAD $skill:axis-review' >/dev/null
-check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$launch_task"
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one"
 mapfile -d '' -t argv < "$tmp/argv"
 # shellcheck disable=SC2016 # literal Pi tokens
-[[ ${argv[-1]} == *"agent=r-task in bd comments $launch_task"* && ${argv[-1]} == *'review per it'* && ${argv[-1]} != *'work that bead'* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
+[[ ${argv[*]} == *"BEADS_ACTOR=r-task ORCH_BEAD=$review_one"* && ${argv[-1]} == *"bd show $review_one"* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 mapfile -d '' -t argv < "$tmp/argv"
 # shellcheck disable=SC2016 # literal Pi tokens
@@ -530,31 +542,43 @@ git -C "$tmp/work" switch -qc topic
 git -C "$tmp/work" push -q origin topic
 git -C "$tmp/work" commit -qm feature --allow-empty
 head=$(git -C "$tmp/work" rev-parse HEAD)
-# Review scope must resolve to a commit in this worktree's HEAD history.
+# A later round revisits the same reviewer with a new bead.
 : > "$tmp/calls"
-check 3 'not a commit' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$launch_task" "$instruction" --last-reviewed missing
+check 3 'not a commit' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_one" "$instruction" --last-reviewed missing
 [[ ! -s $tmp/calls ]]
+bd update "$review_one" --notes 'Round one findings' --actor r-task >/dev/null
+bd comments add "$review_one" "event=report kind=done head=$main" --actor r-task >/dev/null
+bd close "$review_one" --actor r-task >/dev/null
 review_body=$'Review fixes\nReport by ending your turn; never `hc send` to the orchestrator.\nulw'
 instruction="$review_body"
-review_task=$(bd create 'Reviewer event' --parent "$launch_epic" --metadata '{"key":"task"}' --silent)
+# shellcheck disable=SC2016 # literal Pi tokens
+review_task=$(create_review 2 "Review $main..HEAD "'$skill:axis-review')
+bd show "$launch_task" --json | jq -e '.[0].metadata.review_round | tostring == "2"' >/dev/null
+check 3 'not assigned in progress' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_one" "$instruction" --last-reviewed "$main"
 check 0 'sent' env HC_TERMINAL_ID=orch ORCH_EPIC="$launch_epic" MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
-bd comments "$review_task" --json | jq -e --arg base "$main" '.[-1].text | contains("last-reviewed=" + $base)' >/dev/null
-comments=$(bd comments "$review_task" --json)
-[[ $comments == *"$main..HEAD"* ]]
-[[ $(jq -r '.[-1].text' <<<"$comments") == *"$review_body" ]] || { echo 'FAIL: reviewer comment must preserve the full instructions'; exit 1; }
-# After /new, a Pi reviewer's tokens come from its own comments, never the worker's design.
-check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$launch_task" "$instruction" --last-reviewed "$main" --new-context
+bd comments "$review_task" --json | jq -e --arg base "$main" --arg bead "$review_task" '.[-1].text | startswith("event=re-instructed agent=r-task bead=" + $bead + " last-reviewed=" + $base)' >/dev/null
+sent=$(cat "$tmp/sent-text")
+[[ $sent == *"Review bead $review_task is your current bead for all reads, notes, and reports"* && $sent == *"bd show $review_task"* && $sent == *"bd comments $review_task"* ]]
+out=$(BEADS_ACTOR=r-task ORCH_BEAD="$review_one" "$scripts/worker-context.sh")
+[[ $out == *"$review_task"* && $out == *"$main..HEAD"* && $out == *"$review_body"* && $out != *'Round one findings'* ]]
+# After /new, tokens come from the new review bead's design.
+check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main" --new-context
 sent=$(cat "$tmp/sent-text")
 # shellcheck disable=SC2016 # literal Pi tokens
-[[ $sent == *"bd prime"* && $sent == *"agent=r-task in bd comments $launch_task"* && $sent == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
+[[ $sent == *"bd prime"* && $sent == *"agent=r-task in bd comments $review_task"* && $sent == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
 # Same reviewer name and session survive finished-terminal revival.
 rm -f "$tmp/removed"
-check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$head"
+check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *'pi --session review-9'* ]]
-comments=$(bd comments "$review_task" --json)
-[[ $comments == *"$head..HEAD"* ]]
-[[ $(jq -r '.[-2].text' <<<"$comments") == *"$review_body" && ${argv[-1]} == *' ulw' ]] || { echo 'FAIL: revived reviewer comment must preserve instructions and Pi bootstrap'; exit 1; }
+[[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *"ORCH_BEAD=$review_task"* && ${argv[*]} == *'pi --session review-9'* && ${argv[-1]} == *' ulw' ]]
+
+# Workers and reviewers use the same parentless deferred follow-up form.
+for source_bead in "$launch_task" "$review_task"; do
+	gap=$(bd create --title 'Later gap' --deps "discovered-from:$source_bead" --labels follow-up --description 'Gap: missing example; small; docs' --status deferred --silent)
+	bd show "$gap" --json | jq -e --arg source "$source_bead" '.[0] | .status == "deferred" and (.assignee // "") == "" and .labels == ["follow-up"] and ((.metadata // {}) | length == 0) and (.dependencies | length == 1 and .[0].id == $source and .[0].dependency_type == "discovered-from")' >/dev/null
+	bd ready --parent "$launch_epic" --json | jq -e --arg gap "$gap" 'all(.[]; .id != $gap)' >/dev/null
+	bd dep list "$source_bead" --direction=up --type discovered-from --json | jq -e --arg gap "$gap" 'any(.[]; .id == $gap)' >/dev/null
+done
 
 # Guard failures must happen before the passed command executes.
 check 1 'not on branch' "$scripts/push-pinned.sh" "$tmp/work" other "$main" -- touch "$tmp/built"
@@ -680,18 +704,18 @@ rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 # event.sh: real comments, fixed event vocabulary, attributed one-line fields.
 status_epic=$(bd create 'Status session' --type epic --metadata '{"session":"status-orch"}' --silent)
 alpha=$(bd create Alpha --parent "$status_epic" --metadata '{"key":"alpha"}' --silent)
-for event in mode ticketed dispatched handed-off queued re-instructed reviewed ready merged settled reaped blocked decided note adopted; do
+for event in mode ticketed dispatched handed-off queued re-instructed ready merged settled reaped blocked decided note adopted; do
 	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" 'detail=spaces stay together'
 done
 comments=$(bd comments "$alpha" --json)
-jq -e 'length == 15 and all(.[]; .author == "o-events" and (.text | endswith(" detail=spaces stay together")))' <<<"$comments" >/dev/null
+jq -e 'length == 14 and all(.[]; .author == "o-events" and (.text | endswith(" detail=spaces stay together")))' <<<"$comments" >/dev/null
 check 1 'usage' "$scripts/event.sh"
-check 1 'invalid event' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" unknown
+check 1 'invalid event' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" reviewed
 check 1 'HC_TERMINAL_ID' env -u HC_TERMINAL_ID "$scripts/event.sh" "$alpha" note
 for field in missing-equals '=empty-key' 'event=note' $'detail=new\nline' $'detail=carriage\rreturn' $'detail=tab\tvalue'; do
 	check 1 'invalid event field' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note "$field"
 done
-[[ $(bd comments "$alpha" --json | jq 'length') == 15 ]]
+[[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
 check 1 '' env HC_TERMINAL_ID=events "$scripts/event.sh" orch-nonexistent note
 
 # Status reads native state, latest event plus metadata, and the latest worker dispatch.
@@ -703,7 +727,7 @@ check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mod
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=old
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=t9
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=r-alpha terminal=t11
-check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" reviewed 'detail=PR #7 | green' findings=/review
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" ready 'detail=PR #7 | green' head=head7
 # Non-event comments do not replace the latest milestone.
 bd comments add "$alpha" 'Human observation, not an event' >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" dispatched agent=w-beta terminal=t10
@@ -712,13 +736,13 @@ bd close "$beta" >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$gamma" dispatched agent=w-gamma terminal=t11
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=one
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=two
-alpha_since=$(bd comments "$alpha" --json | jq -r '[.[] | select(.text | startswith("event=reviewed "))][-1].created_at')
+alpha_since=$(bd comments "$alpha" --json | jq -r '[.[] | select(.text | startswith("event=ready "))][-1].created_at')
 delta_since=$(bd show "$delta" --json | jq -r '.[0].created_at')
 out=$("$scripts/status.sh" "$status_epic")
-[[ $out == *'| Task | Worker | Event | Result | Evidence | Since |'* && $out == *'| alpha | w-alpha (t9) | reviewed | in_progress |'* && $out == *'| beta | w-beta (t10) | reaped | closed |'* ]]
+[[ $out == *'| Task | Worker | Event | Result | Evidence | Since |'* && $out == *'| alpha | w-alpha (t9) | ready | in_progress |'* && $out == *'| beta | w-beta (t10) | reaped | closed |'* ]]
 [[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
 [[ $(awk -F'|' '/^\| (alpha|beta|gamma|delta) \|/ { gsub(/ /, "", $2); print $2 }' <<<"$out") == $'alpha\nbeta\ngamma\ndelta' ]]
-for evidence in 'PR #7 &#124; green' 'findings=/review' 'pr_url=https://example.invalid/pr/7' 'head_sha=head7' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
+for evidence in 'PR #7 &#124; green' 'head=head7' 'pr_url=https://example.invalid/pr/7' 'head_sha=head7' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
 	[[ $out == *"$evidence"* ]] || { printf 'FAIL: missing evidence %s\n%s\n' "$evidence" "$out" >&2; exit 1; }
 done
 [[ $out == *"$alpha_since"* && $out == *"$delta_since"* ]]

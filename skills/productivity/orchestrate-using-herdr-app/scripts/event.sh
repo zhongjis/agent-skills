@@ -11,7 +11,7 @@ bead="$1"
 event="$2"
 shift 2
 case "$event" in
-	mode|ticketed|dispatched|handed-off|queued|re-instructed|reviewed|ready|merged|settled|reaped|blocked|decided|note|adopted) ;;
+	mode|ticketed|dispatched|handed-off|queued|re-instructed|ready|merged|settled|reaped|blocked|decided|note|adopted) ;;
 	*) printf 'invalid event name: %s\n' "$event" >&2; exit 1 ;;
 esac
 body=

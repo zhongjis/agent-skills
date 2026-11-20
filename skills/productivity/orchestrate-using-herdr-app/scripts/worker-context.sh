@@ -15,7 +15,7 @@ bead=${bead:-${ORCH_BEAD:-}}
 [ -n "$bead" ] || exit 0
 task=$(bd show "$bead") || exit 0
 comments=$(bd comments "$bead" --json) || exit 0
-# Worker and reviewer share a task bead; take only this agent's instruction.
+# Ignore instructions addressed to another actor, including after reassignment.
 latest=$(jq -r --arg agent "agent=${BEADS_ACTOR:-}" '[.[] | select(.text | split("\n")[0] | split(" ") | .[0] == "event=re-instructed" and any(.[]; . == $agent))] | sort_by(.created_at, .id) | last | .text // empty' <<<"$comments") || exit 0
 cat -- "$skill"
 printf '\n\n%s\n' "$task"

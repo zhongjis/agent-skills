@@ -34,6 +34,9 @@ if [[ $name == r-* ]]; then
 	git -C "$worktree" merge-base --is-ancestor "$base" HEAD || {
 		printf 'last-reviewed %s is not an ancestor of HEAD\n' "$base" >&2; exit 3;
 	}
+	bd show "$bead" --json | jq -e --arg name "$name" '.[0] | .status == "in_progress" and .assignee == $name' >/dev/null || {
+		printf 'review bead %s is not assigned in progress to %s\n' "$bead" "$name" >&2; exit 3;
+	}
 	printf -v text 'Review scope for this round (supersedes any scope in the following instructions): %s..HEAD\n\n%s' "$base" "$text"
 elif [ -n "$base" ]; then
 	usage
@@ -42,11 +45,20 @@ fi
 script_dir=$(dirname -- "${BASH_SOURCE[0]}")
 record_instruction() {
 	local event_fields=("agent=$name")
-	[ -z "$base" ] || event_fields+=("last-reviewed=$base")
+	[ -z "$base" ] || event_fields+=("bead=$bead" "last-reviewed=$base")
 	"$script_dir/event.sh" "$bead" re-instructed --body "$text" "${event_fields[@]}" >/dev/null
 }
 printf -v pointer 'Read the latest event=re-instructed comment with agent=%s in bd comments %q. Follow that re-instruction; write an event=report comment on that bead, then end your turn; never hc send to the orchestrator.' "$name" "$bead"
-[ -z "$new_context" ] || printf -v pointer 'Load the orchestrated-worker skill, run bd prime, run bd show %q, then: %s' "$bead" "$pointer"
+if [ -n "$base" ]; then
+	printf -v pointer 'Review bead %q is your current bead for all reads, notes, and reports, including ulw. Ignore any older ORCH_BEAD. Read its design with bd show %q, then: %s' "$bead" "$bead" "$pointer"
+fi
+if [ -n "$new_context" ]; then
+	if [ -n "$base" ]; then
+		pointer="Load the orchestrated-worker skill and run bd prime. $pointer"
+	else
+		printf -v pointer 'Load the orchestrated-worker skill, run bd prime, run bd show %q, then: %s' "$bead" "$pointer"
+	fi
+fi
 
 snapshot=$(hc get "$name" --json)
 fields=$(jq -er '[.state, (.status.state // "none"), (.turn // 0), (.labels.resume // "")] | @tsv' <<<"$snapshot")
@@ -62,12 +74,7 @@ case "$state" in
 		record_instruction
 		# start-worker launches through env; hc preserves that complete argv.
 		if [ -n "$new_context" ] && jq -e '.argv | index("pi") != null' <<<"$snapshot" >/dev/null; then
-			# Same sources as start-worker.sh: a reviewer's own comments, a worker's design.
-			if [[ $name == r-* ]]; then
-				source_text=$(bd comments "$bead" --json | jq -r --arg agent "agent=$name" '.[] | select(.text | split("\n")[0] | split(" ") | .[0] == "event=re-instructed" and any(.[]; . == $agent)) | .text')
-			else
-				source_text=$(bd show "$bead" --json | jq -r '.[0].design // ""')
-			fi
+			source_text=$(bd show "$bead" --json | jq -r '.[0].design // ""')
 			pointer+=" \$skill:orchestrated-worker"
 			# shellcheck disable=SC2016 # literal Pi skill triggers
 			while IFS= read -r skill; do pointer+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' <<<"$source_text" | sort -u)

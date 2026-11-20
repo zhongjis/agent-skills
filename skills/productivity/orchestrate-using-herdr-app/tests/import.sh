@@ -172,6 +172,12 @@ bd create 'Unreconciled local' --parent "$ORCH_EPIC" --metadata '{"key":"local-1
 : > "$tmp/pulls"
 check 1 'reconciliation conflict' "$importer" jira "$ref"
 [[ ! -s $tmp/pulls ]]
+# A published follow-up pulls into its existing parentless bead and is put back in the icebox.
+ref=https://linear.app/team/issue/GAP-1
+bd update "$gap" --external-ref "$ref" --set-metadata repo=fixture --set-metadata session=import-orch >/dev/null
+check 0 "bead=$gap" "$importer" linear "$ref" --blocker
+bd update "$gap" --status deferred --set-labels follow-up --assignee '' --set-metadata repo=fixture --set-metadata session=import-orch >/dev/null
+bd show "$gap" --json | jq -e --arg ref "$ref" --arg review "$review_task" '.[0] | .status == "deferred" and .parent == null and .external_ref == $ref and .labels == ["follow-up"] and .metadata == {repo:"fixture", session:"import-orch"} and any(.dependencies[]; .id == $review and .dependency_type == "discovered-from")' >/dev/null
 # An outside blocker retains remote state and no session parent.
 ref=https://linear.app/team/issue/BLOCK-1
 check 0 'bead=' env IMPORT_STATUS=blocked "$importer" linear "$ref" --blocker

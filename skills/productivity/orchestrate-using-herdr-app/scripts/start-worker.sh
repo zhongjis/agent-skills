@@ -32,6 +32,9 @@ fi
 task=$(bd show "$bead" --json)
 # Reviewers share the worker's checkout; never inspect it mid-edit.
 if [[ $name == r-* ]]; then
+	jq -e --arg name "$name" '.[0] | .status == "in_progress" and .assignee == $name' <<<"$task" >/dev/null || {
+		printf 'review bead %s is not assigned in progress to %s\n' "$bead" "$name" >&2; exit 3;
+	}
 	worktree=$(realpath -- "$worktree")
 	terminals=$(hc ls --json)
 	candidates=$(jq -r '.terminals[] | select(.state == "live" and .status == "working") | select(((.name // "") | startswith("r-")) | not) | [.address, .cwd] | @tsv' <<<"$terminals")
@@ -43,20 +46,9 @@ if [[ $name == r-* ]]; then
 		fi
 	done <<<"$candidates"
 fi
-# Transitional until wf-zr1.5 adds review beads: a reviewer's task definition
-# is its own event=re-instructed agent=<name> comment on the task bead.
-if [[ $name == r-* ]]; then
-	printf -v prompt 'Load the orchestrated-worker skill, run bd prime, run bd show %q, then read the latest event=re-instructed comment with agent=%s in bd comments %q. That comment is your review task definition: review per it; never implement the bead.' "$bead" "$name" "$bead"
-else
-	printf -v prompt 'Load the orchestrated-worker skill, run bd prime, run bd show %q, and work that bead. Read its latest event=re-instructed comment with agent=%s in bd comments %q for any later instructions.' "$bead" "$name" "$bead"
-fi
+printf -v prompt 'Load the orchestrated-worker skill, run bd prime, run bd show %q, and work that bead. Read its latest event=re-instructed comment with agent=%s in bd comments %q for any later instructions.' "$bead" "$name" "$bead"
 if [ "$kind" = pi ]; then
-	# Pi skill triggers: a reviewer's from its own comments, a worker's from design.
-	if [[ $name == r-* ]]; then
-		source_text=$(bd comments "$bead" --json | jq -r --arg agent "agent=$name" '.[] | select(.text | split("\n")[0] | split(" ") | .[0] == "event=re-instructed" and any(.[]; . == $agent)) | .text')
-	else
-		source_text=$(jq -r '.[0].design // ""' <<<"$task")
-	fi
+	source_text=$(jq -r '.[0].design // ""' <<<"$task")
 	prompt+=" \$skill:orchestrated-worker"
 	# shellcheck disable=SC2016 # match literal Pi skill triggers
 	while IFS= read -r skill; do prompt+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' <<<"$source_text" | sort -u)

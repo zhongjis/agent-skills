@@ -35,6 +35,10 @@ A remote done/cancelled ticket maps to `closed`: the script marks the bead `bloc
 
 Pulled statuses are never normalized: on bd 1.3.4 every status write bumps `updated_at`, and a native pull skips a bead whose `updated_at` is after the tracker's `last_sync`. A pull also reports `skipped` when the content is unchanged. bd shows `last_sync` only in a pull's JSON, so the script pulls once more after a first skip. A second skip whose bead `updated_at` is at or before the first pull's `last_sync` means unchanged, and dispatch proceeds. Otherwise a local write may hide a remote change: the script records `event=blocked reason=pull-skipped`, sets `blocked_reason=pull-skipped` metadata, holds the bead, and stops. Report it; never forge timestamps or `last_sync`. Do not write task metadata before this re-pull.
 
+## Pull a published follow-up
+
+After the user approves publication and the new ticket exists, record its canonical URL as the existing follow-up bead's `external_ref`. Use `scripts/import-ticket.sh <tracker> <url> --blocker` for its parentless, no-dispatch pull. Keep the original ID and verify the returned `bead=` matches it. Only use this path for a new ticket with no remote relations. Native pull may overwrite status, labels, metadata, and assignee: restore `deferred`, label `follow-up`, and the original `repo` and `session` metadata on the same bead, clear any remote assignee, and verify the `discovered-from` links remain. After a failed pull, inspect the bead and leave it deferred before reporting the failure. Do not use this path to adopt or claim the bead.
+
 ## Lark and local specs
 
 For a Lark document or `docs/specs` source, import by hand: look up its exact `external_ref` with `bd list --external-ref <source> --all --limit 0 --json`, enforce one matching task bead, then create or update it with that reference. Apply the same conflict/adoption rules before writes. Use the document URL or canonical repository/spec reference consistently across sessions. Read only the agreed work and its blockers, attach the session epic with a dependency edit, and add native blocking edges.
