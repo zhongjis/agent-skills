@@ -47,6 +47,10 @@ case "$1" in
 		[[ $MODE != wait-error ]] || { echo '{"error":{"kind":"io"}}' >&2; exit 1; }
 		case "$MODE" in quiet*) echo '{"reason":"timeout"}' ;; *) echo '{"reason":"status"}' ;; esac
 		exit ;;
+	keys)
+		printf '%s\n' "$*" > "$FIXTURE/keys-call"
+		[[ $MODE != keys-fail ]] || { echo '{"error":{"kind":"invalid_params"}}' >&2; exit 1; }
+		exit ;;
 	read)
 		r=$(( $(cat "$FIXTURE/reads" 2>/dev/null || echo 0) + 1 ))
 		echo "$r" > "$FIXTURE/reads"
@@ -594,4 +598,14 @@ printf '[[{"user":{"login":"ci-bot","type":"User"},"created_at":"2026-01-01T00:0
 check 0 $'ci-bot\nhelperbot' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo
 check 2 'API unavailable' env GH_MODE=api-error "$scripts/bot-active.sh" 7 --repo owner/repo
 check 2 'usage' "$scripts/bot-active.sh" 7
+rm -f "$tmp/keys-call"
+check 0 '' env MODE=ok "$scripts/type-command.sh" w-a '/mode-model a/B-1.2 x'
+[[ $(cat "$tmp/keys-call") == 'keys w-a / m o d e - m o d e l space a / shift+b - 1 . 2 space x enter' ]] || { echo 'FAIL: type-command key split' >&2; exit 1; }
+rm -f "$tmp/keys-call"
+check 1 'usage' "$scripts/type-command.sh" w-a 'new'
+check 1 'usage' "$scripts/type-command.sh" w-a '/'
+check 1 'usage' "$scripts/type-command.sh" w-a
+check 1 'cannot type' "$scripts/type-command.sh" w-a '/a_b'
+[[ ! -e $tmp/keys-call ]] || { echo 'FAIL: type-command typed after rejecting input' >&2; exit 1; }
+check 1 'invalid_params' env MODE=keys-fail "$scripts/type-command.sh" w-a /new
 printf '%s CLI checks plus safety assertions passed\n' "$checks"
