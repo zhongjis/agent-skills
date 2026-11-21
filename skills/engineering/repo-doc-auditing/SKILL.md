@@ -1,6 +1,7 @@
 ---
 name: repo-doc-auditing
 description: Audit repository docs for audience fit and ownership. Use when asked to audit, trim, or clean up repository docs (CONTRIBUTING.md, READMEs, AGENTS.md, docs/), find misplaced or irrelevant content, or check documentation ownership.
+disable-model-invocation: true
 ---
 
 # Audit Repository Docs
