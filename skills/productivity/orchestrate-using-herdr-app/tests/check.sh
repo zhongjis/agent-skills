@@ -696,6 +696,9 @@ git -C "$tmp/full-src" -c user.email=f@example.invalid -c user.name=F commit -qm
 git -C "$tmp/full-src" remote add origin "$tmp/full-remote"
 git -C "$tmp/full-src" worktree add -q -b topic-full "$tmp/full-wt"
 git -C "$tmp/full-src" push -q origin topic-full
+# A failing source pre-push hook must not block the remote branch delete.
+printf '#!/usr/bin/env bash\nexit 1\n' > "$tmp/full-src/.git/hooks/pre-push"
+chmod +x "$tmp/full-src/.git/hooks/pre-push"
 echo "$$" > "$tmp/pids"; : > "$tmp/listeners"; : > "$tmp/removed-names"
 printf 'w-a1-topic\nr-a1-topic\n' > "$tmp/full-terms"
 check 0 'full cleanup w-a1-topic' env MODE=full "$scripts/reap-worker.sh" "$tmp/full-wt" w-a1-topic --full topic-full
@@ -720,6 +723,9 @@ for field in missing-equals '=empty-key' 'event=note' $'detail=new\nline' $'deta
 	check 1 'invalid event field' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note "$field"
 done
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
+# --body may follow the k=v fields; it goes after the parseable first line.
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note detail=one --body $'free\ntext' extra=two
+bd comments "$alpha" --json | jq -e 'last.text == "event=note detail=one extra=two\n\nfree\ntext"' >/dev/null
 check 1 '' env HC_TERMINAL_ID=events "$scripts/event.sh" orch-nonexistent note
 
 # Status reads native state, latest event plus metadata, and the latest worker dispatch.

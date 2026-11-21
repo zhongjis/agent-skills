@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Usage: import-ticket.sh <linear|jira|github> <ticket-url>
-#        [--key <key>] [--dispatch w-<key>] [--adopt <old-epic>] [--blocker]
+#        [--key <key>] [--dispatch w-<key>[-<slug>]] [--adopt <old-epic>] [--blocker]
+# --dispatch takes the full worker name: it is the claim actor and BEADS_ACTOR.
 # Initial import or pre-dispatch re-pull; never use for re-instruction.
 # Requires ORCH_EPIC and HC_TERMINAL_ID; stdout is bead=<id>.
 set -euo pipefail
 fail() { printf '%s\n' "$*" >&2; exit 1; }
-usage() { printf 'usage: import-ticket.sh <linear|jira|github> <ticket-url> [--key key] [--dispatch w-key] [--adopt old-epic] [--blocker]\n'; }
+usage() { printf 'usage: import-ticket.sh <linear|jira|github> <ticket-url> [--key key] [--dispatch w-key[-slug]] [--adopt old-epic] [--blocker]\n'; }
 [[ ${1:-} != --help ]] || { usage; exit 0; }
 [[ $# -ge 2 ]] || { usage >&2; exit 1; }
 tracker=$1 ref=$2
@@ -43,7 +44,7 @@ case "$tracker" in
 esac
 key=${key:-${identifier,,}}
 [[ $key =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail 'invalid key'
-[[ -z $worker || $worker == "w-$key" ]] || fail 'dispatch worker must be w-<key>'
+[[ -z $worker || $worker == "w-$key" || $worker == "w-$key-"* ]] || fail 'dispatch worker must be w-<key> or w-<key>-<slug>'
 [[ $blocker == false || -z $worker ]] || fail '--blocker cannot dispatch'
 [[ -n ${ORCH_EPIC:-} && -n ${HC_TERMINAL_ID:-} ]] || fail 'needs ORCH_EPIC and HC_TERMINAL_ID'
 scripts=$(dirname -- "${BASH_SOURCE[0]}")

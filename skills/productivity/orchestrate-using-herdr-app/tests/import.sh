@@ -143,9 +143,12 @@ for state in in_progress blocked deferred; do
 	ref="https://linear.app/team/issue/STATE-${#state}"
 	check 0 'bead=' env IMPORT_STATUS="$state" IMPORT_ASSIGNEE=remote-user "$importer" linear "$ref"
 	bd list --all --external-ref "$ref" --json | jq -e --arg s "$state" '.[0].status == $s and .[0].assignee == "remote-user"' >/dev/null
-	check 0 'bead=' env IMPORT_STATUS="$state" IMPORT_ASSIGNEE=remote-user "$importer" linear "$ref" --dispatch "w-state-${#state}"
-	bd list --all --external-ref "$ref" --json | jq -e --arg w "w-state-${#state}" '.[0].status == "in_progress" and .[0].assignee == $w' >/dev/null
+	check 0 'bead=' env IMPORT_STATUS="$state" IMPORT_ASSIGNEE=remote-user "$importer" linear "$ref" --dispatch "w-state-${#state}-slug"
+	bd list --all --external-ref "$ref" --json | jq -e --arg w "w-state-${#state}-slug" '.[0].status == "in_progress" and .[0].assignee == $w' >/dev/null
 done
+# The claim actor is the full worker name, which must start with w-<key>.
+check 1 'dispatch worker must be' "$importer" linear https://linear.app/team/issue/STATE-9 --dispatch w-other
+check 1 'dispatch worker must be' "$importer" linear https://linear.app/team/issue/STATE-9 --dispatch w-state-90
 # A competing write before the guarded prep (exit 13) or the claim stops dispatch.
 for race in prep:blocked:racer claim:in_progress:w-racer; do
 	IFS=: read -r race state winner <<<"$race"
