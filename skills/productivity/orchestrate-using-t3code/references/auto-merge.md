@@ -15,7 +15,7 @@ Immediately before merging, confirm all of these for the recorded head SHA:
 - every required check is green for that SHA;
 - configured reviewers have responded to that SHA, required approvals are met, and there is no `CHANGES_REQUESTED` or unresolved actionable thread.
 
-Merge through the repository's merge queue when it has one, otherwise its supported method. Any failed or uncertain gate (flaky or pre-existing failure, silent reviewer, permission doubt) leaves the PR open with evidence; send in-scope repairs back to the worker.
+Squash-merge: through the repository's merge queue when it has one (configured for squash), otherwise `gh pr merge <pr> --squash`. When the repository does not allow squash merges, leave the PR open and ask the user. Any failed or uncertain gate (flaky or pre-existing failure, silent reviewer, permission doubt) leaves the PR open with evidence; send in-scope repairs back to the worker.
 
 ## After merge
 
