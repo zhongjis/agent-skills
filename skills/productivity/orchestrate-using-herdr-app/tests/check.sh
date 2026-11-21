@@ -706,6 +706,22 @@ check 0 'full cleanup w-a1-topic' env MODE=full "$scripts/reap-worker.sh" "$tmp/
 [[ ! -e $tmp/full-wt ]]
 check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full
 check 1 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-full
+
+# --full --keep-remote: non-merge work keeps its pushed branch and refuses dirty or unpushed heads.
+git -C "$tmp/full-src" worktree add -q -b topic-keep "$tmp/keep-wt"
+git -C "$tmp/full-src" push -q --no-verify origin topic-keep
+printf 'w-a2-keep\nr-a2-keep\n' > "$tmp/full-terms"; : > "$tmp/removed-names"
+touch "$tmp/keep-wt/dirty"
+check 1 'uncommitted work' env MODE=full "$scripts/reap-worker.sh" "$tmp/keep-wt" w-a2-keep --full topic-keep --keep-remote
+git -C "$tmp/keep-wt" add dirty && git -C "$tmp/keep-wt" -c user.email=f@example.invalid -c user.name=F commit -qm dirty
+check 1 'head not on origin' env MODE=full "$scripts/reap-worker.sh" "$tmp/keep-wt" w-a2-keep --full topic-keep --keep-remote
+[[ -e $tmp/keep-wt ]] && [[ ! -s $tmp/removed-names ]]
+git -C "$tmp/full-src" push -q --no-verify origin topic-keep
+check 0 'full cleanup w-a2-keep' env MODE=full "$scripts/reap-worker.sh" "$tmp/keep-wt" w-a2-keep --full topic-keep --keep-remote
+[[ ! -e $tmp/keep-wt ]]
+check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-keep
+check 0 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-keep
+check 1 'usage' "$scripts/reap-worker.sh" "$tmp/keep-wt" w-a2-keep --full topic-keep --bogus
 rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 
 # event.sh: real comments, fixed event vocabulary, attributed one-line fields.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch>]
+# Usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]
 # Stop what a worker started in <worktree>: its agent-browser namespace,
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
@@ -7,19 +7,21 @@
 # labels the settled worker hibernate=ok after cleanup.
 # --full <branch> is full cleanup after a merged, released task: it also removes the
 # w-/r- terminals for the agent's stem, the git worktree, and the local and remote
-# <branch>, then confirms each is gone.
+# <branch>, then confirms each is gone. --keep-remote, for non-merge work, keeps the
+# remote branch as evidence and refuses a dirty worktree or a head missing from origin.
 # Matches cwd via /proc on Linux and lsof on macOS.
 set -euo pipefail
 
 usage() {
-	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch>]\n' >&2
+	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]\n' >&2
 	exit 1
 }
-keep_agent="" branch=""
+keep_agent="" branch="" keep_remote=""
 case "$#" in
 	2) ;;
 	3) [ "$3" = --keep-agent ] || usage; keep_agent=--keep-agent ;;
 	4) [ "$3" = --full ] && [ -n "$4" ] || usage; branch="$4" ;;
+	5) [ "$3" = --full ] && [ -n "$4" ] && [ "$5" = --keep-remote ] || usage; branch="$4" keep_remote=1 ;;
 	*) usage ;;
 esac
 root=$(realpath -m -- "$1")
@@ -28,6 +30,17 @@ agent="$2"
 	printf 'refusing to reap %s\n' "$root" >&2
 	exit 1
 }
+
+if [ -n "$keep_remote" ]; then
+	[ -z "$(git -C "$root" status --porcelain)" ] || {
+		printf 'refusing: uncommitted work in %s\n' "$root" >&2
+		exit 1
+	}
+	git -C "$root" fetch -q origin "$branch" && git -C "$root" merge-base --is-ancestor HEAD FETCH_HEAD || {
+		printf 'refusing: %s head not on origin\n' "$branch" >&2
+		exit 1
+	}
+fi
 
 inside() { [ "$1" = "$root" ] || [[ "$1" == "$root"/* ]]; }
 
@@ -103,7 +116,7 @@ for name in "w-$stem" "r-$stem"; do
 done
 git -C "$source" worktree remove --force "$root"
 git -C "$source" branch -D "$branch" >/dev/null
-if git -C "$source" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+if [ -z "$keep_remote" ] && git -C "$source" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
 	# The source checkout's pre-push hook tests unrelated local state.
 	git -C "$source" push -q --no-verify origin --delete "$branch"
 fi

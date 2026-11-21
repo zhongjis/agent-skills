@@ -56,7 +56,7 @@ Per task:
 
 Track each local review round as a child review bead, and process discovered follow-up beads at task settlement per [supervise.md](references/supervise.md#follow-up-beads).
 
-A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md): a task that succeeded with its PR merged and released gets full cleanup; every other task keeps its terminal and worktree. Without supervision, that happens when the user later reports the result.
+A task is **settled** when its worker is idle and its result is **accounted for**: succeeded, failed, blocked, or uncertain, each with evidence. Reap every settled task per [reap.md](references/reap.md): a task whose bead closes gets full cleanup; every other task keeps its terminal and worktree. Without supervision, that happens when the user later reports the result.
 
 ## House rules
 
