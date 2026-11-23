@@ -824,48 +824,6 @@ checks=$((checks + 1))
 # shellcheck source=import.sh
 source "$(dirname -- "${BASH_SOURCE[0]}")/import.sh"
 
-# bot-active.sh: paginated API fixtures only, never real GitHub.
-cat > "$tmp/bin/gh" <<'MOCK'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ $1 == api ]] || exit 2
-[[ $GH_MODE != api-error ]] || { echo 'API unavailable' >&2; exit 1; }
-if [[ $2 == repos/owner/repo/pulls/7 ]]; then
-	[[ $* == *"--jq .head.sha" ]] || exit 2
-	echo fixture-head
-	exit
-fi
-[[ $2 == --paginate && $3 == --slurp ]] || exit 2
-case "$4" in
-	repos/owner/repo/issues/7/comments) cat "$FIXTURE/bot-comments.json" ;;
-	repos/owner/repo/issues/7/reactions) cat "$FIXTURE/bot-reactions.json" ;;
-	repos/owner/repo/pulls/7/reviews) cat "$FIXTURE/bot-reviews.json" ;;
-	repos/owner/repo/pulls/7/comments) cat "$FIXTURE/bot-inline.json" ;;
-	repos/owner/repo/commits/fixture-head/check-runs) cat "$FIXTURE/bot-checks.json" ;;
-	*) echo 'unexpected API path' >&2; exit 1 ;;
-esac
-MOCK
-chmod +x "$tmp/bin/gh"
-for channel in comments reactions reviews inline checks; do
-	printf '[[]]\n' > "$tmp/bot-$channel.json"
-done
-printf '[{"check_runs":[]}]\n' > "$tmp/bot-checks.json"
-check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo
-for channel in comments reactions reviews inline; do
-	# The second page has the bot; the human on the first must not count.
-	printf '[[{"user":{"login":"human","type":"User"},"created_at":"2026-01-01T00:00:00Z"}],[{"user":{"login":"review[bot]","type":"Bot"},"created_at":"2026-01-01T01:00:00Z","submitted_at":"2026-01-01T01:00:00Z"}]]\n' > "$tmp/bot-$channel.json"
-	check 0 'review[bot]' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:30:00Z
-	check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T02:00:00+01:00
-	printf '[[]]\n' > "$tmp/bot-$channel.json"
-done
-printf '[{"check_runs":[{"app":{"slug":"checker"},"started_at":"2026-01-01T00:00:01Z"}]}]\n' > "$tmp/bot-checks.json"
-check 0 'checker[bot]' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:00:00.500Z
-check 1 '' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo --since 2026-01-01T00:00:02Z
-printf '[{"check_runs":[]}]\n' > "$tmp/bot-checks.json"
-printf '[[{"user":{"login":"ci-bot","type":"User"},"created_at":"2026-01-01T00:00:00Z"},{"user":{"login":"helperbot","type":"User"},"created_at":"2026-01-01T00:00:00Z"}]]\n' > "$tmp/bot-comments.json"
-check 0 $'ci-bot\nhelperbot' env GH_MODE=ok "$scripts/bot-active.sh" 7 --repo owner/repo
-check 2 'API unavailable' env GH_MODE=api-error "$scripts/bot-active.sh" 7 --repo owner/repo
-check 2 'usage' "$scripts/bot-active.sh" 7
 rm -f "$tmp/keys-call"
 check 0 '' env MODE=ok "$scripts/type-command.sh" w-a '/mode-model a/B-1.2 x'
 [[ $(cat "$tmp/keys-call") == 'keys w-a / m o d e - m o d e l space a / shift+b - 1 . 2 space x enter' ]] || { echo 'FAIL: type-command key split' >&2; exit 1; }

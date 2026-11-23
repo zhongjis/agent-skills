@@ -90,6 +90,20 @@ CodeRabbit reviews each push on its own. When it says it is rate limited, it
 will not review that head: wait with `--until green` instead and report its
 review as missing.
 
+Give bots 15 minutes per head: wait with `timeout 15m pr-wait <pr> --until ready`.
+Three minutes in, run `scripts/bot-active.sh <pr> --repo <owner/name> --since <wait start>`
+from this skill's directory. Exit 1 means no bot showed any activity (comment,
+reaction, review, or check run) on the PR since then. On that exit or on the
+timeout (exit 124), wait for CI alone with `--until green` and report the
+missing reviews. A timeout is not an approval.
+
+Read a failing check's log before you rerun it. Rerun only an infrastructure
+failure, such as a download or registry 5xx, a port already in use, or a runner
+or container startup failure. A test that fails the same way twice is real: fix
+it. When a test in code the diff does not change fails at random or exceeds its
+time budget, apply the failing-test rule in the base branch's `AGENTS.md`.
+Diagnose it only when it covers code the diff changes.
+
 If a review bot leaves feedback you believe is not worth addressing, reply with
 a written reason and resolve the comment. Use the `writing-clearly-and-concisely`
 skill for every comment posted on the user's behalf.
@@ -117,5 +131,7 @@ when `pr-wait` exits 0, or in T3 Code when the merge gate passes on the latest
 head. Merge only when the user explicitly requested it;
 otherwise report that the PR is ready. Right before a merge, run `git fetch` and
 check the PR again. Never merge when it is BEHIND or DIRTY, or when base commits
-that landed after the last green run touch this PR's files. Rebase, push, and
+that landed after the last green run touch this PR's files, or while a release
+or deploy run is in progress or queued on the default branch; wait for it, then
+check again. Rebase, push, and
 wait for green again.
