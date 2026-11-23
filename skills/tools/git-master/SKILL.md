@@ -79,6 +79,7 @@ History rewriting is a shared-impact operation.
 - Never rebase or rewrite `main`, `master`, `dev`, release branches, or a protected branch unless the user explicitly named that exact operation.
 - If commits may already be pushed, ask before force-pushing. Use `--force-with-lease`, never plain `--force`.
 - If the worktree is dirty, preserve it in a temporary commit before rebasing (`git commit -m 'WIP'`, then `git reset --soft HEAD^` after). The stash is shared by every worktree of the repository, so another agent's `stash pop` can take your entry.
+- To push a rewritten branch that must sit on a known `main`, run `scripts/push-pinned.sh <worktree> <branch> <expected-main-sha> [-- <build-command> [args...]]` from this skill's directory (absolute path). It fetches, verifies that `origin/main` is the expected SHA and an ancestor of HEAD, runs the optional build, re-checks branch and refs, then pushes with an explicit `--force-with-lease`. Exit 3 means main or the branch moved: rebase again.
 - For fixups, prefer `git commit --fixup=<hash>` followed by `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash <base>`.
 - For conflicts, read the conflicting files and resolve by intent. Do not choose ours/theirs blindly.
 - If a rebase goes wrong, use `git rebase --abort` first. Use reflog only after explaining the recovery path.

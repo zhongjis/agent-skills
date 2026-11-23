@@ -16,4 +16,4 @@ Run until every task is settled.
 - Send steering, repairs, and follow-ups with `t3_thread_send` to the worker's thread, in the session context [worker-context.md](worker-context.md) chooses.
 - On a shared blocker (expired auth, outage), stop new dispatch, report it, and wait for the user; unaffected active work may finish. Keep independent tasks going after an isolated failure. Keep a queued task queued when a prerequisite failed.
 - Reap each task once it settles ([reap.md](reap.md)).
-- For an authorized history-rewriting push pinned to main, use `scripts/push-pinned.sh <worktree> <branch> <expected-main-sha> [-- <build-command> [args...]]`; pass the repository's package build command when it has one. This is not the atomic-landing update path; `land-change` owns that decision.
+- For an authorized history-rewriting push pinned to main, use the `git-master` skill's `scripts/push-pinned.sh` (absolute path) `<worktree> <branch> <expected-main-sha> [-- <build-command> [args...]]`; pass the repository's package build command when it has one. This is not the atomic-landing update path; `land-change` owns that decision.

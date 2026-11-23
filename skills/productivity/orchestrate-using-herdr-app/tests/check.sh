@@ -610,46 +610,11 @@ for source_bead in "$launch_task" "$review_task"; do
 	bd dep list "$source_bead" --direction=up --type discovered-from --json | jq -e --arg gap "$gap" 'any(.[]; .id == $gap)' >/dev/null
 done
 
-# Guard failures must happen before the passed command executes.
-check 1 'not on branch' "$scripts/push-pinned.sh" "$tmp/work" other "$main" -- touch "$tmp/built"
-check 3 'expected wrong' "$scripts/push-pinned.sh" "$tmp/work" topic wrong -- touch "$tmp/built"
 git -C "$tmp/work" switch -q --orphan unrelated
 git -C "$tmp/work" commit -qm unrelated --allow-empty
 : > "$tmp/calls"
 check 3 'not an ancestor' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$main"
 [[ ! -s $tmp/calls ]]
-check 3 'not an ancestor' "$scripts/push-pinned.sh" "$tmp/work" unrelated "$main" -- touch "$tmp/built"
-[[ ! -e $tmp/built ]]
-git -C "$tmp/work" switch -q topic
-check 1 '' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- false
-[[ $(git --git-dir="$tmp/remote" rev-parse refs/heads/topic) == "$main" ]]
-check 3 'changed during build' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- git reset --hard "$main"
-git -C "$tmp/work" reset -q --hard "$head"
-check 3 'changed during build' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- git update-ref refs/remotes/origin/main "$head"
-check 3 'changed during build' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- git switch main
-git -C "$tmp/work" switch -q topic
-# A remote race during build must fail the original lease.
-other=$(git -C "$tmp/work" rev-parse unrelated)
-git --git-dir="$tmp/remote" fetch -q "$tmp/work" "$other"
-check 1 'stale info' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- git --git-dir="$tmp/remote" update-ref refs/heads/topic "$other"
-git --git-dir="$tmp/remote" update-ref refs/heads/topic "$main"
-# Hooks run normally, including a veto, and build argv/cwd are preserved.
-mkdir -p "$tmp/work/.git/hooks"
-printf '#!/usr/bin/env bash\nexit 1\n' > "$tmp/work/.git/hooks/pre-push"
-chmod +x "$tmp/work/.git/hooks/pre-push"
-check 1 '' "$scripts/push-pinned.sh" "$tmp/work" topic "$main"
-printf '#!/usr/bin/env bash\nprintf ran > "%s/hook"\n' "$tmp" > "$tmp/work/.git/hooks/pre-push"
-cat > "$tmp/bin/build" <<'BUILD'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ $PWD == "$1" ]]
-printf '%s' "$2" > "$3"
-BUILD
-chmod +x "$tmp/bin/build"
-check 0 'topic' "$scripts/push-pinned.sh" "$tmp/work" topic "$main" -- build "$tmp/work" "literal ; \$(false)" "$tmp/build output"
-[[ $(cat "$tmp/hook") == ran ]]
-[[ $(cat "$tmp/build output") == "literal ; \$(false)" ]]
-[[ $(git --git-dir="$tmp/remote" rev-parse refs/heads/topic) == "$head" ]]
 
 # reap-worker.sh: Darwin discovery, only the worker's resources, spare ancestors.
 export REAL_PS
