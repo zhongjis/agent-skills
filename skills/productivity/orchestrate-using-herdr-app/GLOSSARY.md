@@ -72,6 +72,10 @@ _Avoid_: Notepad entry, current state.
 A worker's handoff event containing its result or blocker and supporting evidence.
 _Avoid_: Screen scrape, notification.
 
+**Brief**:
+The orchestrator's message to the user at a yield, led by what needs the user.
+_Avoid_: Report, status table.
+
 **Import**:
 The initial incorporation of agreed planning work into its local bead, reusing that bead when it already exists.
 _Avoid_: Push, bidirectional sync.

@@ -204,7 +204,7 @@
       "id": 17,
       "name": "reports-at-yield-from-beads",
       "prompt": "Offline simulation: orchestrate-using-herdr-app --watch for three agreed tasks; C is blocked by A. While A and B run, A asks a question its task definition answers, and B needs a context Compact before a follow-up. Then A settles with PR #31 at head def456, C launches, and later B and C settle. The epic's first mode event is at 09:00, a second invocation's mode event at 09:30, and the latest event at 10:00. Describe what you record and report, including total time; do not run commands.",
-      "expected_output": "Imports ticketed beads by external_ref and creates local ad-hoc beads under ORCH_EPIC before queue or dispatch; imported beads get key metadata and task-definition fields only after re-pull and claim. Records task events with scripts/event.sh as o-<terminal>, PR metadata only after claim, and coarse bead status. Reports A and B working and C queued before waiting; answers A and compacts B silently with event comments; launches C when every blocks prerequisite of C is closed, after A closes on a verified target merge SHA (or settled succeeded for non-merge work), but cannot merge C before A's settled succeeded release event. Reports A settling as one line with PR #31 at def456 and C launched. Final bead-built table opens ALL WORK FINISHED, summarizes 60 minutes from the epic's first mode event to the latest event, result counts and epic ID.",
+      "expected_output": "Imports ticketed beads by external_ref and creates local ad-hoc beads under ORCH_EPIC before queue or dispatch; imported beads get key metadata and task-definition fields only after re-pull and claim. Records task events with scripts/event.sh as o-<terminal>, PR metadata only after claim, and coarse bead status. Reports A and B working and C queued before waiting; answers A and compacts B silently with event comments; launches C when every blocks prerequisite of C is closed, after A closes on a verified target merge SHA (or settled succeeded for non-merge work), but cannot merge C before A's settled succeeded release event. Briefs A settling as its Outcome line with the PR #31 link and C launched. The final brief opens ALL WORK FINISHED, summarizes 60 minutes from the epic's first mode event to the latest event and result counts, names tasks by slug, and keeps bead, epic and terminal IDs and SHAs out of it.",
       "expectations": [
         "Reports the dispatch wave before waiting on workers.",
         "Does not report the question its task definition answers or context transition; records them as bead event comments.",
@@ -354,6 +354,19 @@
         "Never exceeds two working agents, including reviewers.",
         "Stores held work as queued bead events with needs=slot, not brief paths, and releases oldest wait first.",
         "Treats exit 4 from start-worker.sh or send-reinstruction.sh as queued, not a retry."
+      ],
+      "files": []
+    },
+    {
+      "id": 29,
+      "name": "brief-leads-with-blocking-questions",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --auto for tasks A2A-772 slot-history and A2A-773 addon-schedules. The provider quota stops both Pi workers; Claude Code workers are available. A2A-773's reviewer asks whether owner Schedule routes should stay at the same trust level as every other owner route (current behavior, no new authority) or be restricted to Web. A2A-772's reviewer reports that its fix lints only changed files, so a lint error elsewhere would pass CI. Two follow-up beads were captured. Describe the brief you send and what you record; do not run commands.",
+      "expected_output": "Switches the stopped workers to Claude Code and keeps A2A-773 at the current trust level without asking, recording each as decided by=orchestrator and listing it under Risks. Treats the changed-files-only lint trade-off as a blocking question before publication, records blocked reason=needs-user, and asks it through the question tool with the recommended option first once nothing else can move. The brief opens with Needs you, then Outcome, Risks and Checked; names tasks as slug plus linked ticket key; lists the two follow-up beads under Risks without asking whether to publish them; and shows no bead, epic or terminal IDs, agent names or SHAs.",
+      "expectations": [
+        "Opens the brief with Needs you holding only the lint trade-off question.",
+        "Decides the worker switch and the unchanged trust level itself and lists both under Risks.",
+        "Lists follow-up beads under Risks and asks nothing about publishing them.",
+        "Names tasks by slug with the ticket key and shows no bead, epic or terminal IDs, agent names or SHAs."
       ],
       "files": []
     }

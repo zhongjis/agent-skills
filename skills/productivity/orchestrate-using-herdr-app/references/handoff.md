@@ -50,4 +50,4 @@ Start the peer top-level in a visible tab, never as your child: `herdr-app do ta
 Once launch is done, the peer owns the work: workers, worktrees, reaping, merge, and the user's questions. It reports to the user in its own tab.
 
 - Close each named task bead in your epic with `bd supersede <task> --with <handoff> --actor "o-$HC_TERMINAL_ID"` and record `scripts/event.sh <task> handed-off handoff=<handoff> tab=<id> terminal=<id>`; without task beads, an active session epic holds the event.
-- Report the handoff with the handoff bead ID and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.
+- Report the handoff in a brief and drop the tasks. Have no further contact with the peer: no watcher, `hc read`, `hc send`, or `SendMessage`. If the user later asks about those tasks, point them to the peer's tab.
