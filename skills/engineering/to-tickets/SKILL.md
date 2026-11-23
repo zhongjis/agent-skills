@@ -31,7 +31,8 @@ Break the work into **tracer bullet** tickets.
 - Each slice cuts a narrow but COMPLETE path through every layer (schema, API, UI, tests): vertical, NOT a horizontal slice of one layer
 - A completed slice is demoable or verifiable on its own
 - Each slice is sized to fit in a single fresh context window
-- Each ticket becomes one PR, and every PR pays a fixed cost in CI, review rounds and deploy. Merge a slice into its neighbour when both touch the same area and neither is demoable or deployable alone
+- Each ticket becomes one PR, and every PR pays a fixed cost in CI, review rounds and deploy. Start from the fewest tickets. Split only where one slice must land before another can start, where a risky deploy needs isolation, or where a slice outgrows one context window
+- A measurement or a decision deferred to later is a note in the spec, not a ticket
 - Any prefactoring should be done first
 - When the spec carries a visual target (a mock, design or screenshot), every ticket that changes UI gets the criterion "matches <view> of <target> at <widths and themes>, shown by before/after screenshots" plus the target's path; a prefactor that builds visual components renders them against the target too
 
