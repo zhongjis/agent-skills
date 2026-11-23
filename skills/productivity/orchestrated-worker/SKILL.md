@@ -49,7 +49,7 @@ At every handoff point, add a comment on your own bead with this first line:
 event=report kind=<ready-local|pushed|pr-opened|blocked|done> head=<sha> [pr=<url>]
 ```
 
-Choose one kind; use the actual head SHA, and include `pr=<url>` when applicable. Put the result or blocker, checks and evidence paths in the body; for a long implementation answer, put it in a file outside the worktree and name its path in the body. `ready-local` means committed and ready for local review; `pushed` and `pr-opened` require publication authority; `blocked` names the missing decision or resource; `done` reports completion of the assigned deliverables, not permission to close a bead or merge.
+Choose one kind; use the actual head SHA, and include `pr=<url>` when applicable. Put the result or blocker, checks and evidence paths in the body; for a long implementation answer, put it in a file outside the worktree and name its path in the body. For each check, report its last run at the reported head and the exit code of the check itself, never of a pipe after it. Name every failure you hit during the task and what fixed it. `ready-local` means committed and ready for local review; `pushed` and `pr-opened` require publication authority; `blocked` names the missing decision or resource; `done` reports completion of the assigned deliverables, not permission to close a bead or merge.
 
 Then end your turn with a one-line summary and head SHA (PR URL when applicable). The orchestrator reads the report comment. Never `hc send` to the orchestrator or any other terminal, even when a message carries a `reach=` hint or the `hc` skill says to report with `hc send`. If the database is unavailable, end your turn with the blocker and state that the report comment could not be written.
 
