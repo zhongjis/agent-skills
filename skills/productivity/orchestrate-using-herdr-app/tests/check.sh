@@ -56,6 +56,11 @@ cat > "$tmp/bin/hc" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
+	connect)
+		jq -e '.jsonrpc == "2.0" and .id == 1 and .method == "doc.get" and .params.name == "herdr-app"' >/dev/null
+		[[ ${PANE_DOC_FAIL:-false} != true ]] || exit 1
+		jq -cn --arg title "${PANE_NAME:-}" '{result:{value:{spaces:[{id:"sp1",children:[{id:"p-other",title:"[o] other"},{id:"p1",type:"block",content:{terminal:"t3"}} + (if $title == "" then {} else {title:$title} end)]}]}}}'
+		exit ;;
 	ls)
 		printf '%s\n' "$*" >> "$FIXTURE/ls-calls"
 		cat "${FIXTURE}/terminals.json"; exit ;;
@@ -422,8 +427,10 @@ check 3 'requires --last-reviewed' env HC_TERMINAL_ID=orch MODE=finished "$scrip
 cat > "$tmp/bin/herdr-app" <<'MOCK'
 #!/usr/bin/env bash
 case "$1" in
-	ls) printf '{"spaces":[{"tabs":[{"id":"tb1","name":"%s","terminals":[{"terminal":"t3"}]}]}]}' "${TAB_NAME:-1}" ;;
-	do) printf '%s\n' "$*" >> "$FIXTURE/herdr" ;;
+	ls) printf '{"spaces":[{"tabs":[{"id":"tb1","name":"[o] shared tab","terminals":[{"terminal":"other","pane":"p-other","name":"[o] other"},{"terminal":"t3","pane":"p1","name":"pi"}]}]}]}' ;;
+	do)
+		[[ $# == 3 && $2 == pane.rename ]] || exit 1
+		printf '%s\n' "$3" >> "$FIXTURE/herdr" ;;
 esac
 MOCK
 chmod +x "$tmp/bin/herdr-app"
@@ -437,8 +444,10 @@ exit 1
 MOCK
 chmod +x "$tmp/bin/bd"
 check 1 'shared blocker' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
-check 1 'shared blocker' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'
+rm -f "$tmp/herdr"
+check 1 'shared blocker' env HC_TERMINAL_ID=t3 PANE_NAME='[o] api' "$scripts/orchestrate-init.sh" api --mode '--off'
 [[ $(tail -n 1 "$tmp/labels") == 'label t3 orch-context=' ]]
+jq -se 'length == 1 and .[0] == {pane:"p1",name:""}' "$tmp/herdr" >/dev/null
 rm "$tmp/bin/bd"
 # Outside Git, use the cwd as repo metadata and allow --off without creating an epic.
 count=$(bd list --type epic --all --limit 0 --json | jq 'length')
@@ -456,7 +465,7 @@ epic=$(sed -n 's/^epic=//p' <<<"$out")
 repo=$(git rev-parse --show-toplevel)
 bd show "$epic" --json | jq -e --arg repo "$repo" '.[0] | .issue_type == "epic" and .status == "open" and .metadata == {session:"t3",repo:$repo,source:"fixture-source"}' >/dev/null
 bd comments "$epic" --json | jq -e '.[-1] | .author == "o-t3" and .text == "event=mode flags=--auto --track max=none"' >/dev/null
-[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] api' ]] || { echo 'FAIL: init must mark its own tab [o] <title>'; exit 1; }
+jq -se 'length == 1 and .[0] == {pane:"p1",name:"[o] api"}' "$tmp/herdr" >/dev/null
 [[ $(tail -n 1 "$tmp/labels") == "label t3 orch-context=$scripts/compact-context.sh" ]]
 ln -s "$scripts" "$tmp/logical-scripts"
 check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$tmp/logical-scripts/orchestrate-init.sh" api
@@ -465,10 +474,15 @@ check 0 "epic=$epic" env HC_TERMINAL_ID=t3 ORCH_EPIC="$other_epic" "$scripts/orc
 check 0 "export ORCH_EPIC=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api
 rm -f "$tmp/herdr"
 check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" retro-skills_ui-audit-fix
-[[ $(cat "$tmp/herdr") == 'do tab.rename --id tb1 --name [o] retro skills ui audit' ]] || { echo 'FAIL: init tab title must split hyphens into at most four words'; exit 1; }
+jq -se 'length == 1 and .[0] == {pane:"p1",name:"[o] retro skills ui audit"}' "$tmp/herdr" >/dev/null
 rm -f "$tmp/herdr"
-check 0 "epic=$epic" env HC_TERMINAL_ID=t3 TAB_NAME='[o] api' "$scripts/orchestrate-init.sh" api
-[[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked tab'; exit 1; }
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 PANE_NAME='[o] existing title' "$scripts/orchestrate-init.sh" api
+[[ ! -e "$tmp/herdr" ]] || { echo 'FAIL: init must leave an already marked pane'; exit 1; }
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 PANE_NAME='[w] previous title' "$scripts/orchestrate-init.sh" 'quoted-"title"_path\name'
+jq -se 'length == 1 and .[0] == {pane:"p1",name:"[o] quoted \"title\" path\\name"}' "$tmp/herdr" >/dev/null
+rm -f "$tmp/herdr"
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 PANE_DOC_FAIL=true "$scripts/orchestrate-init.sh" api
+[[ ! -e "$tmp/herdr" ]]
 bd comments "$epic" --json | jq -e '.[-1].text == "event=mode flags=none max=none"' >/dev/null
 check 1 'usage' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode
 rows=$(bd comments "$epic" --json | jq 'length')
@@ -483,10 +497,15 @@ check 0 'unset ORCH_MAX' env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" ap
 out=$(HC_TERMINAL_ID=t4 ORCH_EPIC="$epic" "$scripts/orchestrate-init.sh" second)
 second_epic=$(sed -n 's/^epic=//p' <<<"$out")
 [[ -n $second_epic && $second_epic != "$epic" ]]
-# --off always records mode and clears context; open children prevent closure.
+# --off always records mode and clears context/title; open children prevent closure.
 init_child=$(bd create 'Unfinished' --parent "$epic" --metadata '{"key":"unfinished"}' --silent)
-check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'
+rm -f "$tmp/herdr"
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 PANE_NAME='[o] api' "$scripts/orchestrate-init.sh" api --mode '--off'
 [[ $(bd show "$epic" --json | jq -r '.[0].status') == open && $(tail -n 1 "$tmp/labels") == 'label t3 orch-context=' ]]
+jq -se 'length == 1 and .[0] == {pane:"p1",name:""}' "$tmp/herdr" >/dev/null
+rm -f "$tmp/herdr"
+check 0 "epic=$epic" env HC_TERMINAL_ID=t3 PANE_NAME='[w] user title' "$scripts/orchestrate-init.sh" api --mode '--off'
+[[ ! -e "$tmp/herdr" ]]
 bd comments "$epic" --json | jq -e '.[-1].text == "event=mode flags=--off max=none"' >/dev/null
 bd close "$init_child" >/dev/null
 check 0 "epic=$epic" env HC_TERMINAL_ID=t3 "$scripts/orchestrate-init.sh" api --mode '--off'

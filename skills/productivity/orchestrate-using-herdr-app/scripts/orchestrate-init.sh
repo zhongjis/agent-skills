@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start an orchestration: verify hc and bd, print the session epic,
-# record the invocation's mode, and mark the orchestrator's tab `[o] <title>`: the
-# smart-sessions tab standard, at most four slug words with hyphens as spaces.
+# record the invocation's mode, and mark the orchestrator's pane `[o] <title>`:
+# at most four slug words with hyphens as spaces; --off clears the mark.
 # Usage: orchestrate-init.sh <slug> [--mode <flags>] [--from <handoff bead>]
 # A peer orchestrator passes --from: its epic is linked discovered-from that
 # handoff bead, and --off closes the handoff bead when it closes the epic (a
@@ -49,11 +49,36 @@ if ! command -v hc >/dev/null || [ -z "${HC_TERMINAL_ID:-}" ]; then
 	exit 1
 fi
 
+# Best effort: without an open window the orchestration still runs.
+mark_pane() {
+	local pane pane_name title payload
+	local -a words
+	command -v herdr-app >/dev/null || return 0
+	pane=$(herdr-app ls 2>/dev/null | jq -r --arg t "$HC_TERMINAL_ID" \
+		'.spaces[].tabs[].terminals[] | select(.terminal == $t) | .pane' 2>/dev/null) || return 0
+	[ -n "$pane" ] || return 0
+	# ponytail: herdr-app ls omits pane names; switch to it when it exposes them.
+	pane_name=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"doc.get","params":{"name":"herdr-app"}}' |
+		hc connect 2>/dev/null | jq -r --arg p "$pane" \
+		'first(.result.value | .. | objects | select(.id? == $p) | .title // "")' 2>/dev/null) || return 0
+	if "$off"; then
+		[[ $pane_name == '[o] '* ]] || return 0
+		title=
+	else
+		[[ $pane_name != '[o] '* ]] || return 0
+		read -ra words <<<"${slug//[-_]/ }"
+		title="[o] ${words[*]:0:4}"
+	fi
+	payload=$(jq -cn --arg pane "$pane" --arg name "$title" '{pane:$pane,name:$name}') || return 0
+	herdr-app "do" pane.rename "$payload" >/dev/null 2>&1 || true
+}
+
 off=false
 if [[ " $mode " == *' --off '* ]]; then
 	off=true
 	# Ending local mode must not depend on database availability.
 	hc label "$HC_TERMINAL_ID" orch-context= >/dev/null 2>&1 || true
+	mark_pane
 fi
 if ! command -v bd >/dev/null || ! bd ping >/dev/null 2>&1; then
 	printf 'shared blocker: bd ping failed; restore the beads service before dispatch\n' >&2
@@ -107,14 +132,4 @@ printf 'export ORCH_EPIC=%q\n' "$epic"
 # A flag applies only to its invocation, so a later one without --max lifts the cap.
 if [ -n "$max" ]; then printf 'export ORCH_MAX=%s\n' "$max"; else printf 'unset ORCH_MAX\n'; fi
 
-# Best effort: without an open window the orchestration still runs.
-if command -v herdr-app >/dev/null; then
-	tab=$(herdr-app ls 2>/dev/null | jq -r --arg t "$HC_TERMINAL_ID" \
-		'[.spaces[].tabs[] | select(any(.terminals[]; .terminal == $t)) | {id, name}][0] // empty | [.id, .name] | @tsv' 2>/dev/null) || tab=
-	if [ -n "$tab" ]; then
-		IFS=$'\t' read -r tab_id tab_name <<<"$tab"
-		read -ra words <<<"${slug//[-_]/ }"
-		title="${words[*]:0:4}"
-		[[ $tab_name == '[o] '* ]] || herdr-app "do" tab.rename --id "$tab_id" --name "[o] $title" >/dev/null 2>&1 || true
-	fi
-fi
+mark_pane

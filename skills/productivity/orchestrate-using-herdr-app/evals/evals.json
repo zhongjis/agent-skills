@@ -133,9 +133,10 @@
       "id": 11,
       "name": "off-ends-mode",
       "prompt": "Earlier this session you ran orchestrate-using-herdr-app. Now: orchestrate-using-herdr-app --off. Then: fix the typo in README.md.",
-      "expected_output": "Runs orchestrate-init.sh <slug> --mode '--off', records the mode event on the session epic, closes the epic only if all children are closed, and removes orch-context. Ends orchestrator mode, then fixes the typo directly under normal rules without creating a worktree or starting a hc worker.",
+      "expected_output": "Runs orchestrate-init.sh <slug> --mode '--off', records the mode event on the session epic, closes the epic only if all children are closed, and removes orch-context and clears its own pane name only if it starts with [o] , best effort before checking beads. Ends orchestrator mode, then fixes the typo directly under normal rules without creating a worktree or starting a hc worker.",
       "expectations": [
         "Treats --off as ending the mode and the skill rules.",
+        "Clears only its own [o]-prefixed pane name, best effort even during a beads outage; preserves any other pane name.",
         "Starts no hc worker for the later task."
       ],
       "files": []
@@ -180,11 +181,11 @@
       "id": 15,
       "name": "init-requires-hc-terminal",
       "prompt": "Use orchestrate-using-herdr-app for the agreed cache-key validation fix. Case A: you run in hc terminal t3. Case B: HC_TERMINAL_ID is unset. Case C: the skill is invoked again from t3.",
-      "expected_output": "Runs scripts/orchestrate-init.sh <slug> --mode '<flags>' before dispatch. Checks hc, HC_TERMINAL_ID and bd ping; a beads connection failure is a shared blocker. In Case A creates a session epic with repo, session=t3 and source metadata and keeps epic=<id> and export ORCH_EPIC=<id>; in Case B reports the failure and stops; in Case C reuses t3's open epic and appends event=mode flags=… max=<N>. Only startup's own-tab [o] rename changes the user's window.",
+      "expected_output": "Runs scripts/orchestrate-init.sh <slug> --mode '<flags>' before dispatch. Checks hc, HC_TERMINAL_ID and bd ping; a beads connection failure is a shared blocker. In Case A creates a session epic with repo, session=t3 and source metadata and keeps epic=<id> and export ORCH_EPIC=<id>; in Case B reports the failure and stops; in Case C reuses t3's open epic and appends event=mode flags=… max=<N>. Only init's own-pane [o] rename and --off clearing it change the user's window.",
       "expectations": [
         "Runs orchestrate-init.sh at startup, exports ORCH_EPIC and preserves ORCH_MAX handling; reuses the terminal's open epic on later invocations.",
         "Stops on the init failure without starting workers.",
-        "Only startup's own-tab [o] rename changes the user's herdr-app window; bd ping failure pauses dispatch as a shared blocker."
+        "Only init's own-pane [o] rename and --off clearing it change the user's herdr-app window; an already [o]-prefixed pane is left alone at startup; bd ping failure pauses dispatch as a shared blocker."
       ],
       "files": []
     },
