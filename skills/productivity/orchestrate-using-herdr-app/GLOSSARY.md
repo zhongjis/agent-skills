@@ -25,8 +25,12 @@ The root bead grouping the task beads belonging to one orchestrator session.
 _Avoid_: Run, remote planning parent.
 
 **Orchestrator session**:
-One orchestrator's period of ownership from entering orchestration mode to turning it off.
-_Avoid_: Run, invocation when referring to the whole period.
+One orchestrator's period of ownership from entering orchestration mode to turning it off; spans many agent sessions across compaction and restart.
+_Avoid_: Run, invocation, or bare session when referring to the whole period.
+
+**Orchestrator**:
+The agent that turns agreed tasks into beads, dispatches workers, and settles their results.
+_Avoid_: Worker, peer when referring to the dispatching agent.
 
 **Invocation**:
 One request to the orchestration skill, with its agreed work and flags, within or starting an orchestrator session.
@@ -69,12 +73,12 @@ An attributed milestone in a bead's append-only comment history.
 _Avoid_: Notepad entry, current state.
 
 **Report**:
-A worker's handoff event containing its result or blocker and supporting evidence.
+A worker's result event containing its result or blocker and supporting evidence.
 _Avoid_: Screen scrape, notification.
 
 **Brief**:
 The orchestrator's message to the user at a yield, led by what needs the user.
-_Avoid_: Report, status table.
+_Avoid_: Report, status table; brief for agent input, which is a task definition or handoff bead.
 
 **Import**:
 The initial incorporation of agreed planning work into its local bead, reusing that bead when it already exists.
