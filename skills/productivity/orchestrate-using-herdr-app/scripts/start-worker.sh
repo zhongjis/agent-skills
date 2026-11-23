@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Launch a bead-backed worker. Exit 2: unconfirmed; 3: busy reviewer
-# worktree; 4: no slot. --resume keeps the existing agent session.
+# Launch a bead-backed worker. Exit 2: unconfirmed; 3: bead not assigned to
+# the agent, or busy reviewer worktree; 4: no slot. --resume keeps the existing agent session.
 set -euo pipefail
 
 usage() {
@@ -30,6 +30,11 @@ fi
 [ -d "$worktree" ] || { printf 'no worktree %s\n' "$worktree" >&2; exit 1; }
 # Also validates the bead: a missing one exits non-zero before launch.
 task=$(bd show "$bead" --json)
+# The claim actor must be this name: it is the agent's BEADS_ACTOR, which finds its bead.
+# Workers skip the status check so a bead reopened for re-review can still revive its worker.
+[[ $name == r-* ]] || jq -e --arg name "$name" '.[0].assignee == $name' <<<"$task" >/dev/null || {
+	printf 'bead %s is not assigned to %s; claim it as the full agent name\n' "$bead" "$name" >&2; exit 3;
+}
 # Reviewers share the worker's checkout; never inspect it mid-edit.
 if [[ $name == r-* ]]; then
 	jq -e --arg name "$name" '.[0] | .status == "in_progress" and .assignee == $name' <<<"$task" >/dev/null || {

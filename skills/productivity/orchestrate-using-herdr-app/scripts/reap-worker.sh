@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]
+# Usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]
 # Stop what a worker started in <worktree>: its agent-browser namespace,
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
@@ -9,12 +9,29 @@
 # w-/r- terminals for the agent's stem, the git worktree, and the local and remote
 # <branch>, then confirms each is gone. --keep-remote, for non-merge work, keeps the
 # remote branch as evidence and refuses a dirty worktree or a head missing from origin.
+# --bead records `event=reaped stopped=<what was removed>` on that bead.
 # Matches cwd via /proc on Linux and lsof on macOS.
 set -euo pipefail
 
 usage() {
-	printf 'usage: reap-worker.sh <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]\n' >&2
+	printf 'usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]\n' >&2
 	exit 1
+}
+bead=""
+if [ "${1:-}" = --bead ]; then
+	[ "$#" -ge 2 ] && [ -n "$2" ] || usage
+	bead="$2"
+	shift 2
+	[ -n "${HC_TERMINAL_ID:-}" ] || { printf 'reap-worker.sh --bead needs HC_TERMINAL_ID\n' >&2; exit 1; }
+fi
+stopped=()
+record() {
+	[ -n "$bead" ] || return 0
+	local IFS=,
+	"$(dirname -- "${BASH_SOURCE[0]}")/event.sh" "$bead" reaped "stopped=${stopped[*]:-none}" >/dev/null || {
+		printf 'reaped, but recording on %s failed\n' "$bead" >&2
+		exit 1
+	}
 }
 keep_agent="" branch="" keep_remote=""
 case "$#" in
@@ -47,8 +64,10 @@ inside() { [ "$1" = "$root" ] || [[ "$1" == "$root"/* ]]; }
 if command -v agent-browser >/dev/null; then
 	AGENT_BROWSER_NAMESPACE="$agent" agent-browser close --all >/dev/null 2>&1 || true
 	printf 'browser namespace %s: closed\n' "$agent"
+	stopped+=(browser)
 fi
 
+compose=""
 if command -v docker >/dev/null; then
 	while IFS=$'\t' read -r project dir; do
 		[ -n "$project" ] && inside "$dir" || continue
@@ -57,6 +76,7 @@ if command -v docker >/dev/null; then
 		docker volume ls -q --filter "$filter" | xargs -r docker volume rm -f >/dev/null
 		docker network ls -q --filter "$filter" | xargs -r docker network rm >/dev/null
 		printf 'compose %s: removed\n' "$project"
+		compose=1
 	done < <(docker ps -a --format '{{.Label "com.docker.compose.project"}}	{{.Label "com.docker.compose.project.working_dir"}}' | sort -u)
 fi
 
@@ -102,10 +122,12 @@ if [ "${#pids[@]}" -gt 0 ]; then
 	done
 	for pid in "${pids[@]}"; do kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null || true; done
 fi
+[ -z "$compose" ] || stopped+=(compose)
 printf 'processes under %s: %s stopped\n' "$root" "${#pids[@]}"
+[ "${#pids[@]}" -eq 0 ] || stopped+=(processes)
 if [ "$keep_agent" = --keep-agent ]; then hc label "$agent" hibernate=ok >/dev/null; fi
 
-[ -n "$branch" ] || exit 0
+[ -n "$branch" ] || { record; exit 0; }
 source=$(dirname -- "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)")
 stem="${agent#[wr]-}"
 for name in "w-$stem" "r-$stem"; do
@@ -113,12 +135,15 @@ for name in "w-$stem" "r-$stem"; do
 	hc kill "$name" >/dev/null 2>&1 || true
 	hc rm "$name" >/dev/null
 	printf 'terminal %s: removed\n' "$name"
+	if [[ $name == w-* ]]; then stopped+=(worker); else stopped+=(reviewer); fi
 done
 git -C "$source" worktree remove --force "$root"
 git -C "$source" branch -D "$branch" >/dev/null
+stopped+=(worktree branch)
 if [ -z "$keep_remote" ] && git -C "$source" ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
 	# The source checkout's pre-push hook tests unrelated local state.
 	git -C "$source" push -q --no-verify origin --delete "$branch"
+	stopped+=(remote-branch)
 fi
 left=""
 for name in "w-$stem" "r-$stem"; do hc get "$name" --json >/dev/null 2>&1 && left+=" terminal $name"; done
@@ -129,4 +154,5 @@ if [ -n "$left" ]; then
 	printf 'full cleanup incomplete:%s\n' "$left" >&2
 	exit 1
 fi
+record
 printf 'full cleanup %s: terminals, worktree and branch %s removed\n' "$agent" "$branch"

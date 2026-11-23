@@ -28,6 +28,7 @@ bd update <handoff> --claim --actor h-<slug>
 - **Description**, written per [delegation-contract.md](delegation-contract.md) where it applies, plus what only this conversation knows:
   - the side issue: what came up and why it matters
   - decisions already made, in the user's words where they set scope
+  - open user questions: every handed-off bead with `blocked_reason=needs-user` and its question, still unanswered
   - what stays out of scope, including work this session keeps
   - pointers: ticket, PR, files, logs, prior findings, and each kept worktree and branch by name
 - `bd ping` failing is a shared blocker: report it and keep the tasks.

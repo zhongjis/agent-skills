@@ -198,6 +198,10 @@ rm "$tmp/bin/sha256sum" "$tmp/bin/shasum"
 mkdir -p "$tmp/wt-a"
 # shellcheck disable=SC2016 # literal Pi tokens
 bd update "$launch_task" --description 'Private body $skill:description-only' --design 'Use $skill:x and $skill:y and $skill:x' >/dev/null
+# start-worker.sh requires the bead's claim actor to be the agent name.
+assign() { bd update "$launch_task" --assignee "$1" >/dev/null; }
+check 3 'not assigned to w-worker-a' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+assign w-worker-a
 rm -f "$tmp/gets"
 check 0 'turn 1' env MODE=start-turn "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 [[ $(cat "$tmp/gets") == 3 ]]
@@ -245,9 +249,11 @@ check 1 'no worktree' "$scripts/start-worker.sh" w-worker-a "$tmp/missing" "$lau
 check 1 '' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" orch-missing
 check 1 'usage' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a"
 # Events target the explicit bead, independent of epic and agent-name keys.
+assign w-unrelated
 check 0 'working' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$scripts/start-worker.sh" w-unrelated "$tmp/wt-a" "$launch_task"
 bd comments "$launch_task" --json | jq -e '.[-1] | .author == "o-orch" and (.text | startswith("event=dispatched ") and contains("agent=w-unrelated"))' >/dev/null
 rows=$(bd comments "$launch_task" --json | jq length)
+assign w-worker-a
 check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 [[ $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
 other_epic=$(bd create 'Other session' --type epic --silent)
@@ -393,6 +399,7 @@ check 1 'invalid ORCH_MAX' env ORCH_MAX=0 HC_TERMINAL_ID=orch "$scripts/slot-fre
 check 1 'needs HC_TERMINAL_ID' env ORCH_MAX=2 "$scripts/slot-free.sh"
 : > "$tmp/calls"
 rows=$(bd comments "$launch_task" --json | jq length)
+assign w-e
 check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-e "$tmp/wt-a" "$launch_task"
 check 4 'no free slot' env ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" w-c "$tmp/wt-a" "$launch_task" "$instruction"
 check 4 'no free slot' env HC_TERMINAL_ID=orch ORCH_MAX=2 HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" r-x "$tmp/wt-a" "$launch_task" "$instruction" --last-reviewed HEAD
@@ -677,7 +684,8 @@ kill -0 "$agent" && kill -0 "$other"
 [[ $(cat "$tmp/docker") == $'rm -f -v c-mine\nvolume rm -f volume-mine\nnetwork rm network-mine' ]]
 [[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=ok' ]] || { echo 'FAIL: settled worker must become hibernatable after reaping'; exit 1; }
 : > "$tmp/listeners"
-check 0 '0 stopped' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+check 0 '0 stopped' env HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/wt" w-worker-a --keep-agent
+bd comments "$launch_task" --json | jq -e '.[-1].text | test("^event=reaped stopped=browser(,compose)?$")' >/dev/null
 [[ $(cat "$tmp/labels") == $'label w-worker-a hibernate=ok\nlabel w-worker-a hibernate=ok' ]]
 : > "$tmp/labels"
 check 0 '1 stopped' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a
@@ -701,7 +709,11 @@ printf '#!/usr/bin/env bash\nexit 1\n' > "$tmp/full-src/.git/hooks/pre-push"
 chmod +x "$tmp/full-src/.git/hooks/pre-push"
 echo "$$" > "$tmp/pids"; : > "$tmp/listeners"; : > "$tmp/removed-names"
 printf 'w-a1-topic\nr-a1-topic\n' > "$tmp/full-terms"
-check 0 'full cleanup w-a1-topic' env MODE=full "$scripts/reap-worker.sh" "$tmp/full-wt" w-a1-topic --full topic-full
+check 1 'needs HC_TERMINAL_ID' env -u HC_TERMINAL_ID "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/full-wt" w-a1-topic --full topic-full
+[[ -e $tmp/full-wt ]]
+check 0 'full cleanup w-a1-topic' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/full-wt" w-a1-topic --full topic-full
+# The script records what it removed, so no session writes reaped by hand.
+bd comments "$launch_task" --json | jq -e '.[-1] | .author == "o-orch" and (.text | test("^event=reaped stopped=([a-z-]+,)*worker,reviewer,worktree,branch,remote-branch$"))' >/dev/null
 [[ $(sort "$tmp/removed-names") == $'r-a1-topic\nw-a1-topic' ]]
 [[ ! -e $tmp/full-wt ]]
 check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full
@@ -728,7 +740,13 @@ rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 status_epic=$(bd create 'Status session' --type epic --metadata '{"session":"status-orch"}' --silent)
 alpha=$(bd create Alpha --parent "$status_epic" --metadata '{"key":"alpha"}' --silent)
 for event in mode ticketed dispatched handed-off queued re-instructed ready merged settled reaped blocked decided note adopted; do
-	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" 'detail=spaces stay together'
+	case "$event" in
+		merged) required=merged_sha=0123456789abcdef0123456789abcdef01234567 ;;
+		settled) required=result=succeeded ;;
+		reaped) required=stopped=browser,worker,remote-branch ;;
+		*) required=note=x ;;
+	esac
+	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" "$required" 'detail=spaces stay together'
 done
 comments=$(bd comments "$alpha" --json)
 jq -e 'length == 14 and all(.[]; .author == "o-events" and (.text | endswith(" detail=spaces stay together")))' <<<"$comments" >/dev/null
@@ -739,6 +757,24 @@ for field in missing-equals '=empty-key' 'event=note' $'detail=new\nline' $'deta
 	check 1 'invalid event field' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note "$field"
 done
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
+# Shared fields are enforced, so stale prose cannot write them free-form.
+for bad in 'merged sha=0123456789abcdef0123456789abcdef01234567' 'merged merged_sha=abc' 'settled result=done' 'settled detail=x' 'reaped stopped=browser namespace' 'reaped stopped=worker,terminals' 'reaped detail=x'; do
+	read -r ev field <<<"$bad"
+	check 1 "$ev needs" env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$ev" "$field"
+done
+[[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
+bd show "$alpha" --json | jq -e '.[0].metadata.merged_sha == "0123456789abcdef0123456789abcdef01234567"' >/dev/null
+# A needs-user hold persists as metadata until the answer; other decisions keep other holds.
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" blocked reason=needs-user --body 'Approve the test exception?'
+bd show "$alpha" --json | jq -e '.[0].metadata.blocked_reason == "needs-user"' >/dev/null
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note detail=later
+bd show "$alpha" --json | jq -e '.[0].metadata.blocked_reason == "needs-user"' >/dev/null
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" decided by=user 'q=Approve?' a=yes
+bd show "$alpha" --json | jq -e '.[0].metadata.blocked_reason == null' >/dev/null
+bd update "$alpha" --set-metadata blocked_reason=pull-skipped >/dev/null
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" decided by=orchestrator 'q=Other?' a=no
+bd show "$alpha" --json | jq -e '.[0].metadata.blocked_reason == "pull-skipped"' >/dev/null
+bd update "$alpha" --unset-metadata blocked_reason --unset-metadata merged_sha >/dev/null
 # --body may follow the k=v fields; it goes after the parseable first line.
 check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note detail=one --body $'free\ntext' extra=two
 bd comments "$alpha" --json | jq -e 'last.text == "event=note detail=one extra=two\n\nfree\ntext"' >/dev/null
@@ -757,7 +793,7 @@ check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" ready 'de
 # Non-event comments do not replace the latest milestone.
 bd comments add "$alpha" 'Human observation, not an event' >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" dispatched agent=w-beta terminal=t10
-check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" reaped terminal=reviewer
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" reaped stopped=reviewer
 bd close "$beta" >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$gamma" dispatched agent=w-gamma terminal=t11
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=one

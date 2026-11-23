@@ -34,6 +34,34 @@ for field in "${fields[@]}"; do
 	fi
 	comment+=" $field"
 done
+# Shared fields are checked here, not left to prose a long-lived session may hold stale.
+require() {
+	local field
+	for field in "${fields[@]}"; do [[ $field =~ ^$1$ ]] && return 0; done
+	printf '%s needs %s\n' "$event" "$2" >&2
+	exit 1
+}
+item='(browser|compose|processes|worker|reviewer|worktree|branch|remote-branch|none)'
+case "$event" in
+	merged) require 'merged_sha=[0-9a-f]{40}' 'merged_sha=<40-hex sha>' ;;
+	settled) require 'result=(succeeded|abandoned|failed|blocked|uncertain)' 'result=succeeded|abandoned|failed|blocked|uncertain' ;;
+	reaped) require "stopped=$item(,$item)*" 'stopped=<comma list of browser,compose,processes,worker,reviewer,worktree,branch,remote-branch, or none>' ;;
+esac
 [ -n "${HC_TERMINAL_ID:-}" ] || { printf 'event.sh needs HC_TERMINAL_ID\n' >&2; exit 1; }
 [ -z "$body" ] || comment+=$'\n\n'"$body"
 bd comments add "$bead" "$comment" --actor "o-$HC_TERMINAL_ID"
+# Metadata mirrors the event so status.sh shows it after later comments.
+case "$event" in
+	merged)
+		for field in "${fields[@]}"; do [[ $field != merged_sha=* ]] || sha=${field#merged_sha=}; done
+		bd update "$bead" --set-metadata "merged_sha=$sha" --actor "o-$HC_TERMINAL_ID" >/dev/null ;;
+	blocked)
+		for field in "${fields[@]}"; do
+			[[ $field != reason=needs-user ]] || bd update "$bead" --set-metadata blocked_reason=needs-user --actor "o-$HC_TERMINAL_ID" >/dev/null
+		done ;;
+	decided)
+		# The answer releases a needs-user hold; other blocked reasons stay.
+		if [ "$(bd show "$bead" --json | jq -r '.[0].metadata.blocked_reason // ""')" = needs-user ]; then
+			bd update "$bead" --unset-metadata blocked_reason --actor "o-$HC_TERMINAL_ID" >/dev/null
+		fi ;;
+esac
