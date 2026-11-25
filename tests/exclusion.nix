@@ -3,6 +3,7 @@ let
   excludeRootSkills = import ../lib/exclude-skills.nix;
   excludedRootNames = (import ../skill-selection.nix).exclude;
   harnesses = [
+    "agy"
     "claude-code"
     "codex"
     "factory"

@@ -128,7 +128,7 @@ programs.pi.skills = inputs.agent-skills.lib.skillsFor {
 };
 ```
 
-`profile` must be `"personal"` or `"work"`. Omit `harness` for common skills. Supported harness values are `"claude-code"`, `"codex"`, `"factory"`, `"omp"`, `"opencode"`, and `"pi"`. Harness leaves override common leaves with the same name.
+`profile` must be `"personal"` or `"work"`. Omit `harness` for common skills. Supported harness values are `"agy"`, `"claude-code"`, `"codex"`, `"factory"`, `"omp"`, `"opencode"`, and `"pi"`. Harness leaves override common leaves with the same name.
 
 ## Maintenance
 

@@ -22,6 +22,7 @@
   ];
   commonGroups = profileGroups groups.commonGeneral groups.commonPersonal groups.commonWork;
   harnessGroupsByName = {
+    agy = profileGroups groups.agyGeneral groups.agyPersonal groups.agyWork;
     "claude-code" = profileGroups groups.claudeCodeGeneral groups.claudeCodePersonal groups.claudeCodeWork;
     codex = profileGroups groups.codexGeneral groups.codexPersonal groups.codexWork;
     factory = profileGroups groups.factoryGeneral groups.factoryPersonal groups.factoryWork;

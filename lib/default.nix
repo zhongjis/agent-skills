@@ -52,6 +52,7 @@ let
   };
 
   agentFolders = {
+    agy = ../.agy/skills;
     claude-code = ../.claude/skills;
     codex = ../.codex/skills;
     opencode = ../.opencode/skills;
@@ -73,6 +74,7 @@ let
     supportedHarnesses = builtins.attrNames agentFolders;
   };
   commonSkills = assembled.commonSkills;
+  agySkills = assembled.harnessSkills.agy;
   claudeCodeSkills = assembled.harnessSkills.claude-code;
   codexSkills = assembled.harnessSkills.codex;
   opencodeSkills = assembled.harnessSkills.opencode;
@@ -81,6 +83,7 @@ let
   piSkills = assembled.harnessSkills.pi;
 
   commonSplit = splitByProfile commonSkills;
+  agySplit = splitByProfile agySkills;
   claudeCodeSplit = splitByProfile claudeCodeSkills;
   codexSplit = splitByProfile codexSkills;
   opencodeSplit = splitByProfile opencodeSkills;
@@ -92,6 +95,9 @@ let
     commonGeneral = commonSplit.general;
     commonPersonal = commonSplit.personal;
     commonWork = commonSplit.work;
+    agyGeneral = agySplit.general;
+    agyPersonal = agySplit.personal;
+    agyWork = agySplit.work;
     claudeCodeGeneral = claudeCodeSplit.general;
     claudeCodePersonal = claudeCodeSplit.personal;
     claudeCodeWork = claudeCodeSplit.work;

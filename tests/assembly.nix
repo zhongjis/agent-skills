@@ -1,6 +1,7 @@
 let
   assembleSkills = import ../lib/assemble-skills.nix;
   supportedHarnesses = [
+    "agy"
     "claude-code"
     "codex"
     "factory"

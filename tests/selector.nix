@@ -8,6 +8,7 @@ let
   exclusionTests = import ./exclusion.nix;
 
   supportedHarnessRoots = {
+    agy = ../.agy/skills;
     "claude-code" = ../.claude/skills;
     codex = ../.codex/skills;
     factory = ../.factory/skills;
@@ -117,6 +118,9 @@ let
     commonGeneral = {};
     commonPersonal = {};
     commonWork = {};
+    agyGeneral = {};
+    agyPersonal = {};
+    agyWork = {};
     claudeCodeGeneral = {};
     claudeCodePersonal = {};
     claudeCodeWork = {};
