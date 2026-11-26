@@ -68,9 +68,13 @@ if [ -n "$session" ]; then
 	case "$kind" in
 		pi) cmd+=(--session "$session") ;;
 		claude) cmd+=(--resume "$session") ;;
+		agy) cmd+=("--conversation=$session") ;;
+		copilot) cmd+=("--resume=$session") ;;
 		*) printf 'cannot resume a %s worker\n' "$kind" >&2; exit 1 ;;
 	esac
 fi
+# agy and Copilot run a positional prompt only through -i, which must come right before it.
+case "$kind" in agy | copilot) cmd+=(-i) ;; esac
 
 # hc terminals do not inherit this shell's environment, so pass the
 # namespace and PATH (Herdr's per-launch agent hook shims) through env.

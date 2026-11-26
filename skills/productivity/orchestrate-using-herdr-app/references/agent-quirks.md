@@ -46,3 +46,17 @@ Worker and reviewer prompts tell Claude to load `orchestrated-worker`, run `bd p
 Worker and reviewer prompts tell Codex to load `orchestrated-worker`, run `bd prime` and `bd show <bead>`, and work that bead. Codex has no compaction recovery hook; existing follow-up `wf-494` tracks it.
 
 - `start-worker.sh --kind codex` adds `--no-daemon`; without it, Codex runs its commands outside `hc`.
+
+## agy
+
+Worker and reviewer prompts tell agy to load `orchestrated-worker`, run `bd prime` and `bd show <bead>`, and work that bead. agy always runs a Gemini model. It has no compaction recovery hook.
+
+- **Launch:** `start-worker.sh --kind agy` passes the prompt through `-i`, so agy stays interactive; resume is `--conversation=<id>`. The herdr-app resume hook labels `resume=agy --conversation=<id>`.
+- **Folder trust.** In a folder agy has not trusted, startup blocks on "Antigravity CLI requires permission to read, edit, and execute files here" and `start-worker.sh` exits 2 with `blocked`. Select "Yes, I trust this folder" for the assigned worktree with `hc keys <name> enter`, then confirm the agent is `working` on the bead; if it is `idle` at turn 0, send the bead bootstrap pointer.
+
+## copilot
+
+Worker and reviewer prompts tell Copilot to load `orchestrated-worker`, run `bd prime` and `bd show <bead>`, and work that bead. Copilot can run either family. It has no compaction recovery hook.
+
+- **Launch:** `start-worker.sh --kind copilot` passes the prompt through `-i`; resume is `--resume=<id>`. The herdr-app resume hook labels `resume=copilot --resume=<id>`.
+- **Reviewer on another model** ([supervise.md](supervise.md) step 2): read the model on the status line with `hc read r-<stem>`. When it is the worker's family, `hc interrupt r-<stem>`, type `/model` with `scripts/type-command.sh r-<stem> /model`, pick a model of the other family, confirm the status line shows it, and send the bead bootstrap pointer.

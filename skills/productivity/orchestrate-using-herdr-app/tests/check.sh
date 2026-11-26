@@ -230,12 +230,14 @@ mapfile -d '' -t argv < "$tmp/argv"
 rm "$tmp/bin/bd"
 check 0 'turn 1' env HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 [[ $(cat "$tmp/labels") == 'label w-worker-a space=sp1' ]]
-for kind in pi claude codex; do
+for kind in pi claude codex agy copilot; do
 	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind "$kind"
 	mapfile -d '' -t argv < "$tmp/argv"
 	[[ ${argv[-1]} == *"bd prime"* && ${argv[-1]} == *"bd show $launch_task"* && ${argv[-1]} == *orchestrated-worker* ]]
 	if [[ $kind == pi ]]; then [[ ${argv[-1]} == *' ulw' ]]; fi
 	[[ $kind != codex || ${argv[*]} == *'codex --no-daemon '* ]]
+	# agy and Copilot take the prompt only as the value of -i.
+	[[ $kind != agy && $kind != copilot ]] || [[ ${argv[-3]} == "$kind" && ${argv[-2]} == -i ]]
 done
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --resume s-1
 mapfile -d '' -t argv < "$tmp/argv"
@@ -243,6 +245,12 @@ mapfile -d '' -t argv < "$tmp/argv"
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind claude --resume u-1
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'claude --resume u-1 '* ]]
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind agy --resume c-1
+mapfile -d '' -t argv < "$tmp/argv"
+[[ ${argv[*]} == *'agy --conversation=c-1 -i '* ]]
+check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind copilot --resume p-1
+mapfile -d '' -t argv < "$tmp/argv"
+[[ ${argv[*]} == *'copilot --resume=p-1 -i '* ]]
 check 1 'cannot resume' "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind codex --resume x
 check 2 'blocked' env MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 check 2 'terminal finished' env MODE=finished "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
@@ -337,7 +345,7 @@ done
 rows=$(bd comments "$launch_task" --json | jq length)
 check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 [[ ! -s $tmp/calls && $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
-for resume in 'pi --session s-9' 'claude --resume u-9'; do
+for resume in 'pi --session s-9' 'claude --resume u-9' 'agy --conversation=c-9' 'copilot --resume=p-9'; do
 	rm -f "$tmp/removed"
 	check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME="$resume" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 	mapfile -d '' -t argv < "$tmp/argv"

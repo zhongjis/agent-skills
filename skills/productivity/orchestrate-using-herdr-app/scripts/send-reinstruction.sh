@@ -101,6 +101,10 @@ case "$state" in
 			kind=pi
 		elif [[ $resume =~ (^|[[:space:]])claude[[:space:]](.*[[:space:]])?--resume[[:space:]]+([^[:space:]]+) ]]; then
 			kind=claude
+		elif [[ $resume =~ (^|[[:space:]])agy[[:space:]](.*[[:space:]])?--conversation[=[:space:]]+([^[:space:]]+) ]]; then
+			kind=agy
+		elif [[ $resume =~ (^|[[:space:]])copilot[[:space:]](.*[[:space:]])?--resume[=[:space:]]+([^[:space:]]+) ]]; then
+			kind=copilot
 		else
 			printf 'agent %s: finished without a resumable session\n' "$name" >&2
 			exit 2
