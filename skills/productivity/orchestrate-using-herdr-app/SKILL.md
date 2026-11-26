@@ -60,7 +60,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## House rules
 
-- **Pi by default** unless the user names another kind; a reviewer runs on a different model family from its worker ([supervise.md](references/supervise.md)).
+- **Pi by default** for workers unless the user names another kind; a reviewer runs on a different model family from its worker, picked from the reviewer chain in [supervise.md](references/supervise.md).
 - **Hands off the user's window:** workers are hidden `hc` terminals that the herdr-app UI nests under you; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own pane `[o] <title>` and clearing it on `--off`.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.

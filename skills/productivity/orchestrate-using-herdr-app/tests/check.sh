@@ -351,6 +351,24 @@ for resume in 'pi --session s-9' 'claude --resume u-9' 'agy --conversation=c-9' 
 	mapfile -d '' -t argv < "$tmp/argv"
 	[[ ${argv[*]} == *"$resume"* && ${argv[-1]} == *"bd comments $launch_task"* ]]
 done
+
+# The reviewer chain reads installed kinds from PATH and caches them per PATH.
+agents="$tmp/agents"
+mkdir -p "$agents"
+for kind in claude pi agy; do printf '#!/bin/sh\n' > "$agents/$kind"; chmod +x "$agents/$kind"; done
+chain_path="$agents:$(dirname -- "$(command -v bash)"):$(dirname -- "$(command -v cksum)")"
+chain() { env -i HOME="$HOME" XDG_RUNTIME_DIR="$tmp/run" PATH="$chain_path" "$scripts/reviewers.sh" "$@"; }
+[[ $(chain) == $'claude claude\npi any\nagy gemini' ]]
+[[ $(chain --visual) == $'agy gemini\nclaude claude\npi any' ]]
+[[ $(chain --not claude) == $'pi any\nagy gemini' ]]
+# A cached probe survives an install until PATH changes or --refresh.
+printf '#!/bin/sh\n' > "$agents/codex"; chmod +x "$agents/codex"
+[[ $(chain) != *codex* ]]
+[[ $(chain --refresh) == $'claude claude\ncodex gpt\npi any\nagy gemini' ]]
+rm "$agents/codex"
+chain_path="$chain_path:$tmp/empty"
+[[ $(chain) != *codex* ]]
+check 1 'usage' "$scripts/reviewers.sh" --not
 : > "$tmp/calls"
 check 2 'without a resumable session' env HC_TERMINAL_ID=orch MODE=finished "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 [[ ! -s $tmp/calls ]]
