@@ -26,8 +26,8 @@
       "source": "tt-a1i/archify",
       "sourceType": "github",
       "skillPath": "archify/SKILL.md",
-      "computedHash": "dcc4821a0dd36701d56e571910de4e20ca99a036810a3ba4d4261b0f078ad7a1",
-      "commit": "44781293f38728baf04dbad33ce1a0cef8c39cca"
+      "computedHash": "1997ef3d309a3fdd048c2ac34e99f3fffbce89cd32ec45fa03b6a63821e8d0f6",
+      "commit": "62f3a995eb26ee23f784bdea4a7992340078e9be"
     },
     "before-and-after": {
       "source": "vercel-labs/before-and-after",
@@ -110,15 +110,15 @@
       "source": "alchaincyf/huashu-design",
       "sourceType": "github",
       "skillPath": "SKILL.md",
-      "computedHash": "e269c779a575e6404e36ff3caf740667a9dc062a24967fa5d486226d2d39b2ed",
-      "commit": "e8d1148a80d5a281d4247cffe320add3df017928"
+      "computedHash": "59882ec354f57cf0532ccfb3569874febc6c8b374e0220b35a12815e2eee91c5",
+      "commit": "59065698ad63f87ea1532c126c87f488d4f93fd6"
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "computedHash": "077889e9782761360c17acbc2522af320d0dd0f928b09cd90884fa304f443a34",
-      "commit": "d41d9860b0094dcb68030657da63461212835aaa"
+      "computedHash": "08bd5bf141cb507f46bd8347890cd985865606f15adf88295ed3a73bc9ad5d96",
+      "commit": "b49177d32788f2dc585c42831d845dacf1ebed2c"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -173,8 +173,8 @@
       "source": "mvanhorn/last30days-skill",
       "sourceType": "github",
       "skillPath": "skills/last30days/SKILL.md",
-      "computedHash": "f3d5e066bca992aaffd650d2203f80a5f484116d9c0963996dbf2304e6110f77",
-      "commit": "a854f3bcb2c4344d7498426d653378510f8b253a"
+      "computedHash": "c83d4a6ad0cc26e6eaaab5ba572a7669ef98943219bc7c0a49ced1c6218eac0d",
+      "commit": "c7056bc2fc3e5f281c58aa3cac2c63a1886b15ed"
     },
     "linear": {
       "source": "openai/skills",

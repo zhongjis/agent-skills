@@ -51,7 +51,7 @@ from dataclasses import dataclass
 from shutil import which
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from . import env, health, prescriptions
+from . import env, health, prescriptions, proxy
 
 # Resolution modes.
 MODE_ALTERNATIVE = "alternative"  # probe-ordered chain, first-usable wins
@@ -64,9 +64,8 @@ TIER_ERROR = "error"
 
 # Web search backend order. grounding.web_search's auto branch owns the
 # runtime behavior (brave -> exa -> serper -> parallel -> keyless floor);
-# there is no importable constant there, so this declaration is guarded by
-# the grounding-auto parity test rather than an import.
-WEB_BACKEND_ORDER: Tuple[str, ...] = ("brave", "exa", "serper", "parallel", "keyless")
+# parallel-mcp is opt-in only (--web-backend parallel-mcp) and never auto-selected.
+WEB_BACKEND_ORDER: Tuple[str, ...] = ("brave", "exa", "serper", "parallel", "keyless", "parallel-mcp")
 
 # YouTube backend order (pipeline: yt-dlp first, ScrapeCreators search
 # fallback when yt-dlp is absent or fails — see lib/pipeline.py).
@@ -200,7 +199,7 @@ def _key_probe(name: str, key_var: str, requires: str, note: str = "") -> Callab
             return BackendFinding(
                 name=name,
                 status=health.OK,
-                detail=f"{key_var} present",
+                detail="via API key" if proxy.is_sentinel(config.get(key_var)) else f"{key_var} present",
                 requires=requires,
             )
         prescription = note or f"set {key_var} in ~/.config/last30days/.env"
@@ -394,24 +393,26 @@ def _probe_xapi(config: Dict[str, Any]) -> BackendFinding:
 
 
 def _probe_xurl(config: Dict[str, Any]) -> BackendFinding:
-    """xurl = official X API v2 CLI (OAuth2). Free lane; LOCAL-ONLY probe.
+    """xurl = official X API v2 CLI (app-only bearer). Free lane; LOCAL-ONLY probe.
 
     Doctor's no-network guarantee forbids the live ``xurl whoami`` check
-    (``xurl_x.is_available()`` — an authenticated X API call, reserved for
-    research time). This probe keys on local evidence instead: the binary
-    on PATH plus xurl's on-disk token store (~/.xurl). Stored credentials
-    read as OK with an explicit "not live-verified" caveat; an unreadable
+    (``xurl_x.is_available()`` — reserved for research time). This probe keys
+    on local evidence instead: the binary on PATH plus xurl's on-disk token
+    store (~/.xurl/auth.yml or legacy ~/.xurl). Stored app-only bearer
+    credentials read as OK with an explicit "not live-verified" caveat; a store
+    holding only OAuth user tokens without ``bearer_token`` is reported as
+    MISSING because ``xurl_x.search_x`` pins ``--auth app``; an unreadable
     token store is a typed ERROR (broken, not unconfigured).
     """
     from . import xurl_x
 
-    requires = "xurl CLI installed + OAuth2 login"
+    requires = "xurl CLI installed + app-only bearer auth"
     if which("xurl") is None:
         return BackendFinding(
             name="xurl",
             status=health.MISSING,
             detail="xurl CLI not found on PATH",
-            prescription="npm install -g xurl && xurl auth oauth2 login",
+            prescription="npm install -g @xdevplatform/xurl && xurl auth app-only <bearer-token>",
             requires=requires,
         )
     store_status, store_detail = xurl_x.stored_auth_status()
@@ -420,7 +421,7 @@ def _probe_xurl(config: Dict[str, Any]) -> BackendFinding:
             name="xurl",
             status=health.OK,
             detail=(
-                "installed; stored OAuth2 credentials present; "
+                "installed; stored app-only bearer credentials present; "
                 "auth not live-verified (no network)"
             ),
             requires=requires,
@@ -430,14 +431,25 @@ def _probe_xurl(config: Dict[str, Any]) -> BackendFinding:
             name="xurl",
             status=health.ERROR,
             detail=store_detail,
-            prescription="xurl auth oauth2 login",
+            prescription="xurl auth app-only <bearer-token>",
+            requires=requires,
+        )
+    if "oauth user tokens only" in str(store_detail).lower():
+        return BackendFinding(
+            name="xurl",
+            status=health.MISSING,
+            detail=(
+                "xurl token store has OAuth user tokens only; "
+                "search requires app-only bearer auth"
+            ),
+            prescription="xurl auth app-only <bearer-token>",
             requires=requires,
         )
     return BackendFinding(
         name="xurl",
         status=health.MISSING,
         detail="xurl installed but not authenticated",
-        prescription="xurl auth oauth2 login",
+        prescription="xurl auth app-only <bearer-token>",
         requires=requires,
     )
 
@@ -469,6 +481,23 @@ def _probe_web_keyless(config: Dict[str, Any]) -> BackendFinding:
         status=health.MISSING,
         detail="keyless floor suppressed: host has native web search",
         prescription="",
+        requires=requires,
+    )
+
+
+def _probe_web_parallel_mcp(config: Dict[str, Any]) -> BackendFinding:
+    """Opt-in Parallel Search MCP: anonymous hosted endpoint, optional bearer auth."""
+    requires = "opt-in only (--web-backend parallel-mcp; PARALLEL_API_KEY optional)"
+    real_key = proxy.real_key(config.get("PARALLEL_API_KEY"))
+    detail = (
+        "hosted Parallel Search MCP (opt-in; PARALLEL_API_KEY present)"
+        if real_key
+        else "hosted Parallel Search MCP (opt-in; anonymous, no key required)"
+    )
+    return BackendFinding(
+        name="parallel-mcp",
+        status=health.OK,
+        detail=detail,
         requires=requires,
     )
 
@@ -526,8 +555,18 @@ _WEB_PROBES: Dict[str, Callable[[Dict[str, Any]], BackendFinding]] = {
     "serper": _key_probe("serper", "SERPER_API_KEY", "SERPER_API_KEY"),
     "parallel": _key_probe("parallel", "PARALLEL_API_KEY", "PARALLEL_API_KEY"),
     "keyless": _probe_web_keyless,
+    "parallel-mcp": _probe_web_parallel_mcp,
 }
 _WEB_KEYED = {"brave", "exa", "serper", "parallel"}
+_WEB_OPT_IN = {"parallel-mcp"}
+_WEB_REQUIRES: Dict[str, str] = {
+    "brave": "BRAVE_API_KEY",
+    "exa": "EXA_API_KEY",
+    "serper": "SERPER_API_KEY",
+    "parallel": "PARALLEL_API_KEY",
+    "keyless": "no key; suppressed on native-search hosts",
+    "parallel-mcp": "opt-in only (--web-backend parallel-mcp; PARALLEL_API_KEY optional)",
+}
 
 _SC_SPEC = BackendSpec(
     name="scrapecreators",
@@ -544,7 +583,7 @@ _X_REQUIRES: Dict[str, str] = {
     "xai": "XAI_API_KEY (xAI/Grok live search)",
     "grok": "grok CLI installed + signed in (opt-in only; pin to enable)",
     "bird": "X browser cookies (AUTH_TOKEN/CT0) + node",
-    "xurl": "xurl CLI installed + OAuth2 login",
+    "xurl": "xurl CLI installed + app-only bearer auth",
     "xquik": "XQUIK_API_KEY (xquik.com)",
     "xapi": "X_BEARER_TOKEN (X API v2)",
 }
@@ -589,10 +628,10 @@ DESCRIPTORS: Dict[str, ChainDescriptor] = {
         backends=tuple(
             BackendSpec(
                 name=name,
-                requires=(f"{name.upper()}_API_KEY" if name in _WEB_KEYED
-                          else "no key; suppressed on native-search hosts"),
+                requires=_WEB_REQUIRES[name],
                 probe=_WEB_PROBES[name],
                 paid=name in _WEB_KEYED,
+                opt_in=name in _WEB_OPT_IN,
             )
             for name in WEB_BACKEND_ORDER
         ),
@@ -644,16 +683,18 @@ def resolve(
     multiple binaries are simultaneously hung.
     """
     descriptor = get_descriptor(source)
-    specs, auto_names = _specs_for_policy(descriptor, config)
+    normalized_pin = pin.strip().lower() if isinstance(pin, str) and pin.strip() else None
+    specs, auto_names = _specs_for_policy(descriptor, config, pin=normalized_pin)
     findings = [_run_probe(spec, config) for spec in specs]
     if descriptor.mode == MODE_CONDITIONAL:
-        return _resolve_conditional(descriptor, config, findings)
-    return _resolve_alternative(descriptor, config, findings, pin, auto_names)
+        return _resolve_conditional(descriptor, config, findings, pin=normalized_pin)
+    return _resolve_alternative(descriptor, config, findings, normalized_pin, auto_names)
 
 
 def _specs_for_policy(
     descriptor: ChainDescriptor,
     config: Dict[str, Any],
+    pin: Optional[str] = None,
 ) -> Tuple[List[BackendSpec], set]:
     """The backends to probe for this host, and which of them auto-select.
 
@@ -675,9 +716,14 @@ def _specs_for_policy(
         return specs, auto_names
     by_name = {spec.name: spec for spec in specs}
     ordered = [by_name[name] for name in policy.auto_chain if name in by_name]
-    pin = env.x_backend_pin(config)
-    if pin in by_name and pin not in auto_names:
-        ordered.append(by_name[pin])
+    norm_pin = pin.strip().lower() if isinstance(pin, str) and pin.strip() else ""
+    effective_pin = (
+        norm_pin
+        if norm_pin and norm_pin not in ("auto", "none")
+        else env.x_backend_pin(config)
+    )
+    if effective_pin in by_name and effective_pin not in auto_names:
+        ordered.append(by_name[effective_pin])
     return ordered, auto_names
 
 
@@ -695,6 +741,39 @@ def _run_probe(spec: BackendSpec, config: Dict[str, Any]) -> BackendFinding:
     if not finding.requires:
         finding.requires = spec.requires
     return finding
+
+
+# Key behind each backend the API-key proxy can serve (lib/proxy.py).
+_PROXY_KEY_VARS = {
+    "xai": "XAI_API_KEY",
+    "serper": "SERPER_API_KEY",
+    "parallel": "PARALLEL_API_KEY",
+    "scrapecreators": "SCRAPECREATORS_API_KEY",
+}
+
+
+def _demote_proxied(
+    source: str, findings: List[BackendFinding], config: Dict[str, Any],
+) -> List[BackendFinding]:
+    """Order findings the way the runtime ranks proxy-served backends.
+
+    A backend served by the API-key proxy ranks after every backend the user
+    holds a key for: last in the X chain (env.x_backend_chain), and after the
+    keyed web backends but ahead of the keyless floor
+    (grounding.configured_backend). Without proxy lanes the order is unchanged.
+    """
+    proxied = [
+        f for f in findings
+        if proxy.is_sentinel(config.get(_PROXY_KEY_VARS.get(f.name, "")))
+    ]
+    if not proxied:
+        return findings
+    proxied_ids = {id(f) for f in proxied}
+    rest = [f for f in findings if id(f) not in proxied_ids]
+    if source == "web":
+        cut = next((i for i, f in enumerate(rest) if f.name not in _WEB_KEYED), len(rest))
+        return rest[:cut] + proxied + rest[cut:]
+    return rest + proxied
 
 
 def _resolve_alternative(
@@ -718,14 +797,17 @@ def _resolve_alternative(
     )
 
     pin_name: Optional[str] = None
-    if pin and pin not in ("auto", "none") and pin in by_name:
-        pin_name = pin
+    norm_pin = pin.strip().lower() if isinstance(pin, str) else ""
+    if norm_pin and norm_pin not in ("auto", "none") and norm_pin in by_name:
+        pin_name = norm_pin
     elif descriptor.pin_var:
         if descriptor.pin_var == env.YOUTUBE_BACKEND_PIN_VAR:
             # Same spelling rules as the runtime gate (strip, "ytdlp" alias).
             raw = env.youtube_backend_pin(config)
+        elif descriptor.pin_var == env.X_BACKEND_PIN_VAR:
+            raw = env.x_backend_pin(config)
         else:
-            raw = (config.get(descriptor.pin_var) or "").lower()
+            raw = (config.get(descriptor.pin_var) or "").strip().lower()
         if raw in by_name and (
             descriptor.pin_values is None or raw in descriptor.pin_values
         ):
@@ -753,7 +835,10 @@ def _resolve_alternative(
     # Collect-then-pick: first fully-usable wins; else best degraded; else
     # error carrying the highest-priority backend's prescription.
     # Opt-in backends are NEVER auto-selected; skip them entirely.
-    auto_findings = [f for f in findings if f.name not in opt_in_names]
+    auto_findings = _demote_proxied(
+        descriptor.source, [f for f in findings if f.name not in opt_in_names], config,
+    )
+    res.chain = [f.name for f in _demote_proxied(descriptor.source, findings, config)]
     for finding in auto_findings:
         if finding.status == health.OK:
             res.active_backend = finding.name
@@ -774,6 +859,7 @@ def _resolve_conditional(
     descriptor: ChainDescriptor,
     config: Dict[str, Any],
     findings: List[BackendFinding],
+    pin: Optional[str] = None,
 ) -> BackendResolution:
     """Reddit: render the real per-query semantics, never a computed winner."""
     res = BackendResolution(
@@ -785,7 +871,11 @@ def _resolve_conditional(
         tier=TIER_OK,  # the public keyless composite is always reachable
     )
     has_key = bool(config.get("SCRAPECREATORS_API_KEY"))
-    raw_pin = (config.get(descriptor.pin_var) or "").lower() if descriptor.pin_var else ""
+    norm_pin = pin.strip().lower() if isinstance(pin, str) else ""
+    if norm_pin and norm_pin not in ("auto", "none"):
+        raw_pin = norm_pin
+    else:
+        raw_pin = (config.get(descriptor.pin_var) or "").strip().lower() if descriptor.pin_var else ""
     pinned_sc = has_key and raw_pin == "scrapecreators"
     floor = env.reddit_sc_min_items(config)
 
