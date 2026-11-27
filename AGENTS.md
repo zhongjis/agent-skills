@@ -79,7 +79,7 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
-- Approved retro fixes to this repo, `nix-config` and `pi-config` land on `main`: commit and push each repo, update the `nix-config` flake input for it, then commit, push and switch `nix-config`.
+- Retro fixes to this repo, `nix-config` and `pi-config` are made on `main` and left uncommitted until the user accepts landing them: then commit and push each repo, update the `nix-config` flake input for it, and commit, push and switch `nix-config`.
 
 ## Skill catalog
 
