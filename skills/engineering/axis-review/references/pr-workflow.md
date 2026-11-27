@@ -31,7 +31,7 @@ git worktree add "$TMP" "$REF"
 git worktree remove "$TMP" && git branch -D "$REF"  # cleanup
 ```
 
-Once checked out, the review follows the **Local Review** path in SKILL.md § Review process step 1 — scope from `git diff <baseRefName>...HEAD` (three-dot = merge-base), with the axes running against the working tree. The `gh` commands in § 1 remain the source for PR *metadata* and links, not the code read.
+Once checked out, the review follows the **Local Review** path in SKILL.md § Review process step 1 — scope from `scripts/review-diff.sh <worktree> --base <baseRefName>` (diff from the merge-base), with the axes running against the working tree. The `gh` commands in § 1 remain the source for PR *metadata* and links, not the code read.
 
 ## 1. Gather PR context
 
@@ -52,7 +52,7 @@ Treat issues other reviewers already raised as prior art — your findings must 
 
 ## 2b. Scope a re-review to new commits
 
-If a prior code-review review already exists on this PR, scope this pass to what changed since it. Find that review in the `gh api repos/{owner}/{repo}/pulls/{number}/reviews` output by matching **both** the (`<!-- code-review -->` or the historical `<!-- code-review-v2 -->`) marker in its `body` **and** an author login equal to the current `gh` user (`gh api user -q .login`) — match both, or you may grab another tool's review. Read that review's `commit_id`, enumerate the new commits (`git log <sha>..HEAD --oneline`) and their files (`git diff --stat <sha>...HEAD`), and review only that diff (`git diff <sha>...HEAD`) — the scope is those new commits, not a re-scan of the whole PR. Open the new summary body with the exact opener line "Incremental review since `<sha>` — prior findings not repeated." so the author knows what was and wasn't re-read.
+If a prior code-review review already exists on this PR, scope this pass to what changed since it. Find that review in the `gh api repos/{owner}/{repo}/pulls/{number}/reviews` output by matching **both** the (`<!-- code-review -->` or the historical `<!-- code-review-v2 -->`) marker in its `body` **and** an author login equal to the current `gh` user (`gh api user -q .login`) — match both, or you may grab another tool's review. Read that review's `commit_id`, enumerate the new commits (`git log <sha>..HEAD --oneline`), and get their files and diff from `scripts/review-diff.sh <worktree> --last-reviewed <sha>` — the scope is those new commits, not a re-scan of the whole PR. When the script exits 3 because `<sha>` is no longer an ancestor of HEAD (force-push or rebase), run a full review instead. Open the new summary body with the exact opener line "Incremental review since `<sha>` — prior findings not repeated." so the author knows what was and wasn't re-read.
 
 "Prior findings not repeated" governs *findings*, not unresolved *risk*: any earlier `[BLOCKER]` or `[MAJOR]` still unfixed at the new head must be re-surfaced (reference it by its ID), never silently dropped. A missed marker only costs a safe full re-review; a false match mis-scopes, which is why the author-login match is mandatory.
 
