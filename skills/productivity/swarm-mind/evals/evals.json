@@ -1,0 +1,71 @@
+{
+  "skill_name": "swarm-mind",
+  "evals": [
+    {
+      "id": 1,
+      "name": "code-review-brief-and-judging",
+      "prompt": "Offline simulation; do not run commands. You authored branch cache-fix (base main, head abc1234) on a Claude model, for ticket CACHE-12. Codex and Pi (on a Claude default) are available, and your caller asked for one external review. The reviewer returns: (a) a null dereference at cache.ts:40 with a failing test command and its output, which you rerun and see fail; (b) a rename suggestion at cache.ts:12; (c) a claim of a race at store.ts:88, but that line is a constant; (d) a request to add a retry policy the ticket does not mention. Explain the reviewer choice, the brief, how you judge each finding, and the next round after the author's fix.",
+      "expected_output": "Picks Codex (gpt family), not Pi on its Claude default. Brief states intent, pins main...abc1234, names CACHE-12 as authority, says hands off (no file changes, nothing posted), names axis-review, asks for file:line, blocking claim, command plus output for runtime claims, and a verdict, and says no findings is valid. (a) blocking after rerun; (b) note; (c) dropped after re-reading, reason recorded; (d) not a blocker, since the ticket is the authority. The next round covers only abc1234..<new head>, blocks only on (a) if still open or new blockers in that range, and is the last one under the cap. Report lists reviewer, model, rounds, blockers, dropped findings and open questions; what gets fixed is left to the caller.",
+      "expectations": [
+        "Chooses a reviewer from a different model family than the author, not Pi on its Claude default.",
+        "The brief states intent, pins the range and head, names the ticket as authority, keeps the reviewer hands off (no file changes, nothing posted), names axis-review, and asks for file:line evidence, command and output for runtime claims, and a verdict.",
+        "Reruns the cited command for (a) and classifies it as blocking; classifies (b) and (d) as notes or non-findings against the ticket.",
+        "Re-reads the cited line and drops the unsupported race claim with a recorded reason.",
+        "Limits the next round to the new range, blocks only on open earlier blockers or new blockers in it, and keeps to the whole-branch plus one incremental cap.",
+        "Reports reviewer, rounds, blockers, dropped findings and open questions without deciding the fixes itself."
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "plan-review-ticket-breakdown",
+      "prompt": "Offline simulation; do not run commands. You drafted a 4-ticket breakdown for an export feature on a GPT model, from a conversation where the user agreed CSV only and no background jobs. You want an external agent to check it before showing the user. The reviewer reports: ticket 3 is only the database layer; no ticket covers the 'download from settings' user story; ticket 2 lists ticket 4 as a blocker but does not depend on it; and it suggests adding JSON export. After your fixes you also reword ticket 1's title. Explain what the plan file must hold before review, how you judge each finding, the verdict handling and the round count.",
+      "expected_output": "Plan file states agreed decisions (CSV only, no background jobs), out of scope, constraints and acceptance criteria. Reviewer on a non-GPT family. Horizontal slice, uncovered story and wrong blocking edge are blocking gaps; JSON export conflicts with an agreed decision and is not a blocker. Round 2 reviews only the edits, including the title change, since approval covers only the reviewed version, and blocks only on open round-1 blockers or new blockers in the edits; at most 2 rounds.",
+      "expectations": [
+        "Makes the plan self-contained with the agreed decisions and out-of-scope items before review.",
+        "Uses a reviewer outside the GPT family.",
+        "Treats the horizontal slice, the uncovered user story and the wrong blocking edge as blocking gaps.",
+        "Rejects the JSON suggestion as contradicting the agreed decision rather than adding it.",
+        "Has the later edits, including the title change, reviewed before handoff, blocking only on open round-1 blockers or new blockers in them, within at most 2 rounds."
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "no-other-family-available",
+      "prompt": "Offline simulation; do not run commands. You authored a change on a Claude model. The only other installed agent is Codex, which hit its quota earlier this session. Pi is installed but only has Claude models configured. Explain what you do about the review.",
+      "expected_output": "Skips Codex because of the recorded quota, does not silently use a Claude-family reviewer, and asks the user whether to accept a same-family review or wait.",
+      "expectations": [
+        "Skips the reviewer with a quota seen this session.",
+        "Does not run a same-family review without the user's decision, and asks the user."
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "visual-chain-and-any-kind-switch",
+      "prompt": "Offline simulation; do not run commands. You authored a UI change judged against a Figma mock, on a Gemini model. Installed kinds: agy, pi, copilot. Pi's default model is gemini-2.5-pro. Copilot's default is gpt-5. Explain which reviewer you pick and why. Then answer the same for a non-visual change by the same author with only agy and pi installed.",
+      "expected_output": "Visual chain starts with agy, but agy is Gemini (author's family), so skip it; claude and codex are not installed; pi is next but defaults to Gemini, so pick pi and switch it to a non-Gemini model (or Copilot only if pi cannot switch). Non-visual: default chain, agy skipped as Gemini, pi picked and switched off its Gemini default.",
+      "expectations": [
+        "Uses the visual chain for the UI change and the default chain otherwise.",
+        "Skips agy because it is in the author's Gemini family.",
+        "Picks pi as the first eligible any-family kind and switches it off its Gemini default before the review."
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "several-reviewers-pool-and-divergence",
+      "prompt": "Offline simulation; do not run commands. You authored an auth middleware change on a Claude model; codex, agy and pi are installed, and your caller asked for three external reviewers. Explain the reviewer picks. Then: codex and agy both report the same missing token-expiry check at auth.ts:30 (confirmed). Agy alone reports an unescaped header at auth.ts:55 (confirmed). Codex says logout must revoke all sessions while agy says it must revoke only the current one; the ticket does not say. Pi never reports. You noticed a typo and want to fix it while they review. Explain how you handle each.",
+      "expected_output": "Picks codex (gpt) and agy (gemini); pi only on a family not already picked, else reports that no third family is eligible. Gives all the same brief. Waits to fix the typo until all report. Merges the duplicate expiry finding, credits both; keeps the single-reviewer header finding as fully valid; treats the logout contradiction as underspecified authority, settling it with the user or a sharper frame instead of averaging; continues without pi and says so.",
+      "expectations": [
+        "Picks reviewers from distinct non-claude families and gives them the same brief, without deciding the reviewer count itself.",
+        "Leaves the target untouched until every reviewer reports.",
+        "Merges same-root-cause findings with credit to each reviewer and does not discount the single-reviewer finding.",
+        "Treats contradicting reviewers as an underspecified authority and asks the user rather than picking or averaging.",
+        "Proceeds without the dropped reviewer and reports the dropout."
+      ],
+      "files": []
+    }
+  ]
+}
