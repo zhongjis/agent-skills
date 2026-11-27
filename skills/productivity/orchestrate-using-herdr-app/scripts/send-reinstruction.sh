@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Persist a full re-instruction before delivering its bead pointer. Exit 2:
-# blocked/unresumable/unconfirmed; 3: invalid review base; 4: no slot.
+# blocked/unresumable/unconfirmed/no such terminal, or a failed restart (its
+# own code); 3: invalid review base; 4: no slot.
 set -euo pipefail
 
 usage() {
@@ -24,6 +25,14 @@ while [ "$#" -gt 0 ]; do
 		*) usage ;;
 	esac
 done
+# A missing worker exits 2 before any other input check; exit 3 is an invalid review base.
+rc=0
+snapshot=$(hc get "$name" --json) || rc=$?
+if [ "$rc" -eq 3 ]; then
+	printf 'agent %s: no such terminal\n' "$name" >&2
+	exit 2
+fi
+[ "$rc" -eq 0 ] || exit "$rc"
 # Before any side effect, including recording a re-instruction.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh" "$name"
 if [[ $name == r-* ]]; then
@@ -46,6 +55,7 @@ script_dir=$(dirname -- "${BASH_SOURCE[0]}")
 record_instruction() {
 	local event_fields=("agent=$name")
 	[ -z "$base" ] || event_fields+=("bead=$bead" "last-reviewed=$base")
+	event_fields+=("$@")
 	"$script_dir/event.sh" "$bead" re-instructed --body "$text" "${event_fields[@]}" >/dev/null
 }
 printf -v pointer 'Read the latest event=re-instructed comment with agent=%s in bd comments %q. Follow that re-instruction; write an event=report comment on that bead, then end your turn; never hc send to the orchestrator.' "$name" "$bead"
@@ -60,7 +70,6 @@ if [ -n "$new_context" ]; then
 	fi
 fi
 
-snapshot=$(hc get "$name" --json)
 fields=$(jq -er '[.state, (.status.state // "none"), (.turn // 0), (.labels.resume // "")] | @tsv' <<<"$snapshot")
 # resume last: tab is IFS whitespace, so an empty middle field would collapse.
 IFS=$'\t' read -r state status turn resume <<<"$fields"
@@ -80,11 +89,26 @@ case "$state" in
 			while IFS= read -r skill; do pointer+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' <<<"$source_text" | sort -u)
 			pointer+=' ulw'
 		fi
-		hc send "$name" "$pointer" >/dev/null
+		# A terminal that vanished since the lookup is a missing terminal, exit 2.
+		rc=0
+		hc send "$name" "$pointer" >/dev/null || rc=$?
+		if [ "$rc" -eq 3 ]; then
+			printf 'agent %s: no such terminal\n' "$name" >&2
+			exit 2
+		fi
+		[ "$rc" -eq 0 ] || exit "$rc"
+		hc label "$name" "orch.in=$(( $(date +%s) * 1000 )):re-instructed" >/dev/null 2>&1 || true
 		printf 'agent %s: sent\n' "$name"
 		# Confirm the turn started, so the next slot check counts it.
 		for _ in $(seq 30); do
-			fields=$(hc get "$name" --json | jq -er '[(.status.state // "none"), (.turn // 0)] | @tsv')
+			rc=0
+			snapshot=$(hc get "$name" --json) || rc=$?
+			if [ "$rc" -eq 3 ]; then
+				printf 'agent %s: no such terminal\n' "$name" >&2
+				exit 2
+			fi
+			[ "$rc" -eq 0 ] || exit "$rc"
+			fields=$(jq -er '[(.status.state // "none"), (.turn // 0)] | @tsv' <<<"$snapshot")
 			IFS=$'\t' read -r now_status now_turn <<<"$fields"
 			if [ "$now_status" = working ] || [ "$now_turn" -gt "$turn" ]; then
 				exit 0
@@ -110,10 +134,26 @@ case "$state" in
 			exit 2
 		fi
 		session="${BASH_REMATCH[3]}"
-		record_instruction
-		hc rm "$name" >/dev/null
+		# Every stable launch prerequisite first: a refusal keeps the old terminal and its resume label.
+		"$script_dir/start-worker.sh" "$name" "$worktree" "$bead" --kind "$kind" --resume "$session" --check
+		# The comment keeps the session ID if the restart fails.
+		record_instruction "session=$session" "kind=$kind" "worktree=$worktree"
+		# Keep the finished terminal until the replacement started: names are unique only among
+		# live terminals, so the replacement can launch beside it. Remove the old one by address.
+		old_address=$(jq -r '.address // empty' <<<"$snapshot")
 		rc=0
 		"$script_dir/start-worker.sh" "$name" "$worktree" "$bead" --kind "$kind" --resume "$session" || rc=$?
+		if [ "$rc" -eq 0 ]; then
+			hc rm "${old_address:-$name}" >/dev/null
+		else
+			# A second launch from the resume line is safe only when no live replacement exists.
+			live=$(hc ls --json 2>/dev/null | jq -r --arg n "$name" '[.terminals[] | select(.name == $n and .state == "live")] | length' 2>/dev/null) || live=
+			if [ "$live" = 0 ]; then
+				printf 'restart failed; resume line: %s\n' "$resume" >&2
+			else
+				printf 'restart failed; replacement terminal %s exists or cannot be inspected; inspect it before any retry\n' "$name" >&2
+			fi
+		fi
 		exit "$rc"
 		;;
 	*)

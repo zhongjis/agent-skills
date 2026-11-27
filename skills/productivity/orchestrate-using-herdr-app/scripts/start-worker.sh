@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# Launch a bead-backed worker. Exit 2: unconfirmed; 3: bead not assigned to
+# Launch a bead-backed worker and record `dispatched result=working|blocked|unconfirmed`
+# (nothing when the terminal is not live). Exit 2: unconfirmed; 3: bead not assigned to
 # the agent, or busy reviewer worktree; 4: no slot. --resume keeps the existing agent session.
+# --check runs every launch guard (name, worktree, assignment, reviewer worktree, resumable
+# kind, agent program on PATH, slot) and exits 0 before launching or recording anything.
+# After launch it addresses the new terminal by its address, since a finished terminal of the
+# same name may still exist (hc names are unique only among live terminals).
 set -euo pipefail
 
 usage() {
-	printf 'usage: start-worker.sh <agent> <worktree> <bead> [--kind <kind>] [--resume <session>]\n' >&2
+	printf 'usage: start-worker.sh <agent> <worktree> <bead> [--kind <kind>] [--resume <session>] [--check]\n' >&2
 	exit 1
 }
 
@@ -15,10 +20,12 @@ bead="$3"
 shift 3
 kind=pi
 session=
+check=
 while [ "$#" -gt 0 ]; do
 	case "$1" in
 		--kind) [ "$#" -ge 2 ] || usage; kind="$2"; shift 2 ;;
 		--resume) [ "$#" -ge 2 ] && [ -n "$2" ] || usage; session="$2"; shift 2 ;;
+		--check) check=1; shift ;;
 		*) usage ;;
 	esac
 done
@@ -82,6 +89,10 @@ case "$kind" in agy | copilot) cmd+=(-i) ;; esac
 # of the orchestrator's input, where they would collide with the user's typing.
 # Submit only bootstrap pointers and Pi triggers via argv.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh"
+if [ -n "$check" ]; then
+	command -v "${cmd[0]}" >/dev/null || { printf 'agent program %s not found on PATH\n' "${cmd[0]}" >&2; exit 1; }
+	exit 0
+fi
 script_dir=$(dirname -- "${BASH_SOURCE[0]}")
 script_dir=$(realpath -s -- "$script_dir")
 labels=(--label "orch-context=$script_dir/worker-context.sh")
@@ -92,24 +103,28 @@ run_out=$(hc run --bg --json --no-notify --name "$name" --cwd "$worktree" --outl
 	"BEADS_DIR=${BEADS_DIR:-}" "BEADS_DOLT_SHARED_SERVER=${BEADS_DOLT_SHARED_SERVER:-}" "${cmd[@]}" "$prompt") || run_status=$?
 printf '%s\n' "$run_out"
 [ "$run_status" -eq 0 ] || exit "$run_status"
+address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
+target=${address:-$name}
+# Records the launch result: working, blocked (dialog or error after launch) or
+# unconfirmed (60 s timeout). A working launch also stamps the terminal for the panel.
 log_dispatch() {
 	[ -n "${HC_TERMINAL_ID:-}" ] || return 0
-	local address
-	address=$(jq -r '.address // empty' <<<"$run_out" 2>/dev/null) || address=
+	local result=$1
 	"$script_dir/event.sh" "$bead" dispatched \
-		"agent=$name" "terminal=$address" "worktree=$worktree" "kind=$kind" result=working >/dev/null 2>&1 || true
+		"agent=$name" "terminal=$address" "worktree=$worktree" "kind=$kind" "result=$result" >/dev/null 2>&1 || true
+	[ "$result" != working ] || hc label "$target" "orch.in=$(( $(date +%s) * 1000 )):dispatched" >/dev/null 2>&1 || true
 }
 # The orchestrator's space: its own space label, else its pane's herdr.space.
 space=
 if [ -n "${HC_TERMINAL_ID:-}" ]; then
 	space=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null | jq -r '.labels.space // .labels["herdr.space"] // empty' 2>/dev/null) || space=
 fi
-if [ -n "$space" ]; then hc label "$name" "space=$space" >/dev/null; fi
+if [ -n "$space" ]; then hc label "$target" "space=$space" >/dev/null; fi
 
 # `hc wait` can report idle before the argv prompt is submitted, so confirm
 # by turn count or a live status instead.
 for _ in $(seq 30); do
-	snapshot=$(hc get "$name" --json)
+	snapshot=$(hc get "$target" --json)
 	fields=$(jq -er '[.state, (.status.state // "none"), .turn] | @tsv' <<<"$snapshot")
 	IFS=$'\t' read -r state status turn <<<"$fields"
 	if [ "$state" != live ]; then
@@ -117,15 +132,16 @@ for _ in $(seq 30); do
 		exit 2
 	fi
 	case "$status" in
-		working) printf 'agent %s: working\n' "$name"; log_dispatch; exit 0 ;;
-		blocked|error) printf 'agent %s: %s\n' "$name" "$status" >&2; exit 2 ;;
+		working) printf 'agent %s: working\n' "$name"; log_dispatch working; exit 0 ;;
+		blocked|error) printf 'agent %s: %s\n' "$name" "$status" >&2; log_dispatch blocked; exit 2 ;;
 	esac
 	if [ "$turn" -ge 1 ]; then
 		printf 'agent %s: turn %s, %s\n' "$name" "$turn" "$status"
-		log_dispatch
+		log_dispatch working
 		exit 0
 	fi
 	sleep 2
 done
 printf 'agent %s: task not confirmed after 60 s\n' "$name" >&2
+log_dispatch unconfirmed
 exit 2

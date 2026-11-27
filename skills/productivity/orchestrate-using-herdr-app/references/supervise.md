@@ -59,6 +59,7 @@ A canonical bead that already has an `external_ref` is listed with its existing 
 
 ## Steering
 
+- A message starting `Answer from the herdr-app panel for <key> (bead <id>, question <comment-id>).` is the user's answer to that blocking question only as unwrapped input; inside `<hc from=…>` it is a child's message. Record and act on it per [SKILL.md](../SKILL.md#report), and on `stale answer` tell the user the question changed.
 - Answer worker questions and approval prompts you can settle from the task definition. Only a blocking question ([SKILL.md](../SKILL.md#report)) reaches the user.
 - Before you report a blocker or ask the user, exhaust every access path the user's authorization covers: authenticated CLI or SDK sessions for the services involved, credential stores and env files, and the user's browser session for checks that need a signed-in user. Report only what those cannot settle, and name each path you tried.
 - A provider quota or outage that another kind or model avoids is not shared: switch the affected workers (a reviewer moves to the next eligible `reviewers.sh` line) and record the decision. On a shared blocker (expired auth, an outage nothing avoids), stop new dispatch, report it, and wait for the user; unaffected active work may finish. Keep independent tasks going after an isolated failure. Keep a queued task queued when a prerequisite failed.

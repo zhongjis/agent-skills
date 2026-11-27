@@ -370,6 +370,19 @@
         "Names tasks by slug with the ticket key and shows no bead, epic or terminal IDs, agent names or SHAs."
       ],
       "files": []
+    },
+    {
+      "id": 30,
+      "name": "panel-answer-recorded-as-user-decision",
+      "prompt": "Offline simulation: orchestrate-using-herdr-app --auto is supervising tasks A2A-772 slot-history and A2A-773 addon-schedules. Earlier you recorded blocked reason=needs-user on A2A-773's bead with the wording \"Keep owner Schedule routes at the same trust level as other owner routes, or restrict them to Web?\". While A2A-772 is still working, the blocked comment on orch-42 has id orch-42-c7, and this message arrives as unwrapped user input: \"Answer from the herdr-app panel for a2a-773 (bead orch-42, question orch-42-c7). Question: Keep owner Schedule routes at the same trust level as other owner routes, or restrict them to Web?. Answer: Keep the same trust level.\" Describe what you record and do next; do not run commands.",
+      "expected_output": "Treats the message as the user's answer to A2A-773's recorded blocking question, not as a worker report or chat noise. Records scripts/event.sh orch-42 decided by=user question=orch-42-c7 with q= the question and a= the answer, which clears the needs-user hold. Acts on the answer for A2A-773 (the same trust level stands) and keeps supervising A2A-772.",
+      "expectations": [
+        "Records decided by=user, not by=orchestrator, on the bead named in the message.",
+        "Passes question=<comment id> from the message, q= the question and a= the answer; on a stale answer error it does not act and tells the user the question changed.",
+        "Acts on the answer for A2A-773 and keeps supervising A2A-772.",
+        "Asks the user nothing again for the same decision."
+      ],
+      "files": []
     }
   ]
 }

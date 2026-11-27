@@ -6,7 +6,8 @@
 # `space`, an uppercase letter is `shift+<lower>`. Letters, digits, and
 # ' , - . / ; = [ \ ] ` are typeable; any other character exits 1 before
 # anything is typed (hc rejects a whole call on one unknown key). hc errors
-# pass through with their exit code.
+# pass through with their exit code. After the final enter it labels the terminal
+# `orch.in=<epoch ms>:command`, best-effort.
 set -euo pipefail
 
 usage() {
@@ -29,3 +30,5 @@ for ((i = 0; i < ${#text}; i++)); do
 	esac
 done
 hc keys "$name" "${keys[@]}" enter
+# Stamp the delivery for the herdr-app panel; best-effort.
+hc label "$name" "orch.in=$(( $(date +%s) * 1000 )):command" >/dev/null 2>&1 || true

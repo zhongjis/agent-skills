@@ -68,7 +68,8 @@ case "$1" in
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
 		printf '%s\0' "$@" > "$FIXTURE/argv"
 		rm -f "$FIXTURE/sends"
-		[[ $MODE != run-fail ]] || { echo '{"error":{"kind":"name_taken"}}' >&2; exit 1; }
+		[[ $MODE != run-fail && $MODE != restart-fail ]] || { echo '{"error":{"kind":"name_taken"}}' >&2; exit 1; }
+		touch "$FIXTURE/ran"
 		echo '{"address":"t9","state":"live","turn":0}'
 		exit ;;
 	label)
@@ -76,8 +77,15 @@ case "$1" in
 		exit ;;
 	send|rm)
 		printf '%s\n' "$*" >> "$FIXTURE/calls"
-		[[ $1 != rm ]] || { touch "$FIXTURE/removed"; echo "$2" >> "$FIXTURE/removed-names"; }
+		if [[ $1 == rm ]]; then
+			# A restart's session must already be recorded when the terminal is removed.
+			[[ -z ${EXPECT_RM_BEAD:-} ]] || bd comments "$EXPECT_RM_BEAD" --json | jq -e --arg f "$EXPECT_RM_FIELDS" '[.[].text | select(startswith("event=re-instructed ") and contains($f))] | length > 0' >/dev/null
+			# The finished terminal goes only after its replacement started, and by address.
+			[[ $MODE != hibernated ]] || { [[ -e $FIXTURE/ran && $2 == t5 ]] || exit 1; }
+			touch "$FIXTURE/removed"; echo "$2" >> "$FIXTURE/removed-names"
+		fi
 		if [[ $1 == send ]]; then
+			[[ $MODE != send-gone ]] || { echo '{"error":{"kind":"not_found"}}' >&2; exit 3; }
 			printf '%s' "$3" > "$FIXTURE/sent-text"
 			if [[ -n ${EXPECT_INSTRUCTION_BEAD:-} ]]; then
 				bd comments "$EXPECT_INSTRUCTION_BEAD" --json | jq -e --arg text "$EXPECT_INSTRUCTION_TEXT" '.[-1].text | endswith("\n\n" + $text)' >/dev/null
@@ -125,25 +133,36 @@ if [[ -e $FIXTURE/sends && $MODE != send-stuck ]]; then turn=$((turn + $(wc -l <
 if [[ $MODE == full ]]; then
 	grep -qxF "$2" "$FIXTURE/full-terms" && ! grep -qxF "$2" "$FIXTURE/removed-names" 2>/dev/null || exit 3
 fi
+# vanish: the terminal is gone once a send landed.
+[[ $MODE != vanish || ! -e $FIXTURE/sends ]] || { echo '{"error":{"kind":"not_found"}}'; exit 3; }
 case "$MODE" in
 	gone) echo '{"error":{"kind":"not_found"}}'; exit 3 ;;
 	auth) echo '{"error":{"kind":"unauthorized"}}'; exit 1 ;;
 	malformed) echo broken; exit ;;
-	finished) state=finished ;;
+	finished | restart-fail) state=finished ;;
 	resume) [[ $n -ge 2 ]] || status=working ;;
 	flicker) [[ $n -ne 2 ]] || status=working ;;
 	quiet*) status=working ;;
 	start-turn) [[ $n -ge 3 ]] || turn=0 ;;
 	start-never) turn=0 ;;
-	hibernated) [[ -e $FIXTURE/removed ]] || state=finished ;;
+	hibernated) [[ -e $FIXTURE/ran ]] || state=finished ;;
 esac
-printf '{"state":"%s","status":{"state":"%s"},"turn":%s,"argv":["env","PATH=fixture","AGENT_BROWSER_NAMESPACE=w-worker-a","%s"],"labels":{"resume":"%s"}}\n' "$state" "$status" "$turn" "${AGENT_KIND:-pi}" "${RESUME:-}"
+# full: the terminal's cwd comes from full-cwds (name, tab, cwd). STATUS_APP and AGENT_PROMPT
+# add a status app id and a trailing prompt argument.
+cwd=""
+[[ $MODE != full ]] || cwd=$(awk -F '\t' -v n="$2" '$1 == n { print $2 }' "$FIXTURE/full-cwds" 2>/dev/null || true)
+app="" prompt=""
+[[ -z ${STATUS_APP:-} ]] || app=",\"app\":\"$STATUS_APP\""
+[[ -z ${AGENT_PROMPT:-} ]] || prompt=",\"$AGENT_PROMPT\""
+printf '{"address":"t5","cwd":"%s","state":"%s","status":{"state":"%s"%s},"turn":%s,"argv":["env","PATH=fixture","AGENT_BROWSER_NAMESPACE=w-worker-a","%s"%s],"labels":{"resume":"%s"}}\n' "$cwd" "$state" "$status" "$app" "$turn" "${AGENT_KIND:-pi}" "$prompt" "${RESUME:-}"
 MOCK
 cat > "$tmp/bin/sleep" <<'MOCK'
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "$1" >> "$FIXTURE/sleeps"
 MOCK
+# start-worker.sh --check needs the agent program on PATH.
+for program in pi claude agy copilot codex; do printf '#!/bin/sh\n' > "$tmp/bin/$program"; done
 chmod +x "$tmp/bin/"*
 printf '{"terminals":[]}\n' > "$tmp/terminals.json"
 for status in idle 'done' blocked error; do
@@ -229,7 +248,7 @@ mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'BEADS_DOLT_SHARED_SERVER=fixture-server:3307'* ]]
 rm "$tmp/bin/bd"
 check 0 'turn 1' env HC_TERMINAL_ID=orch MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
-[[ $(cat "$tmp/labels") == 'label w-worker-a space=sp1' ]]
+[[ $(head -n1 "$tmp/labels") == 'label t9 space=sp1' && $(tail -n1 "$tmp/labels") =~ ^label\ t9\ orch\.in=[0-9]{13}:dispatched$ && $(wc -l < "$tmp/labels") == 2 ]]
 for kind in pi claude codex agy copilot; do
 	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind "$kind"
 	mapfile -d '' -t argv < "$tmp/argv"
@@ -267,8 +286,16 @@ check 0 'working' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=working "$sc
 bd comments "$launch_task" --json | jq -e '.[-1] | .author == "o-orch" and (.text | startswith("event=dispatched ") and contains("agent=w-unrelated"))' >/dev/null
 rows=$(bd comments "$launch_task" --json | jq length)
 assign w-worker-a
+# The stamp marks a confirmed delivery only.
+: > "$tmp/labels"
 check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+bd comments "$launch_task" --json | jq -e '.[-1].text | startswith("event=dispatched ") and contains("agent=w-worker-a") and endswith(" result=blocked")' >/dev/null
+check 2 'not confirmed' env HC_TERMINAL_ID=orch MODE=start-never "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
+bd comments "$launch_task" --json | jq -e '.[-1].text | startswith("event=dispatched ") and endswith(" result=unconfirmed")' >/dev/null
+rows=$(bd comments "$launch_task" --json | jq length)
+check 2 'terminal finished' env HC_TERMINAL_ID=orch MODE=finished "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 [[ $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
+! grep -q 'orch\.in' "$tmp/labels"
 other_epic=$(bd create 'Other session' --type epic --silent)
 instruction=$'Fix literal ; $(false)\nSecond line\nulw'
 
@@ -318,6 +345,7 @@ mapfile -d '' -t argv < "$tmp/argv"
 : > "$tmp/calls"
 check 0 'sent' env HC_TERMINAL_ID=orch MODE=settled EXPECT_INSTRUCTION_BEAD="$launch_task" EXPECT_INSTRUCTION_TEXT="$instruction" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 bd comments "$launch_task" --json | jq -e --arg text "$instruction" '.[-1] | .author == "o-orch" and (.text | endswith("\n\n" + $text))' >/dev/null
+[[ $(tail -n1 "$tmp/labels") =~ ^label\ w-worker-a\ orch\.in=[0-9]{13}:re-instructed$ ]]
 [[ $(cat "$tmp/calls") == *"bd comments $launch_task"* && $(cat "$tmp/calls") != *"$instruction"* ]]
 # An ordinary live relay is a plain agent-scoped pointer: no skill reload.
 rm -f "$tmp/sends"
@@ -345,8 +373,47 @@ done
 rows=$(bd comments "$launch_task" --json | jq length)
 check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 [[ ! -s $tmp/calls && $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
+# A missing worker exits 2, not hc's 3 (invalid review base).
+rows=$(bd comments "$launch_task" --json | jq length)
+check 2 'agent w-worker-a: no such terminal' env HC_TERMINAL_ID=orch MODE=gone "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+[[ $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
+# A missing terminal wins over every later input check: bad slot setup, review base, usage.
+check 2 'agent r-task: no such terminal' env HC_TERMINAL_ID=orch MODE=gone ORCH_MAX=bad "$scripts/send-reinstruction.sh" r-task "$tmp/wt-a" "$launch_task" "$instruction" --last-reviewed missing
+check 2 'agent w-worker-a: no such terminal' env HC_TERMINAL_ID=orch MODE=gone "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction" --last-reviewed missing
+# A terminal that disappears while the turn is confirmed is also exit 2.
+rm -f "$tmp/sends"
+check 2 'agent w-worker-a: no such terminal' env HC_TERMINAL_ID=orch MODE=vanish "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+rm -f "$tmp/sends"
+# A terminal that vanishes between the lookup and the send is a missing terminal, exit 2.
+check 2 'agent w-worker-a: no such terminal' env HC_TERMINAL_ID=orch MODE=send-gone "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+rm -f "$tmp/sends"
+# A finished worker's session is recorded before the restart, and its terminal goes only after the replacement started.
+rm -f "$tmp/removed" "$tmp/ran"
+check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='env K=V pi --session s-8' EXPECT_RM_BEAD="$launch_task" EXPECT_RM_FIELDS='session=s-8 kind=pi' "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+rm -f "$tmp/removed" "$tmp/ran"
+check 1 'restart failed; resume line: pi --session s-7' env HC_TERMINAL_ID=orch MODE=restart-fail RESUME='pi --session s-7' EXPECT_RM_BEAD="$launch_task" EXPECT_RM_FIELDS='session=s-7 kind=pi' "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+bd comments "$launch_task" --json | jq -e --arg wt "$tmp/wt-a" '.[-1].text | startswith("event=re-instructed agent=w-worker-a session=s-7 kind=pi worktree=" + $wt)' >/dev/null
+# A replacement terminal that exists (blocked at a dialog) is reported, with no resume line to launch a second one.
+rm -f "$tmp/removed" "$tmp/ran"
+printf '{"terminals":[{"name":"w-worker-a","state":"live"}]}\n' > "$tmp/terminals.json"
+out=$(env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=blocked RESUME='pi --session s-6' "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction" 2>&1) && exit 1
+printf '{"terminals":[]}\n' > "$tmp/terminals.json"
+[[ ! -e $tmp/removed ]]
+[[ $out == *'replacement terminal w-worker-a exists'* && $out != *'resume line'* ]]
+# A refused prerequisite keeps the old terminal and its resume label: nothing recorded, nothing removed.
+rm -f "$tmp/removed" "$tmp/ran"
+: > "$tmp/calls"
+unassigned=$(bd create 'Unassigned restart' --type task --silent)
+check 3 "bead $unassigned is not assigned to w-worker-a" env HC_TERMINAL_ID=orch MODE=finished RESUME='pi --session s-5' "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$unassigned" "$instruction"
+[[ ! -e $tmp/removed && ! -s $tmp/calls && $(bd comments "$unassigned" --json | jq length) == 0 ]]
+# start-worker --check runs the guards and launches nothing.
+check 0 '' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --check
+check 3 'is not assigned' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$unassigned" --check
+# --check also finds the agent program, or fails before anything is launched.
+check 1 'agent program no-such-agent not found' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind no-such-agent --check
+[[ ! -s $tmp/calls ]]
 for resume in 'pi --session s-9' 'claude --resume u-9' 'agy --conversation=c-9' 'copilot --resume=p-9'; do
-	rm -f "$tmp/removed"
+	rm -f "$tmp/removed" "$tmp/ran"
 	check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME="$resume" "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
 	mapfile -d '' -t argv < "$tmp/argv"
 	[[ ${argv[*]} == *"$resume"* && ${argv[-1]} == *"bd comments $launch_task"* ]]
@@ -620,13 +687,13 @@ sent=$(cat "$tmp/sent-text")
 # shellcheck disable=SC2016 # literal Pi tokens
 [[ $sent == *"bd prime"* && $sent == *"agent=r-task in bd comments $review_task"* && $sent == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
 # Same reviewer name and session survive finished-terminal revival.
-rm -f "$tmp/removed"
+rm -f "$tmp/removed" "$tmp/ran"
 check 0 'working' env HC_TERMINAL_ID=orch MODE=hibernated AGENT_STATUS=working RESUME='pi --session review-9' "$scripts/send-reinstruction.sh" r-task "$tmp/work" "$review_task" "$instruction" --last-reviewed "$head"
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'--name r-task'* && ${argv[*]} == *"ORCH_BEAD=$review_task"* && ${argv[*]} == *'pi --session review-9'* && ${argv[-1]} == *' ulw' ]]
 
-bd comments "$review_task" --json | jq -e --arg bead "$review_task" --arg base "$head" --arg body "$review_body" '
-	any(.[]; .text | startswith("event=re-instructed agent=r-task bead=" + $bead + " last-reviewed=" + $base + "\n\n") and contains($base + "..HEAD") and endswith("\n\n" + $body))' >/dev/null
+bd comments "$review_task" --json | jq -e --arg bead "$review_task" --arg base "$head" --arg body "$review_body" --arg wt "$tmp/work" '
+	any(.[]; .text | startswith("event=re-instructed agent=r-task bead=" + $bead + " last-reviewed=" + $base + " session=review-9 kind=pi worktree=" + $wt + "\n\n") and contains($base + "..HEAD") and endswith("\n\n" + $body))' >/dev/null
 
 # Mirrors the one-write follow-up form in orchestrated-worker/SKILL.md (Bead permissions and notepad).
 for source_bead in "$launch_task" "$review_task"; do
@@ -687,16 +754,40 @@ echo "$dev $other $$" > "$tmp/listeners"
 echo "$dev $agent $other $$" > "$tmp/pids"
 printf '%s\t%s\n' "$dev" "$tmp/wt/apps/web" "$agent" "$tmp/wt" "$other" "$tmp/wt-other" "$$" "$tmp/wt" > "$tmp/cwds"
 : > "$tmp/labels"
-check 0 'processes under' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+check 0 'processes under' env MODE=settled "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
 ! kill -0 "$dev" 2>/dev/null || [[ $(ps -o stat= -p "$dev") == Z* ]]
 kill -0 "$agent" && kill -0 "$other"
 [[ $(cat "$tmp/browser") == 'w-worker-a close --all' ]]
 [[ $(cat "$tmp/docker") == $'rm -f -v c-mine\nvolume rm -f volume-mine\nnetwork rm network-mine' ]]
 [[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=ok' ]] || { echo 'FAIL: settled worker must become hibernatable after reaping'; exit 1; }
 : > "$tmp/listeners"
-check 0 '0 stopped' env HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/wt" w-worker-a --keep-agent
+check 0 '0 stopped' env MODE=settled HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/wt" w-worker-a --keep-agent
 bd comments "$launch_task" --json | jq -e '.[-1].text | test("^event=reaped stopped=browser(,compose)?$")' >/dev/null
 [[ $(cat "$tmp/labels") == $'label w-worker-a hibernate=ok\nlabel w-worker-a hibernate=ok' ]]
+# A Codex worker is never labelled hibernatable, and loses an existing hibernate=ok.
+: > "$tmp/labels"
+check 0 'codex workers are not hibernated' env MODE=settled AGENT_KIND=codex "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=' ]]
+# The status app id claude-code (what hc reports for Claude) is a hibernatable Claude.
+: > "$tmp/labels"
+check 0 '' env MODE=settled AGENT_KIND=unknown STATUS_APP=claude-code "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=ok' ]]
+# Only the executable token names the program: a prompt ending in /codex does not make it Codex.
+: > "$tmp/labels"
+check 0 '' env MODE=settled AGENT_KIND=pi AGENT_PROMPT='review /usr/local/bin/codex' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ $(cat "$tmp/labels") == 'label w-worker-a hibernate=ok' ]]
+: > "$tmp/labels"
+check 0 'cannot identify the agent program' env MODE=settled AGENT_KIND=unknown AGENT_PROMPT='review /usr/local/bin/codex' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ ! -s $tmp/labels ]]
+# Fail closed: an agent that cannot be inspected or identified is left unlabelled.
+for mode in gone malformed; do
+	: > "$tmp/labels"
+	check 0 'cannot identify the agent program' env MODE=$mode "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+	[[ ! -s $tmp/labels ]]
+done
+: > "$tmp/labels"
+check 0 'cannot identify the agent program' env MODE=settled AGENT_KIND=unknown "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a --keep-agent
+[[ ! -s $tmp/labels ]]
 : > "$tmp/labels"
 check 0 '1 stopped' "$scripts/reap-worker.sh" "$tmp/wt" w-worker-a
 [[ ! -s $tmp/labels ]]
@@ -712,18 +803,71 @@ git init -q --bare "$tmp/full-remote"
 git init -q -b main "$tmp/full-src"
 git -C "$tmp/full-src" -c user.email=f@example.invalid -c user.name=F commit -qm main --allow-empty
 git -C "$tmp/full-src" remote add origin "$tmp/full-remote"
+git -C "$tmp/full-src" push -q origin main
 git -C "$tmp/full-src" worktree add -q -b topic-full "$tmp/full-wt"
+git -C "$tmp/full-wt" -c user.email=f@example.invalid -c user.name=F commit -qm topic --allow-empty
 git -C "$tmp/full-src" push -q origin topic-full
+full_sha=$(git -C "$tmp/full-wt" rev-parse HEAD)
+full_bead=$(bd create 'Full cleanup' --type task --silent)
 # A failing source pre-push hook must not block the remote branch delete.
 printf '#!/usr/bin/env bash\nexit 1\n' > "$tmp/full-src/.git/hooks/pre-push"
 chmod +x "$tmp/full-src/.git/hooks/pre-push"
 echo "$$" > "$tmp/pids"; : > "$tmp/listeners"; : > "$tmp/removed-names"
 printf 'w-a1-topic\nr-a1-topic\n' > "$tmp/full-terms"
+printf '%s\t%s\n' w-a1-topic "$tmp/full-wt" r-a1-topic "$tmp/full-wt" > "$tmp/full-cwds"
+git init -q "$tmp/other-src"
 check 1 'needs HC_TERMINAL_ID' env -u HC_TERMINAL_ID "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/full-wt" w-a1-topic --full topic-full
 [[ -e $tmp/full-wt ]]
-check 0 'full cleanup w-a1-topic' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$launch_task" "$tmp/full-wt" w-a1-topic --full topic-full
+# --full without --keep-remote refuses without --bead and unless the merge is verified on the base ref.
+check 1 'needs --bead' env MODE=full "$scripts/reap-worker.sh" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata "base=main@$(git -C "$tmp/full-src" rev-parse main)" >/dev/null
+# The bead must bind to the target: no binding, a foreign worktree and a foreign branch all refuse.
+bare_bead=$(bd create 'Unbound' --type task --silent)
+check 1 'records no worktree or branch' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$bare_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata "worktree=$tmp/elsewhere" >/dev/null
+check 1 'is not' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata "worktree=$tmp/full-wt" --set-metadata branch=other-topic >/dev/null
+check 1 'branch other-topic is not topic-full' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata branch=topic-full --assignee w-a1-topic >/dev/null
+# It must also bind the repository, the branch the worktree is on, and the agent.
+bd update "$full_bead" --set-metadata "repo=$tmp/other-src" >/dev/null
+check 1 'repository of' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata "repo=$tmp/full-src" >/dev/null
+git -C "$tmp/full-wt" switch -q -c elsewhere-branch
+check 1 'is not on branch topic-full' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+git -C "$tmp/full-wt" switch -q topic-full
+git -C "$tmp/full-wt" branch -q -D elsewhere-branch
+check 1 'is not the agent of' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-b9-other --full topic-full
+printf '%s\t%s\n' w-a1-topic "$tmp/elsewhere" r-a1-topic "$tmp/full-wt" > "$tmp/full-cwds"
+check 1 'terminal w-a1-topic is not inside' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+printf '%s\t%s\n' w-a1-topic "$tmp/full-wt" r-a1-topic "$tmp/full-wt" > "$tmp/full-cwds"
+[[ -e $tmp/full-wt && ! -s $tmp/removed-names ]]
+check 1 'refusing: topic-full has no verified merge on main' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+bd update "$full_bead" --set-metadata "merged_sha=$full_sha" >/dev/null
+check 1 'refusing: topic-full has no verified merge on main' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+[[ -e $tmp/full-wt && ! -s $tmp/removed-names ]]
+git -C "$tmp/full-src" push -q --no-verify origin topic-full:main
+# A merged branch is still refused with uncommitted or untracked changes, commits after the
+# merge (against head_sha, or against the base ref without one), or a remote tip that differs.
+touch "$tmp/full-wt/untracked"
+check 1 'refusing: uncommitted or untracked changes' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+rm "$tmp/full-wt/untracked"
+git -C "$tmp/full-wt" -c user.email=f@example.invalid -c user.name=F commit -qm later --allow-empty
+check 1 'refusing: topic-full has commits not on main' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+# The merged head is the newest ready event before the merged event; a later ready event
+# moves head_sha but not what merged.
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready "head=$full_sha"
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha"
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready "head=$(git -C "$tmp/full-wt" rev-parse HEAD)"
+check 1 'refusing: topic-full has commits after the merged head' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+git -C "$tmp/full-src" push -q --no-verify origin topic-full
+git -C "$tmp/full-wt" reset -q --hard "$full_sha"
+check 1 'refusing: origin/topic-full is not at the local tip' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+git -C "$tmp/full-src" push -q --no-verify --force origin "$full_sha:refs/heads/topic-full"
+[[ -e $tmp/full-wt && ! -s $tmp/removed-names ]]
+check 0 'full cleanup w-a1-topic' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 # The script records what it removed, so no session writes reaped by hand.
-bd comments "$launch_task" --json | jq -e '.[-1] | .author == "o-orch" and (.text | test("^event=reaped stopped=([a-z-]+,)*worker,reviewer,worktree,branch,remote-branch$"))' >/dev/null
+bd comments "$full_bead" --json | jq -e '.[-1] | .author == "o-orch" and (.text | test("^event=reaped stopped=([a-z-]+,)*worker,reviewer,worktree,branch,remote-branch$"))' >/dev/null
 [[ $(sort "$tmp/removed-names") == $'r-a1-topic\nw-a1-topic' ]]
 [[ ! -e $tmp/full-wt ]]
 check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-full
@@ -744,6 +888,62 @@ check 0 'full cleanup w-a2-keep' env MODE=full "$scripts/reap-worker.sh" "$tmp/k
 check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-keep
 check 0 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-keep
 check 1 'usage' "$scripts/reap-worker.sh" "$tmp/keep-wt" w-a2-keep --full topic-keep --bogus
+
+# Abandoned work has no merge; a settled result=abandoned event releases full cleanup while the bead stays closed.
+git -C "$tmp/full-src" worktree add -q -b topic-aban "$tmp/aban-wt"
+git -C "$tmp/full-src" push -q --no-verify origin topic-aban
+printf 'w-a3-aban\nr-a3-aban\n' > "$tmp/full-terms"; : > "$tmp/removed-names"
+printf '%s\t%s\n' w-a3-aban "$tmp/aban-wt" r-a3-aban "$tmp/aban-wt" > "$tmp/full-cwds"
+aban_bead=$(bd create 'Abandoned work' --type task --silent)
+bd update "$aban_bead" --set-metadata "worktree=$tmp/aban-wt" --set-metadata branch=topic-aban --assignee w-a3-aban >/dev/null
+check 1 'no verified merge' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
+# Only an orchestrator's settle counts.
+bd comments add "$aban_bead" 'event=settled result=abandoned' --actor w-a3-aban >/dev/null
+bd close "$aban_bead" --force >/dev/null
+check 1 'no verified merge' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
+bd reopen "$aban_bead" >/dev/null
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$aban_bead" settled result=abandoned
+# A plain reopen with no later event is current work again, so the old settle no longer authorizes.
+bd close "$aban_bead" --force >/dev/null
+bd reopen "$aban_bead" >/dev/null
+check 1 'no verified merge' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
+# A bead reworked after the abandoned settle is refused until it settles again.
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$aban_bead" dispatched agent=w-a3-aban
+bd close "$aban_bead" --force >/dev/null
+check 1 'no verified merge' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
+[[ -e $tmp/aban-wt && ! -s $tmp/removed-names ]]
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$aban_bead" settled result=abandoned
+check 0 'full cleanup w-a3-aban' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
+check 1 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-aban
+
+# The remote delete is leased on the verified tip: a remote that moves after the check is
+# kept, and nothing local is removed. The agent here is known only from its dispatch event.
+git -C "$tmp/full-src" worktree add -q -b topic-race "$tmp/race-wt"
+git -C "$tmp/race-wt" -c user.email=f@example.invalid -c user.name=F commit -qm race --allow-empty
+git -C "$tmp/full-src" push -q --no-verify origin topic-race
+printf 'w-a4-race\nr-a4-race\n' > "$tmp/full-terms"; : > "$tmp/removed-names"
+printf '%s\t%s\n' w-a4-race "$tmp/race-wt" r-a4-race "$tmp/race-wt" > "$tmp/full-cwds"
+race_bead=$(bd create 'Raced remote' --type task --silent)
+bd update "$race_bead" --set-metadata "worktree=$tmp/race-wt" >/dev/null
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$race_bead" dispatched agent=w-a4-race
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$race_bead" settled result=abandoned
+bd close "$race_bead" >/dev/null
+export REAL_GIT
+REAL_GIT=$(command -v git)
+cat > "$tmp/bin/git" <<'MOCK'
+#!/usr/bin/env bash
+"$REAL_GIT" "$@"
+rc=$?
+[[ -z ${RACE_REF:-} || ${3:-} != ls-remote ]] || "$REAL_GIT" --git-dir="$RACE_REMOTE" update-ref "$RACE_REF" "$RACE_TO"
+exit "$rc"
+MOCK
+chmod +x "$tmp/bin/git"
+check 1 'stale info' env MODE=full HC_TERMINAL_ID=orch RACE_REF=refs/heads/topic-race RACE_REMOTE="$tmp/full-remote" RACE_TO="$(git -C "$tmp/full-src" rev-parse main)" "$scripts/reap-worker.sh" --bead "$race_bead" "$tmp/race-wt" w-a4-race --full topic-race
+rm "$tmp/bin/git"
+[[ -e $tmp/race-wt && ! -s $tmp/removed-names ]]
+[[ $(git --git-dir="$tmp/full-remote" rev-parse refs/heads/topic-race) == "$(git -C "$tmp/full-src" rev-parse main)" ]]
+check 0 'full cleanup w-a4-race' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$race_bead" "$tmp/race-wt" w-a4-race --full topic-race
+check 1 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-race
 rm "$tmp/bin/uname" "$tmp/bin/ps" "$tmp/bin/lsof"
 
 # event.sh: real comments, fixed event vocabulary, attributed one-line fields.
@@ -763,7 +963,7 @@ jq -e 'length == 14 and all(.[]; .author == "o-events" and (.text | endswith(" d
 check 1 'usage' "$scripts/event.sh"
 check 1 'invalid event' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" reviewed
 check 1 'HC_TERMINAL_ID' env -u HC_TERMINAL_ID "$scripts/event.sh" "$alpha" note
-for field in missing-equals '=empty-key' 'event=note' $'detail=new\nline' $'detail=carriage\rreturn' $'detail=tab\tvalue'; do
+for field in missing-equals '=empty-key' 'event=note'; do
 	check 1 'invalid event field' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note "$field"
 done
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
@@ -774,6 +974,15 @@ for bad in 'merged sha=0123456789abcdef0123456789abcdef01234567' 'merged merged_
 done
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
 bd show "$alpha" --json | jq -e '.[0].metadata.merged_sha == "0123456789abcdef0123456789abcdef01234567"' >/dev/null
+# ready validates pr= and head= and mirrors them to metadata after the comment.
+rows=$(bd comments "$alpha" --json | jq length)
+check 1 'ready pr= needs' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" ready pr=ftp://example.invalid/pr/1 head=abc1234
+check 1 'ready head= needs' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" ready pr=https://example.invalid/pr/1 head=xyz
+check 1 'ready head= needs' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" ready head=abc12
+[[ $(bd comments "$alpha" --json | jq length) == "$rows" ]]
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" ready pr=https://example.invalid/pr/9 head=0123456789abcdef0123456789abcdef01234567
+bd show "$alpha" --json | jq -e '.[0].metadata | .pr_url == "https://example.invalid/pr/9" and .head_sha == "0123456789abcdef0123456789abcdef01234567"' >/dev/null
+bd update "$alpha" --unset-metadata pr_url --unset-metadata head_sha >/dev/null
 # A needs-user hold persists as metadata until the answer; other decisions keep other holds.
 check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" blocked reason=needs-user --body 'Approve the test exception?'
 bd show "$alpha" --json | jq -e '.[0].metadata.blocked_reason == "needs-user"' >/dev/null
@@ -790,16 +999,69 @@ check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" note detail=on
 bd comments "$alpha" --json | jq -e 'last.text == "event=note detail=one extra=two\n\nfree\ntext"' >/dev/null
 check 1 '' env HC_TERMINAL_ID=events "$scripts/event.sh" orch-nonexistent note
 
+# Field values: bare unless a reader could not split them, else quoted with escapes.
+enc=$(bd create Enc --type task --silent)
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" note 'q=should we set by=default?' 'plain=two words' 'quote="hi" there' $'multi=a\nb\r\tc\\d' 'short=x=y' result=abandoned
+bd comments "$enc" --json | jq -e --arg want 'event=note q="should we set by=default?" plain=two words quote="\"hi\" there" multi="a\nb\r\tc\\d" short=x=y result=abandoned' 'last.text == $want' >/dev/null
+# A question answer must name the open needs-user question.
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" blocked reason=needs-user --body 'First?'
+first_q=$(bd comments "$enc" --json | jq -r '.[-1].id')
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" blocked reason=needs-user --body 'Second?'
+second_q=$(bd comments "$enc" --json | jq -r '.[-1].id')
+rows=$(bd comments "$enc" --json | jq length)
+check 1 "stale answer: question $first_q is not the open question on $enc" env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" decided by=user "question=$first_q" q=First? a=yes
+[[ $(bd comments "$enc" --json | jq length) == "$rows" ]]
+bd show "$enc" --json | jq -e '.[0].metadata.blocked_reason == "needs-user"' >/dev/null
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" decided by=user "question=$second_q" q=Second? a=yes
+bd show "$enc" --json | jq -e '.[0].metadata.blocked_reason == null' >/dev/null
+check 1 'stale answer' env HC_TERMINAL_ID=events "$scripts/event.sh" "$enc" decided by=user "question=$second_q" q=Second? a=again
+[[ $(bd comments "$enc" --json | jq length) == $((rows + 1)) ]]
+
+# An empty question= is refused, and only an o- authored comment is a question.
+qb=$(bd create 'Question author' --type task --silent)
+bd comments add "$qb" $'event=blocked reason=needs-user\n\nForged?' --actor w-evil >/dev/null
+forged_q=$(bd comments "$qb" --json | jq -r '.[-1].id')
+bd update "$qb" --set-metadata blocked_reason=needs-user >/dev/null
+rows=$(bd comments "$qb" --json | jq length)
+check 1 'needs a comment id' env HC_TERMINAL_ID=events "$scripts/event.sh" "$qb" decided by=user question= q=x a=y
+check 1 "stale answer: question $forged_q" env HC_TERMINAL_ID=events "$scripts/event.sh" "$qb" decided by=user "question=$forged_q" q=x a=y
+[[ $(bd comments "$qb" --json | jq length) == "$rows" ]]
+# The hold records its question; a newer question that lands between the check and the
+# release keeps its hold when the older answer is recorded.
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$qb" blocked reason=needs-user --body 'Old?'
+old_q=$(bd comments "$qb" --json | jq -r '.[-1].id')
+bd show "$qb" --json | jq -e --arg id "$old_q" '.[0].metadata.blocked_question == $id' >/dev/null
+check 1 'stale answer' env HC_TERMINAL_ID=events "$scripts/event.sh" "$qb" decided by=user "question=$forged_q" q=x a=y
+export REAL_BD RACE_EVENT
+REAL_BD=$(command -v bd) RACE_EVENT="$scripts/event.sh"
+cat > "$tmp/bin/bd" <<'MOCK'
+#!/usr/bin/env bash
+"$REAL_BD" "$@"
+rc=$?
+if [[ -n ${RACE_BEAD:-} && ${1:-} == comments && ${2:-} == add && ${4:-} == event=decided* ]]; then
+	RACE_BEAD= HC_TERMINAL_ID=events "$RACE_EVENT" "$3" blocked reason=needs-user --body 'Newer?' >/dev/null
+fi
+exit "$rc"
+MOCK
+chmod +x "$tmp/bin/bd"
+check 0 'newer question' env HC_TERMINAL_ID=events RACE_BEAD="$qb" "$scripts/event.sh" "$qb" decided by=user "question=$old_q" q=Old? a=yes
+rm "$tmp/bin/bd"
+new_q=$(bd comments "$qb" --json | jq -r '.[-1].id')
+[[ $new_q != "$old_q" ]]
+bd show "$qb" --json | jq -e --arg id "$new_q" '.[0].metadata | .blocked_reason == "needs-user" and .blocked_question == $id' >/dev/null
+check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$qb" decided by=user "question=$new_q" q=Newer? a=yes
+bd show "$qb" --json | jq -e '.[0].metadata | .blocked_reason == null and .blocked_question == null' >/dev/null
+
 # Status reads native state, latest event plus metadata, and the latest worker dispatch.
 beta=$(bd create Beta --parent "$status_epic" --metadata '{"key":"beta"}' --silent)
 gamma=$(bd create Gamma --parent "$status_epic" --metadata '{"key":"gamma"}' --silent)
 delta=$(bd create Delta --parent "$status_epic" --metadata '{"key":"delta"}' --silent)
-bd update "$alpha" --status in_progress --metadata '{"key":"alpha","pr_url":"https://example.invalid/pr/7","head_sha":"head7","merged_sha":"merge7","review_round":3,"blocked_reason":"needs approval"}' >/dev/null
+bd update "$alpha" --status in_progress --metadata '{"key":"alpha","pr_url":"https://example.invalid/pr/7","head_sha":"abc1234","merged_sha":"merge7","review_round":3,"blocked_reason":"needs approval"}' >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode 'flags=--auto' max=none
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=old
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=w-alpha terminal=t9
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" dispatched agent=r-alpha terminal=t11
-check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" ready 'detail=PR #7 | green' head=head7
+check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$alpha" ready 'detail=PR #7 | green' head=abc1234
 # Non-event comments do not replace the latest milestone.
 bd comments add "$alpha" 'Human observation, not an event' >/dev/null
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$beta" dispatched agent=w-beta terminal=t10
@@ -814,7 +1076,7 @@ out=$("$scripts/status.sh" "$status_epic")
 [[ $out == *'| Task | Worker | Event | Result | Evidence | Since |'* && $out == *'| alpha | w-alpha (t9) | ready | in_progress |'* && $out == *'| beta | w-beta (t10) | reaped | closed |'* ]]
 [[ $(grep -c '^| alpha |' <<<"$out") == 1 && $out != *'| all |'* && $out == *'2 notes (all).'* ]]
 [[ $(awk -F'|' '/^\| (alpha|beta|gamma|delta) \|/ { gsub(/ /, "", $2); print $2 }' <<<"$out") == $'alpha\nbeta\ngamma\ndelta' ]]
-for evidence in 'PR #7 &#124; green' 'head=head7' 'pr_url=https://example.invalid/pr/7' 'head_sha=head7' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
+for evidence in 'PR #7 &#124; green' 'head=abc1234' 'pr_url=https://example.invalid/pr/7' 'head_sha=abc1234' 'merged_sha=merge7' 'review_round=3' 'blocked_reason=needs approval'; do
 	[[ $out == *"$evidence"* ]] || { printf 'FAIL: missing evidence %s\n%s\n' "$evidence" "$out" >&2; exit 1; }
 done
 [[ $out == *"$alpha_since"* && $out == *"$delta_since"* ]]
@@ -853,6 +1115,8 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/import.sh"
 rm -f "$tmp/keys-call"
 check 0 '' env MODE=ok "$scripts/type-command.sh" w-a '/mode-model a/B-1.2 x'
 [[ $(cat "$tmp/keys-call") == 'keys w-a / m o d e - m o d e l space a / shift+b - 1 . 2 space x enter' ]] || { echo 'FAIL: type-command key split' >&2; exit 1; }
+[[ $(tail -n1 "$tmp/labels") =~ ^label\ w-a\ orch\.in=[0-9]{13}:command$ ]] || { echo 'FAIL: type-command stamp' >&2; exit 1; }
+rm -f "$tmp/labels"
 rm -f "$tmp/keys-call"
 check 1 'usage' "$scripts/type-command.sh" w-a 'new'
 check 1 'usage' "$scripts/type-command.sh" w-a '/'
@@ -860,4 +1124,5 @@ check 1 'usage' "$scripts/type-command.sh" w-a
 check 1 'cannot type' "$scripts/type-command.sh" w-a '/a_b'
 [[ ! -e $tmp/keys-call ]] || { echo 'FAIL: type-command typed after rejecting input' >&2; exit 1; }
 check 1 'invalid_params' env MODE=keys-fail "$scripts/type-command.sh" w-a /new
+[[ ! -e $tmp/labels ]] || { echo 'FAIL: type-command stamped an undelivered command' >&2; exit 1; }
 printf '%s CLI checks plus safety assertions passed\n' "$checks"
