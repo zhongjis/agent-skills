@@ -37,14 +37,14 @@ def coderabbit_rate_limited() -> dict:
     return {"id": "crl", "url": "u", "body": "rate limited", "author": {"login": "coderabbitai[bot]", "__typename": BOT}}
 
 
-def outcome(comments: list, reviews: list, extra_checks: dict | None = None) -> int | None:
+def outcome(comments: list, reviews: list, extra_checks: dict | None = None, bot_window: int = 900) -> int | None:
     """Exit code after two polls (green needs two identical check snapshots), or None while waiting."""
     pr = {
         "url": "u", "state": "OPEN", "headRefOid": HEAD, "baseRefName": "main", "mergeStateStatus": "CLEAN",
         "author": {"login": "me"}, "baseRef": None, "viewer": "me",
         "comments": {"nodes": comments}, "reviews": {"nodes": reviews}, "reviewThreads": {"nodes": []},
     }
-    watcher = pr_wait.Watcher("o/r", 1, "ready", 5)
+    watcher = pr_wait.Watcher("o/r", 1, "ready", 5, bot_window)
     watcher.path.unlink(missing_ok=True)
     watcher.required = set()
     watcher.fetch_pr = lambda: pr
@@ -71,5 +71,7 @@ assert outcome([codex_summary(HEAD, "completed"), coderabbit_rate_limited()], []
 skip = {"CodeRabbit": {"name": "CodeRabbit", "bucket": "skipping", "link": "l", "description": ""}}
 assert outcome([codex_summary(HEAD, "completed"), coderabbit_rate_limited()], [], skip) == 0, "skipped bot does not block"
 assert "coderabbit skipped" in printed and "coderabbit done" not in printed, printed
+assert outcome([codex_summary(HEAD, "in_progress")], [], bot_window=0) == 3, "silent bot ends the wait"
+assert f"bots silent on {HEAD[:7]} after 0m: " in printed and "codex pending" in printed, printed
 assert not pr_wait.codex_reviewed([{"body": "<!-- codex-review-state:v1 {broken -->"}], HEAD)
 print("pr-wait checks passed")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Persist a full re-instruction before delivering its bead pointer. Exit 2:
 # blocked/unresumable/unconfirmed/no such terminal, or a failed restart (its
-# own code); 3: invalid review base; 4: no slot.
+# own code), or an instruction text starting with `/`; 3: invalid review base; 4: no slot.
 set -euo pipefail
 
 usage() {
@@ -33,6 +33,11 @@ if [ "$rc" -eq 3 ]; then
 	exit 2
 fi
 [ "$rc" -eq 0 ] || exit "$rc"
+# A leading slash would run as an agent command, not as an instruction. Refuse before any write.
+if [[ $text =~ ^[[:space:]]*/ ]]; then
+	printf "slash command: type it with scripts/type-command.sh <name> '<text>'\n" >&2
+	exit 2
+fi
 # Before any side effect, including recording a re-instruction.
 "$(dirname -- "${BASH_SOURCE[0]}")/slot-free.sh" "$name"
 if [[ $name == r-* ]]; then

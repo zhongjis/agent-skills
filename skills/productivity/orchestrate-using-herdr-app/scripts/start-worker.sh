@@ -66,6 +66,10 @@ if [ "$kind" = pi ]; then
 	while IFS= read -r skill; do prompt+=" $skill"; done < <(grep -oE '\$skill:[[:alnum:]_-]+' <<<"$source_text" | sort -u)
 	prompt+=' ulw'
 fi
+# Pi reviewers get $skill tokens from the bead design; the other kinds need the skill named.
+if [[ $name == r-* && $kind != pi ]]; then
+	case "$kind" in claude | codex | agy | copilot) prompt+=' Load the axis-review skill and use it for this review.' ;; esac
+fi
 
 case "$kind" in
 	codex) cmd=(codex --no-daemon) ;; # hc: Codex runs outside hc without it
@@ -79,6 +83,10 @@ if [ -n "$session" ]; then
 		copilot) cmd+=("--resume=$session") ;;
 		*) printf 'cannot resume a %s worker\n' "$kind" >&2; exit 1 ;;
 	esac
+fi
+# agy asks to trust an unknown workspace; --settings trusts this worktree up front, fresh or resumed.
+if [ "$kind" = agy ]; then
+	cmd+=(--settings "$(jq -cn --arg w "$(realpath -- "$worktree")" '{trustedWorkspaces: [$w]}')")
 fi
 # agy and Copilot run a positional prompt only through -i, which must come right before it.
 case "$kind" in agy | copilot) cmd+=(-i) ;; esac

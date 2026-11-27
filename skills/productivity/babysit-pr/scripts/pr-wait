@@ -16,11 +16,20 @@ Progress and errors that do not end the run go to stderr.
               review thread is unresolved (default)
   any-change  stop after the first poll that prints an event
 
+Bot window
+  In `ready` mode, once the head is green and no thread is unresolved, a review
+  bot that appeared on the PR but has not reviewed the head can hold the wait
+  for at most 15 minutes, counted from when the head first went green. The limit
+  is fixed; callers cannot change it.
+  Then pr-wait prints `bots silent on <sha> after <N>m: <summary>` and exits 3.
+
 Exit codes
   0  the --until condition is met, or the PR merged
   1  the condition cannot be met without action: a required check failed, the
      branch conflicts with its base, the PR closed, `ready` is blocked by
      unresolved threads or a BEHIND branch, or GitHub stayed unreachable
+  3  `ready` timed out: the head is green with no unresolved threads, but a
+     review bot stayed silent for 15 minutes
   2  bad arguments, unknown PR, or another pr-wait already watches this PR
 
 Events
@@ -107,6 +116,9 @@ query($owner: String!, $name: String!, $number: Int!) {
 
 Json = dict[str, Any]
 
+
+# Seconds a silent review bot may hold `ready` after the head went green.
+BOT_WINDOW = 900
 
 class GhError(Exception):
     def __init__(self, message: str, transient: bool) -> None:
@@ -264,8 +276,10 @@ def required_checks(repo: str, base: str) -> set[str]:
 
 
 class Watcher:
-    def __init__(self, repo: str, pr: int, until: str, interval: int) -> None:
+    def __init__(self, repo: str, pr: int, until: str, interval: int, bot_window: int = BOT_WINDOW) -> None:
         self.repo, self.pr, self.until, self.interval = repo, pr, until, interval
+        self.bot_window = bot_window
+        self.green_since: tuple[str, float] | None = None
         self.owner, self.name = repo.split("/")
         self.path = STATE_DIR / f"{repo.replace('/', '__')}__{pr}.json"
         state = self.load()
@@ -533,7 +547,16 @@ class Watcher:
             if green and self.until == "green":
                 self.reported.add(checks_key)
                 self.finish(0, [f"green on {short}: {summary}{self.behind(base, base_oid, head)}"])
-            # ready waits for every review bot present on the PR.
+            # ready waits for every review bot present on the PR, for at most
+            # bot_window seconds after the head first went green.
+            if green:
+                if self.green_since is None or self.green_since[0] != head:
+                    self.green_since = (head, time.time())
+                waited = time.time() - self.green_since[1]
+                if self.until == "ready" and waiting and not unresolved and waited >= self.bot_window:
+                    self.finish(3, [f"bots silent on {short} after {int(waited // 60)}m: {summary}"])
+            else:
+                self.green_since = None
             if green and reviewed and not waiting:
                 if unresolved:
                     self.finish(1, [f"blocked by {len(unresolved)} unresolved threads on {short}: {' '.join(unresolved)}"])

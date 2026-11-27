@@ -20,5 +20,12 @@ mode=$(jq -r '[.[] | .text | split("\n")[0] | select(test("^event=mode( |$)"))] 
 here="$(dirname -- "${BASH_SOURCE[0]}")"
 table=$("$here/status.sh" "$epic" --live 2>/dev/null || "$here/status.sh" "$epic" 2>/dev/null) || exit 0
 printf 'Orchestrator mode ON (orchestrate-using-herdr-app). Latest mode event: %s\n' "${mode:-none}"
-printf 'Re-read the orchestrate-using-herdr-app SKILL.md and the references your flags need now, then act from this table, not from the compaction summary. Epic: %s\n\n' "$epic"
+root=$(cd -- "$here/.." && pwd -P)
+files=(SKILL.md references/{import,delegation-contract,preflight,worker-context,agent-quirks}.md)
+padded=" ${mode//=/ } " # so the first flag, after `flags=`, also has a leading space
+[[ $padded != *' --watch '* && $padded != *' --auto '* ]] || files+=(references/{supervise,reap}.md)
+[[ $padded != *' --auto '* ]] || files+=(references/auto-merge.md)
+paths=""
+for f in "${files[@]}"; do paths+="${paths:+, }$root/$f"; done
+printf 'Read these files in full before any other action, then act from this table, not from the compaction summary: %s. Epic: %s\n\n' "$paths" "$epic"
 printf '%s\n' "$table"

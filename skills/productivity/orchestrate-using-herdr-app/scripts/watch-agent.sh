@@ -6,8 +6,7 @@
 #   then the screen tail: the last 8 lines for idle/done, 20 for anything unexpected
 #   quiet <n>m (working) fp=<fp>[: <hint>]   status stayed working, but the screen
 #     (minus spinners, timers, rates) and turn did not change for <n> minutes (default 15)
-#     settled: done (bg task running) when Pi idles with its own background task
-#     still listed for <quiet> minutes; nudge it to finish
+#     a screen showing `◉ N bg task(s)` counts as working, so the same check applies
 #   gone | terminal <state>
 # --since <fp>: restart after a quiet check-in; while the screen still matches <fp>,
 # the quiet threshold doubles so the same state does not re-alert at once.
@@ -78,6 +77,22 @@ fingerprint() {
 }
 
 last_fp="" changed_at=$(date +%s)
+# Exits with the quiet line once the fingerprint stayed unchanged past the limit.
+quiet_check() {
+	local fp now limit hint
+	fp=$(fingerprint)
+	now=$(date +%s)
+	if [ "$fp" != "$last_fp" ]; then
+		last_fp="$fp" changed_at="$now"
+		return 0
+	fi
+	limit=$((quiet_min * 60))
+	[ "$fp" != "$since" ] || limit=$((limit * 2))
+	[ $((now - changed_at)) -ge "$limit" ] || return 0
+	hint=$(screen | tail -n 15 | grep -m1 -E 'Goal blocked|❯ *[0-9]+\.' | sed 's/^[[:space:]]*//' || true)
+	printf 'agent %s: quiet %sm (working) fp=%s%s\n' "$name" "$(((now - changed_at) / 60))" "$fp" "${hint:+: $hint}"
+	exit 0
+}
 while true; do
 	wait_status=0
 	out=$(hc wait "$name" --json --timeout 120 2>&1) || wait_status=$?
@@ -100,29 +115,15 @@ while true; do
 			done
 			# Pi can read done while /compact runs past the confirm window.
 			screen | tail -n 15 | grep -q Compacting && continue
-			# Pi can read done while its own background task still runs; wait up to the
-			# quiet limit for it to resume, then report it so the orchestrator nudges.
+			# Pi can read done while its own background task still runs: that is working.
 			if screen | tail -n 15 | grep -qE '◉ [0-9]+ bg tasks?'; then
-				bg_since=${bg_since:-$(date +%s)}
-				[ $(($(date +%s) - bg_since)) -ge $((quiet_min * 60)) ] || continue
-				status="$status (bg task running)"
+				quiet_check
+				continue
 			fi
 			settle
 			;;
 		working|none)
-			bg_since=""
-			fp=$(fingerprint)
-			now=$(date +%s)
-			if [ "$fp" != "$last_fp" ]; then
-				last_fp="$fp" changed_at="$now"
-				continue
-			fi
-			limit=$((quiet_min * 60))
-			[ "$fp" != "$since" ] || limit=$((limit * 2))
-			[ $((now - changed_at)) -ge "$limit" ] || continue
-			hint=$(screen | tail -n 15 | grep -m1 -E 'Goal blocked|❯ *[0-9]+\.' | sed 's/^[[:space:]]*//' || true)
-			printf 'agent %s: quiet %sm (working) fp=%s%s\n' "$name" "$(((now - changed_at) / 60))" "$fp" "${hint:+: $hint}"
-			exit 0
+			quiet_check
 			;;
 		*) printf 'agent %s: unexpected status %s\n' "$name" "$status" >&2; exit 1 ;;
 	esac

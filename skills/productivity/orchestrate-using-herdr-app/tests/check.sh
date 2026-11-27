@@ -110,6 +110,7 @@ case "$1" in
 			quiet) printf '⠋ Working (%sm%ss · ↓ 1.2k tokens) 4%s tok/s 12:0%s\n' "$r" "$r" "$r" "$r" ;;
 			quiet-hint) printf '❯ 1. Yes\nGoal blocked (/goal resume)\n' ;;
 			compact) [[ $r -ge 2 ]] || printf 'Compacting\n' ;;
+			bg-idle) printf '◉ 2 bg tasks\n' ;;
 			crash) printf 'pi exiting due to uncaughtException:\nAbortError: The operation was aborted\n' ;;
 		esac
 		exit ;;
@@ -190,6 +191,10 @@ rm -f "$tmp/reads"
 check 0 'quiet 0m (working) fp=' env MODE=quiet "$scripts/watch-agent.sh" worker --quiet 0
 out=$(MODE=quiet-hint "$scripts/watch-agent.sh" worker --quiet 0)
 [[ $out == *': ❯ 1. Yes' && $out != *earlier* ]]
+# A done screen with a background task is working: the quiet check reports it, never a settle.
+rm -f "$tmp/reads"
+out=$(MODE=bg-idle AGENT_STATUS=done "$scripts/watch-agent.sh" worker --quiet 0)
+[[ $out == *'quiet 0m (working) fp='* && $out != *settled* && $out != *nudge* ]]
 check 1 'usage' "$scripts/watch-agent.sh" worker --quiet x
 check 0 'gone' env MODE=gone "$scripts/watch-agent.sh" worker
 check 0 'terminal finished' env MODE=finished "$scripts/watch-agent.sh" worker
@@ -256,7 +261,12 @@ for kind in pi claude codex agy copilot; do
 	if [[ $kind == pi ]]; then [[ ${argv[-1]} == *' ulw' ]]; fi
 	[[ $kind != codex || ${argv[*]} == *'codex --no-daemon '* ]]
 	# agy and Copilot take the prompt only as the value of -i.
-	[[ $kind != agy && $kind != copilot ]] || [[ ${argv[-3]} == "$kind" && ${argv[-2]} == -i ]]
+	[[ $kind != copilot ]] || [[ ${argv[-3]} == "$kind" && ${argv[-2]} == -i ]]
+	[[ $kind != agy ]] || [[ ${argv[-2]} == -i ]]
+	# Only agy trusts the worktree through --settings, and no worker prompt names axis-review.
+	[[ $kind != agy ]] || [[ ${argv[*]} == *"agy --settings {\"trustedWorkspaces\":[\"$(realpath "$tmp/wt-a")\"]} -i "* ]]
+	[[ $kind == agy || ${argv[*]} != *--settings* ]]
+	[[ ${argv[-1]} != *axis-review* ]]
 done
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --resume s-1
 mapfile -d '' -t argv < "$tmp/argv"
@@ -266,7 +276,7 @@ mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'claude --resume u-1 '* ]]
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind agy --resume c-1
 mapfile -d '' -t argv < "$tmp/argv"
-[[ ${argv[*]} == *'agy --conversation=c-1 -i '* ]]
+[[ ${argv[*]} == *'agy --conversation=c-1 --settings '* && ${argv[*]} == *"{\"trustedWorkspaces\":[\"$(realpath "$tmp/wt-a")\"]} -i "* ]]
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task" --kind copilot --resume p-1
 mapfile -d '' -t argv < "$tmp/argv"
 [[ ${argv[*]} == *'copilot --resume=p-1 -i '* ]]
@@ -336,6 +346,12 @@ check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" 
 mapfile -d '' -t argv < "$tmp/argv"
 # shellcheck disable=SC2016 # literal Pi tokens
 [[ ${argv[*]} == *"BEADS_ACTOR=r-task ORCH_BEAD=$review_one"* && ${argv[-1]} == *"bd show $review_one"* && ${argv[-1]} == *' $skill:orchestrated-worker $skill:axis-review ulw' ]]
+[[ ${argv[-1]} != *'Load the axis-review skill and use it'* ]]
+for kind in claude codex agy copilot; do
+	check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" r-task "$tmp/wt-a" "$review_one" --kind "$kind"
+	mapfile -d '' -t argv < "$tmp/argv"
+	[[ ${argv[-1]} == *' Load the axis-review skill and use it for this review.' ]]
+done
 check 0 'turn 1' env MODE=settled "$scripts/start-worker.sh" w-worker-a "$tmp/wt-a" "$launch_task"
 mapfile -d '' -t argv < "$tmp/argv"
 # shellcheck disable=SC2016 # literal Pi tokens
@@ -372,6 +388,9 @@ done
 : > "$tmp/calls"
 rows=$(bd comments "$launch_task" --json | jq length)
 check 2 'blocked' env HC_TERMINAL_ID=orch MODE=settled AGENT_STATUS=blocked "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" "$instruction"
+rm -f "$tmp/calls"
+check 2 'slash command: type it with scripts/type-command.sh' env HC_TERMINAL_ID=orch MODE=settled "$scripts/send-reinstruction.sh" w-worker-a "$tmp/wt-a" "$launch_task" '  /compact now'
+[[ ! -e $tmp/calls ]]
 [[ ! -s $tmp/calls && $(bd comments "$launch_task" --json | jq length) == "$rows" ]]
 # A missing worker exits 2, not hc's 3 (invalid review base).
 rows=$(bd comments "$launch_task" --json | jq length)
@@ -853,6 +872,11 @@ touch "$tmp/full-wt/untracked"
 check 1 'refusing: uncommitted or untracked changes' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 rm "$tmp/full-wt/untracked"
 git -C "$tmp/full-wt" -c user.email=f@example.invalid -c user.name=F commit -qm later --allow-empty
+# Without an orchestrator ready event before the merged event, the refusal names that cause;
+# with one (even without head=), the plain message stays.
+check 1 'no orchestrator ready event before merged_sha=' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready pr=https://example.invalid/pr/1
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha"
 check 1 'refusing: topic-full has commits not on main' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 # The merged head is the newest ready event before the merged event; a later ready event
 # moves head_sha but not what merged.
@@ -915,6 +939,32 @@ check 1 'no verified merge' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-wor
 check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$aban_bead" settled result=abandoned
 check 0 'full cleanup w-a3-aban' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$aban_bead" "$tmp/aban-wt" w-a3-aban --full topic-aban
 check 1 '' git --git-dir="$tmp/full-remote" rev-parse --verify -q refs/heads/topic-aban
+
+# --ported: non-merge work whose uncommitted diff already exists on another checkout.
+git -C "$tmp/full-src" worktree add -q -b topic-port "$tmp/port-wt"
+printf 'one\n' > "$tmp/port-wt/a.txt"
+git -C "$tmp/port-wt" add a.txt
+git -C "$tmp/port-wt" -c user.email=f@example.invalid -c user.name=F commit -qm base-file
+git -C "$tmp/full-src" worktree add -q -b port-target "$tmp/port-ck"
+git -C "$tmp/port-ck" merge -q --ff-only topic-port
+printf 'two\n' > "$tmp/port-wt/a.txt"
+printf 'new\n' > "$tmp/port-wt/b.txt"
+printf 'w-a5-port\nr-a5-port\n' > "$tmp/full-terms"; : > "$tmp/removed-names"
+printf '%s\t%s\n' w-a5-port "$tmp/port-wt" r-a5-port "$tmp/port-wt" > "$tmp/full-cwds"
+port_bead=$(bd create 'Ported work' --type task --silent)
+bd update "$port_bead" --set-metadata "worktree=$tmp/port-wt" --set-metadata branch=topic-port --assignee w-a5-port >/dev/null
+check 1 'needs --bead' env MODE=full "$scripts/reap-worker.sh" "$tmp/port-wt" w-a5-port --ported "$tmp/port-ck"
+check 1 'is not closed' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$port_bead" "$tmp/port-wt" w-a5-port --ported "$tmp/port-ck"
+bd close "$port_bead" --force >/dev/null
+check 1 'settled result=succeeded' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$port_bead" "$tmp/port-wt" w-a5-port --ported "$tmp/port-ck"
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$port_bead" settled result=succeeded
+check 1 'is not applied on' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$port_bead" "$tmp/port-wt" w-a5-port --ported "$tmp/port-ck"
+[[ -e $tmp/port-wt && ! -s $tmp/removed-names ]]
+cp "$tmp/port-wt/a.txt" "$tmp/port-wt/b.txt" "$tmp/port-ck/"
+check 0 'full cleanup w-a5-port' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$port_bead" "$tmp/port-wt" w-a5-port --ported "$tmp/port-ck"
+[[ ! -e $tmp/port-wt && $(sort "$tmp/removed-names") == $'r-a5-port\nw-a5-port' ]]
+check 1 '' git -C "$tmp/full-src" rev-parse --verify -q refs/heads/topic-port
+bd comments "$port_bead" --json | jq -e '.[-1] | .author == "o-orch" and (.text | test("^event=reaped stopped=.*worktree,branch$"))' >/dev/null
 
 # The remote delete is leased on the verified tip: a remote that moves after the check is
 # kept, and nothing local is removed. The agent here is known only from its dispatch event.
@@ -1092,17 +1142,30 @@ check 1 'unauthorized' env MODE=auth "$scripts/status.sh" "$status_epic" --live
 check 1 'usage' "$scripts/status.sh" "$status_epic" --unknown
 check 1 '' "$scripts/status.sh" orch-nonexistent
 
+# wait-until.sh: succeeds on the second check, then times out at the test-only deadline.
+rm -f "$tmp/waits" "$tmp/sleeps"
+check 0 '' env WAIT_UNTIL_POLL=7 "$scripts/wait-until.sh" bash -c 'n=$(( $(cat "$1" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$1"; [ "$n" -ge 2 ]' _ "$tmp/waits"
+[[ $(cat "$tmp/waits") -eq 2 && $(cat "$tmp/sleeps") == 7 ]]
+check 3 'timeout after 60m: false never' env WAIT_UNTIL_TEST=1 WAIT_UNTIL_DEADLINE=1 "$scripts/wait-until.sh" false never
+# The deadline override is ignored outside tests, and a missing command is a usage error.
+check 0 '' env WAIT_UNTIL_DEADLINE=1 "$scripts/wait-until.sh" true
+check 1 'usage' "$scripts/wait-until.sh"
+
 # Compaction uses the latest mode event, not the latest comment/event of any kind.
 no_mode=$(bd create 'No mode yet' --type epic --silent)
 [[ -z $("$scripts/compact-context.sh" "$no_mode") ]]
 [[ -z $(env -u ORCH_EPIC -u HC_TERMINAL_ID "$scripts/compact-context.sh") ]]
 out=$(MODE=status-live "$scripts/compact-context.sh" "$status_epic")
 [[ $out == *'flags=--auto'* && $out == *'| alpha |'* && $out == *'| Since | Live |'* ]]
+skill_root=$(cd "$scripts/.." && pwd -P)
+[[ $out == *"Read these files in full before any other action, then act from this table, not from the compaction summary: $skill_root/SKILL.md, "* && $out == *". Epic: $status_epic"* ]]
+for f in import delegation-contract preflight worker-context agent-quirks supervise reap auto-merge; do [[ $out == *"$skill_root/references/$f.md"* ]]; done
 [[ $(MODE=status-live ORCH_EPIC="$status_epic" "$scripts/compact-context.sh") == "$out" ]]
 [[ $(MODE=status-live HC_TERMINAL_ID=status-orch "$scripts/compact-context.sh") == "$out" ]]
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode 'flags=--watch --max 2' max=2
 out=$(MODE=status-live "$scripts/compact-context.sh" "$status_epic")
 [[ $out == *'flags=--watch --max 2'* && $out != *'flags=--auto'* ]]
+[[ $out == *"$skill_root/references/supervise.md"* && $out == *"$skill_root/references/reap.md"* && $out != *auto-merge.md* && $out == *"$skill_root/references/agent-quirks.md"* ]]
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" mode flags=--off max=none
 check 0 '' env HC_TERMINAL_ID=status-orch "$scripts/event.sh" "$status_epic" note detail=after-off
 [[ -z $("$scripts/compact-context.sh" "$status_epic") ]]

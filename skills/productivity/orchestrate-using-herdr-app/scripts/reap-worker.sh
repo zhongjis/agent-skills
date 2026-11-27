@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]
+# Usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote] | --ported <checkout>]
 # Stop what a worker started in <worktree>: its agent-browser namespace,
 # Compose projects whose working_dir is inside <worktree>, and its processes.
 # --keep-agent stops only listening processes (dev servers) and keeps the
@@ -20,12 +20,18 @@
 # is clean, and the local tip is the head of the newest orchestrator `ready` event before the
 # `merged` event (else an ancestor of the base ref) and the remote branch, if any, is at the
 # local tip. The remote branch is deleted first, leased on that verified tip.
+# --ported <checkout> is the same full cleanup for non-merge work whose diff was ported to
+# another checkout (the local branch is the worktree's current branch; a remote branch is never
+# deleted). It needs --bead and the same binding as --full, the bead closed with its newest
+# orchestrator `settled` result=succeeded, and the worktree's uncommitted diff (`git diff HEAD
+# --binary` plus untracked files, nonempty) must reverse-apply cleanly on <checkout>
+# (`git apply -R --check`), proving the port is there.
 # --bead records `event=reaped stopped=<what was removed>` on that bead.
 # Matches cwd via /proc on Linux and lsof on macOS.
 set -euo pipefail
 
 usage() {
-	printf 'usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote]]\n' >&2
+	printf 'usage: reap-worker.sh [--bead <id>] <worktree> <agent> [--keep-agent | --full <branch> [--keep-remote] | --ported <checkout>]\n' >&2
 	exit 1
 }
 bead=""
@@ -44,11 +50,14 @@ record() {
 		exit 1
 	}
 }
-keep_agent="" branch="" keep_remote=""
+keep_agent="" branch="" keep_remote="" ported=""
 case "$#" in
 	2) ;;
 	3) [ "$3" = --keep-agent ] || usage; keep_agent=--keep-agent ;;
-	4) [ "$3" = --full ] && [ -n "$4" ] || usage; branch="$4" ;;
+	4)
+		if [ "$3" = --full ] && [ -n "$4" ]; then branch="$4"
+		elif [ "$3" = --ported ] && [ -n "$4" ]; then ported="$4"
+		else usage; fi ;;
 	5) [ "$3" = --full ] && [ -n "$4" ] && [ "$5" = --keep-remote ] || usage; branch="$4" keep_remote=1 ;;
 	*) usage ;;
 esac
@@ -58,6 +67,11 @@ agent="$2"
 	printf 'refusing to reap %s\n' "$root" >&2
 	exit 1
 }
+
+if [ -n "$ported" ]; then
+	branch=$(git -C "$root" symbolic-ref -q --short HEAD) || { printf 'refusing: %s is on no branch\n' "$root" >&2; exit 1; }
+	ported=$(realpath -m -- "$ported")
+fi
 
 if [ -n "$keep_remote" ]; then
 	[ -z "$(git -C "$root" status --porcelain)" ] || {
@@ -74,7 +88,7 @@ inside() { [ "$1" = "$root" ] || [[ "$1" == "$root"/* ]]; }
 
 remote_deleted=""
 if [ -n "$branch" ] && [ -z "$keep_remote" ]; then
-	[ -n "$bead" ] || { printf 'refusing: --full without --keep-remote needs --bead\n' >&2; exit 1; }
+	[ -n "$bead" ] || { printf 'refusing: %s needs --bead\n' "${ported:+--ported}${ported:---full without --keep-remote}" >&2; exit 1; }
 	refuse() { printf 'refusing: %s\n' "$*" >&2; exit 1; }
 	task=$(bd show "$bead" --json)
 	comments=$(bd comments "$bead" --json)
@@ -113,7 +127,24 @@ if [ -n "$branch" ] && [ -z "$keep_remote" ]; then
 		if $s == null or ($s.value | line | test(" result=abandoned( |$)") | not) then false
 		else [$e[] | select(.key > $s.key) | .value | select(line | test("^event=(dispatched|re-instructed|handed-off|adopted|report)( |$)"))] | length == 0 end' <<<"$comments")
 	[ "$(jq -r '.[0].status // ""' <<<"$task")" = closed ] || abandoned=false
-	if [ "$abandoned" != true ]; then
+	if [ -n "$ported" ]; then
+		# Non-merge work ported elsewhere: the bead settled succeeded, and the worktree's whole
+		# uncommitted diff must be undoable on the other checkout, so nothing is lost.
+		[ "$(jq -r '.[0].status // ""' <<<"$task")" = closed ] || refuse "$bead is not closed"
+		succeeded=$(jq -r "$line_def"'
+			[.[] | select((.author // "") | startswith("o-")) | select(line | test("^event=settled( |$)"))] | last // null |
+			if . == null then false else (line | test(" result=succeeded( |$)")) end' <<<"$comments")
+		[ "$succeeded" = true ] || refuse "$bead has no orchestrator settled result=succeeded as its newest settle"
+		git -C "$ported" rev-parse --git-dir >/dev/null 2>&1 || refuse "$ported is not a git checkout"
+		patch=$(mktemp) idx=$(mktemp -u)
+		{ GIT_INDEX_FILE=$idx git -C "$root" read-tree HEAD &&
+			GIT_INDEX_FILE=$idx git -C "$root" add -A &&
+			GIT_INDEX_FILE=$idx git -C "$root" diff --cached HEAD --binary >"$patch"; } || { rm -f "$patch" "$idx"; refuse "cannot read the diff of $root"; }
+		rm -f "$idx"
+		[ -s "$patch" ] || { rm -f "$patch"; refuse "$root has no uncommitted diff to verify as ported"; }
+		git -C "$ported" apply -R --check <"$patch" 2>/dev/null || { rm -f "$patch"; refuse "the diff of $root is not applied on $ported"; }
+		rm -f "$patch"
+	elif [ "$abandoned" != true ]; then
 		{ [[ $merged =~ ^[0-9a-f]{40}$ ]] && [ -n "$ref" ] &&
 			git -C "$root" fetch -q origin "$ref" && git -C "$root" merge-base --is-ancestor "$merged" FETCH_HEAD; } || {
 			printf 'refusing: %s has no verified merge on %s\n' "$branch" "${ref:-its base ref}" >&2
@@ -131,20 +162,33 @@ if [ -n "$branch" ] && [ -z "$keep_remote" ]; then
 		if [ -n "$ready_head" ]; then
 			[[ $tip == "$ready_head"* ]] || refuse "$branch has commits after the merged head $ready_head"
 		else
-			git -C "$root" merge-base --is-ancestor "$tip" FETCH_HEAD || refuse "$branch has commits not on $ref"
+			if ! git -C "$root" merge-base --is-ancestor "$tip" FETCH_HEAD; then
+				# Without a ready event before the merged event, the merged head is unknown.
+				ready_seen=$(jq -r --arg m "$merged" "$line_def"'
+					to_entries as $e |
+					[$e[] | select((.value.author // "") | startswith("o-")) | select(.value | line | test("^event=merged( |$)") and test(" merged_sha=" + $m + "( |$)"))] | last as $mg |
+					if $mg == null then 0 else
+					[$e[] | select(.key < $mg.key) | select((.value.author // "") | startswith("o-")) | select(.value | line | test("^event=ready( |$)"))] | length end' <<<"$comments")
+				if [ "$ready_seen" = 0 ]; then
+					refuse "no orchestrator ready event before merged_sha=$merged; record scripts/event.sh $bead ready head=<merged head> and retry"
+				fi
+				refuse "$branch has commits not on $ref"
+			fi
 		fi
 	fi
-	rc=0
-	remote_tip=$(git -C "$root" ls-remote --heads origin "refs/heads/$branch") || rc=$?
-	[ "$rc" -eq 0 ] || refuse "cannot read origin to compare $branch"
-	remote_tip=${remote_tip%%[[:space:]]*}
-	[ -z "$remote_tip" ] || [ "$abandoned" = true ] || [ "$remote_tip" = "$tip" ] || refuse "origin/$branch is not at the local tip of $branch"
-	# Delete only the verified remote tip, before anything local is removed: a remote that
-	# moved since the check fails the lease and nothing is touched. --no-verify because the
-	# source checkout's pre-push hook tests unrelated local state.
-	if [ -n "$remote_tip" ]; then
-		git -C "$root" push -q --no-verify "--force-with-lease=refs/heads/$branch:$remote_tip" origin ":refs/heads/$branch"
-		remote_deleted=1
+	if [ -z "$ported" ]; then
+		rc=0
+		remote_tip=$(git -C "$root" ls-remote --heads origin "refs/heads/$branch") || rc=$?
+		[ "$rc" -eq 0 ] || refuse "cannot read origin to compare $branch"
+		remote_tip=${remote_tip%%[[:space:]]*}
+		[ -z "$remote_tip" ] || [ "$abandoned" = true ] || [ "$remote_tip" = "$tip" ] || refuse "origin/$branch is not at the local tip of $branch"
+		# Delete only the verified remote tip, before anything local is removed: a remote that
+		# moved since the check fails the lease and nothing is touched. --no-verify because the
+		# source checkout's pre-push hook tests unrelated local state.
+		if [ -n "$remote_tip" ]; then
+			git -C "$root" push -q --no-verify "--force-with-lease=refs/heads/$branch:$remote_tip" origin ":refs/heads/$branch"
+			remote_deleted=1
+		fi
 	fi
 fi
 
