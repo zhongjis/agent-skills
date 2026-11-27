@@ -49,7 +49,13 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
    Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 
-7. Apply the approved findings. Edit personal environment repos (`agent-skills`, `nix-config`, `pi-config`) in place on `main`, leaving the changes uncommitted: no branch, no commit. Run each repo's checks, show the diff, and commit only when the user approves it. A finding on a shared project file stays a proposal for the repo's owners.
+7. Apply and land the approved findings. A finding on a shared project file stays a proposal for the repo's owners. For the personal environment repos (`agent-skills`, `nix-config`, `pi-config`), approving a finding authorizes landing it, in this order:
+   1. Edit each repo in place on `main`, with no branch, and run its checks. Fix any failure before landing.
+   2. Commit each changed repo with a conventional message that names the findings, then push `main`.
+   3. When a pushed repo is a flake input of `nix-config` (its `flake.nix` names the repo), run `nix flake update <input>` in `nix-config`.
+   4. Commit and push `nix-config` with its own changes and the lock update. Then apply it with the switch command its `AGENTS.md` names for the changed paths.
+
+   Done when every changed repo is pushed, `nix-config`'s lock points at the pushed commits, and the switch exited 0. Report each commit, the lock update and the switch result, showing the diff of each repo.
 
 ## Reference
 

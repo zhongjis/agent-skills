@@ -21,7 +21,7 @@ A reviewer follows this same contract on its current review bead, with the revie
 - **Authority:** everything the agreed outcome needs on your own branch is authorized, including history rewrites, lease-guarded pushes, and edits wherever the change reaches within scope; stop only at a Tripwire. Publication, merge, deployment, and shared-branch rewrites only as Deliverables grant.
 - **Resources:** keep the `AGENT_BROWSER_NAMESPACE` set for your terminal. Launch every browser through the automation tool itself, headless by default, using its executable and profile options when you need the user's browser or a copied profile, so the tool owns it and reaping closes it. A browser you start yourself and attach to is not owned and survives reaping. Before reporting, stop the browser sessions, dev servers, and containers you started; name any you leave running on purpose (port, session).
 - **Agents:** start no other `hc` terminals or agents; your harness's own subagents are fine.
-- **Waits:** end your turn at each handoff point (a local commit, a push, or a review-thread reply), with its head SHA. The orchestrator waits on CI, review bots, merge, and release, and sends you what needs work; never run `pr-wait` or watch the PR or CI yourself. Your own local checks are part of your turn: let them finish and read their results before you end it.
+- **Waits:** commit in increments as you like; end your turn at each handoff point (the local commit that completes the assigned task or repair, a push, or a review-thread reply), with its head SHA. The orchestrator waits on CI, review bots, merge, and release, and sends you what needs work; never run `pr-wait` or watch the PR or CI yourself. Your own local checks are part of your turn: let them finish and read their results before you end it.
 - **Tripwires:** stop and report when the work needs a path, service, or data boundary outside scope, a change to Unchanged behavior, an unnamed migration or authority change, or a user decision. Every choice should follow from what to build and the acceptance criteria; when two reasonable choices both meet them but give the user a different result, ask before choosing.
 
 ## Bead permissions and notepad
@@ -38,6 +38,8 @@ Use the configured database and `$BEADS_ACTOR`; do not impersonate another actor
 ## Verification
 
 Run the named focused tests plus lint and type checks for touched packages. Run one verification command at a time in your worktree and never rebuild while tests run. Read each result before the next command. CI is the broad gate; follow the task definition's `Broad run: <command>` once before publication or `Broad run: none: single service` without inventing a broad run.
+
+A commit invalidates every earlier check that covers a file it changes, including any build a compiled-service test consumes. Before each report, rerun every invalidated named check at the reported head, or list it as stale with the commit it last passed on.
 
 For review findings, fix the bug class: find every sibling call with the same defect and fix the shared function once. QA the named changed screens at the depth your mode requires. When a visual target is an acceptance criterion, capture real-browser before/after screenshots and write an index mapping each target item to its screenshot. When Deliverables include a PR, attach them with `before-and-after`; otherwise name the paths in the report comment. Keep screenshots and evidence files outside the worktree.
 
