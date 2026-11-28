@@ -1,6 +1,6 @@
 ---
 name: swarm-mind
-description: Principles for getting second opinions from external agents on other models. Use when sending a code change or a plan (spec, ticket breakdown) to other agents for review, or when judging what they return.
+description: Principles for getting second opinions from external agents on other models. Use when sending a code change, a plan (spec, ticket breakdown) or an open question (repo audit, design question) to other agents, or when judging what they return.
 ---
 
 # Swarm mind
@@ -9,6 +9,7 @@ You are the **caller**: you ask external **reviewers** for a second opinion and 
 
 - For a code change, read [references/code-review.md](references/code-review.md).
 - For a plan (spec, ticket breakdown), read [references/plan-review.md](references/plan-review.md).
+- For an open question (repo audit, design question), read [references/consult.md](references/consult.md).
 
 ## Principles
 
@@ -24,7 +25,7 @@ You are the **caller**: you ask external **reviewers** for a second opinion and 
 ## Pick reviewers
 
 - A kind or model the user names wins.
-- Read the author's family from its current model ID: `gpt` when it contains `gpt`, `gemini` when it contains `gemini`, else `claude`.
+- Read the author's family from its current model: `gpt` when the model ID contains `gpt`, `gemini` when it contains `gemini` or the provider starts with `google`, else `claude`. With no author (a consult), the caller is the author.
 - Run `scripts/reviewers.sh --not <author family>`, adding `--visual` for a visual target (UI judged against a mock or screenshot). The script owns the reviewer chain and the kind-to-family table: it prints the installed kinds in chain order as `<kind> <family>`, where `any` (Pi, Copilot) runs whichever model is selected. It caches the PATH probe; `--refresh` forces a new one.
 - Take the lines in order, skipping a kind with a quota or outage seen this session and, when you use several reviewers, a family already picked.
 - An `any` kind starts on its default model; when that model's family is excluded, switch it to an allowed family before the review starts. An `any` kind with no allowed model configured is not eligible.
