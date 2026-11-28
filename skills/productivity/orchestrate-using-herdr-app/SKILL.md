@@ -35,7 +35,7 @@ Then read, in one pass, what your flags need:
 
 - always: [import.md](references/import.md), [delegation-contract.md](references/delegation-contract.md), [preflight.md](references/preflight.md), [worker-context.md](references/worker-context.md), and the Every kind, Hibernated or finished workers, and your worker kind's sections of [agent-quirks.md](references/agent-quirks.md)
 - `--track`: [track.md](references/track.md)
-- `--watch` or `--auto`: [supervise.md](references/supervise.md), [reap.md](references/reap.md), and the reviewer kind's section of agent-quirks.md ([supervise.md](references/supervise.md) step 2 picks the kind)
+- `--watch` or `--auto`: [supervise.md](references/supervise.md), [reap.md](references/reap.md), the `swarm-mind` skill with its `references/code-review.md`, and the reviewer kind's section of agent-quirks.md ([supervise.md](references/supervise.md) step 2 picks the kind)
 - `--auto`: also [auto-merge.md](references/auto-merge.md)
 - `--handoff`: instead of all of the above, [handoff.md](references/handoff.md), [delegation-contract.md](references/delegation-contract.md), and your own kind's section of [agent-quirks.md](references/agent-quirks.md); the peer reads the rest itself
 
@@ -60,7 +60,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## House rules
 
-- **Pi by default** for workers unless the user names another kind; a reviewer runs on a different model family from its worker, picked from the reviewer chain in [supervise.md](references/supervise.md).
+- **Pi by default** for workers unless the user names another kind; a reviewer runs on a different model family from its worker, picked per `swarm-mind` through [supervise.md](references/supervise.md) step 2.
 - **Hands off the user's window:** workers are hidden `hc` terminals that the herdr-app UI nests under you; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own pane `[o] <title>` and clearing it on `--off`.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.

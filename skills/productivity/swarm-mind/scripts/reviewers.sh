@@ -24,7 +24,7 @@ done
 if [ -n "$visual" ]; then chain=(agy claude codex pi copilot); else chain=(claude codex pi agy copilot); fi
 declare -A family=([claude]=claude [codex]=gpt [agy]=gemini [pi]=any [copilot]=any)
 
-cache_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/orchestrate-using-herdr-app"
+cache_dir="${XDG_RUNTIME_DIR:-$HOME/.cache}/swarm-mind"
 cache="$cache_dir/reviewers"
 key=$(printf '%s' "$PATH" | cksum)
 installed=()

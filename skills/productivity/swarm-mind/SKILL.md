@@ -25,26 +25,16 @@ You are the **caller**: you ask external **reviewers** for a second opinion and 
 
 - A kind or model the user names wins.
 - Read the author's family from its current model ID: `gpt` when it contains `gpt`, `gemini` when it contains `gemini`, else `claude`.
-- Kinds and families:
-
-  | Kind | Family |
-  | --- | --- |
-  | claude | `claude` |
-  | codex | `gpt` |
-  | agy | `gemini` |
-  | pi, copilot | any: runs whichever model is selected |
-
-- Walk the chain in order, taking each installed kind outside the author's family (and, when you use several reviewers, outside the families already picked) with no quota or outage seen this session:
-  - default: claude, codex, pi, agy, copilot
-  - visual target (UI judged against a mock or screenshot): agy, claude, codex, pi, copilot
-- An `any` kind starts on its default model; when that model's family is excluded, switch it to an allowed family before the review starts.
-- When no kind is eligible, ask the user; a same-family review is their decision.
+- Run `scripts/reviewers.sh --not <author family>`, adding `--visual` for a visual target (UI judged against a mock or screenshot). The script owns the reviewer chain and the kind-to-family table: it prints the installed kinds in chain order as `<kind> <family>`, where `any` (Pi, Copilot) runs whichever model is selected. It caches the PATH probe; `--refresh` forces a new one.
+- Take the lines in order, skipping a kind with a quota or outage seen this session and, when you use several reviewers, a family already picked.
+- An `any` kind starts on its default model; when that model's family is excluded, switch it to an allowed family before the review starts. An `any` kind with no allowed model configured is not eligible.
+- When no kind is eligible, ask the user; a same-family review is their decision. When the caller asks for more reviewers than eligible kinds and families allow, use the eligible ones and report the shortfall to the caller.
 
 ## Approach
 
 1. **Frame.** Write down the intent of the work, the pinned target (fixed so it cannot drift mid-review), the authority, highest first (agreed spec or ticket; user decisions, in the user's words where they set scope; current behavior), and what is out of scope. **Done when** a stranger could judge the work from the frame alone.
 2. **Brief.** The frame, plus:
-   - **Hands off:** the reviewer changes no files and posts nothing; findings come back to you.
+   - **Hands off:** the reviewer changes no tracked files (ignored caches and build output from its checks are fine) and posts nothing; findings come back to you.
    - **Return shape:** each finding with its location, why it matters against the authority, and whether it claims to block; a claim about runtime behavior carries the command run and its output. End with a verdict.
    - Ask for every issue, efficiency and scope creep included, and say that no findings is a valid answer.
 3. **Collect.** Leave the target untouched until every reviewer reports. When one of several reviewers drops out, continue with the rest and say so. A result arriving after you moved on is feedback only.
@@ -52,6 +42,7 @@ You are the **caller**: you ask external **reviewers** for a second opinion and 
    - Re-read each cited location and rerun each cited command. Drop what the evidence does not support, and record why.
    - With several reviewers, pool their findings and merge those with one root cause, keeping which reviewers found each and how many each had dropped.
    - A finding **blocks** only with evidence in one of these: a correctness bug; a real runtime, data-loss or security risk; a conflict with the authority; a break in a flow that works today; an unfixed earlier blocker; removal or weakening of an authorization, ownership or isolation check without authority. Everything else is a **note**.
+   - **Scope:** work is necessary when the stated goal fails without it and the author can name the requirement it serves, such as a migration the feature needs. Work no requirement needs is **scope creep**, a conflict with the authority; a reviewer's suggestion of new work is scope creep too. Necessary work outside the agreed scope is neither creep nor a blocker: report it to the caller as an item that needs approval.
    - When reviewers contradict each other about what the work should do, the authority is underspecified: settle it with the user or sharpen the frame, then review again. Never average the answers.
 5. **Next round.** A later round reviews only what changed since the last reviewed version, and blocks only on earlier blockers still open or new blockers inside the change. Keep to the cap in the target's reference unless the user sets another.
 6. **Report.** To whoever reads your result: the reviewers and models, the rounds run, each blocker, findings dropped with the reason, and open questions.

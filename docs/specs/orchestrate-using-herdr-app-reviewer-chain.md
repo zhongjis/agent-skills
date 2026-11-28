@@ -45,7 +45,7 @@ The orchestrator picks a reviewer with a fixed swap: Pi and Codex workers get a 
 
 ## Implementation Decisions
 
-- **Chain script (new, skill).** `reviewers.sh [--visual] [--not <family>] [--refresh]` prints one eligible reviewer per line, in chain order, as `<kind> <family>`. The family is `claude`, `gpt` or `gemini` for a fixed-family kind and `any` for Pi and Copilot. `--not` drops fixed-family kinds of that family. The script owns the two chain orders and the kind-to-family table; it does not know the user's quota state.
+- **Chain script (new, skill).** `reviewers.sh [--visual] [--not <family>] [--refresh]` prints one eligible reviewer per line, in chain order, as `<kind> <family>`. The family is `claude`, `gpt` or `gemini` for a fixed-family kind and `any` for Pi and Copilot. `--not` drops fixed-family kinds of that family. The script now lives in the `swarm-mind` skill and owns the two chain orders and the kind-to-family table; it does not know the user's quota state.
 - **Families.** The worker's family comes from its current model: `gpt` when the model ID contains `gpt`, `gemini` when it contains `gemini`, otherwise `claude`. This matches pi-config's model-family detection. A Claude, Codex or agy worker has its kind's family; for Pi or Copilot, the orchestrator reads the model from the worker's status line.
 - **Cache.** The cache lives under `$XDG_RUNTIME_DIR` (fallback `~/.cache`), never in shared `/tmp`. It holds a checksum of PATH and the installed kinds. A PATH mismatch or `--refresh` re-probes with `command -v`. The write is atomic.
 - **Launch.** `start-worker.sh` starts agy and Copilot with `-i <prompt>`, so they stay interactive. The resume flag goes before `-i`: agy `--conversation=<id>`, Copilot `--resume=<id>`. No `--model` flag is added.
@@ -53,12 +53,12 @@ The orchestrator picks a reviewer with a fixed swap: Pi and Codex workers get a 
 - **Resume hooks (nix-config, herdr-app).** Both hooks exit at once without `HC_TERMINAL_ID`, and label only from the terminal's own foreground agent, as the Codex hook does.
   - agy has no per-launch plugin flag. Home Manager links a plugin (`plugin.json` plus root `hooks.json`) into agy's plugins folder when agy is enabled. Its SessionStart hook reads `conversationId` from stdin and labels `resume=agy --conversation=<id>`. Probed: the agy hook schema is `{"<name>":{"SessionStart":[{"type":"command","command":…}]}}`, its input carries `conversationId`, and agy finds symlinked plugin files.
   - Copilot reads Claude-compatible plugin hooks. The `copilot` shim adds `--plugin-dir` for a plugin with a `.claude-plugin/plugin.json` manifest. Its SessionStart hook reads `session_id` and labels `resume=copilot --resume=<id>`. Probed: `--plugin-dir` finds the plugin only with the manifest.
-- **Docs.** supervise.md step 2 states the chain rule and points to `reviewers.sh`; the Steering quota rule moves a reviewer to the next kind; the SKILL.md house rule points to the chain; agent-quirks.md gains `## agy` and `## copilot`; preflight.md names the agy and Copilot prompts.
+- **Docs.** `swarm-mind` states the pick rules and owns `reviewers.sh`; supervise.md step 2 points to both; the Steering quota rule moves a reviewer to the next kind; the SKILL.md house rule points to the chain; agent-quirks.md gains `## agy` and `## copilot`; preflight.md names the agy and Copilot prompts.
 
 ## Testing Decisions
 
 - Tests check behavior through the scripts' command-line contracts only.
-- `tests/check.sh` (skill): `reviewers.sh` against a fake PATH of dummy agents (chain order, `--visual`, `--not`, cache reuse, PATH-change refresh, `--refresh`); `start-worker.sh` argv for agy and Copilot, fresh and resumed; `send-reinstruction.sh` revival from agy and Copilot resume labels. Prior art: the existing kind loop, the Pi and Claude `--resume` checks, and the hibernated revival loop.
+- `swarm-mind/tests/check.sh` (moved from this skill): `reviewers.sh` against a fake PATH of dummy agents (chain order, `--visual`, `--not`, cache reuse, PATH-change refresh, `--refresh`); this skill's `tests/check.sh`: `start-worker.sh` argv for agy and Copilot, fresh and resumed; `send-reinstruction.sh` revival from agy and Copilot resume labels. Prior art: the existing kind loop, the Pi and Claude `--resume` checks, and the hibernated revival loop.
 - `tests/session-integrations.mjs` (nix-config): agy and Copilot hooks label the resume line with a fake `hc`, and do nothing outside herdr. Prior art: the Claude and Codex cases.
 
 ## Out of Scope
