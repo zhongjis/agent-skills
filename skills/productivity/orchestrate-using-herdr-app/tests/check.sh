@@ -1172,4 +1172,37 @@ check 1 'cannot type' "$scripts/type-command.sh" w-a '/a_b'
 [[ ! -e $tmp/keys-call ]] || { echo 'FAIL: type-command typed after rejecting input' >&2; exit 1; }
 check 1 'invalid_params' env MODE=keys-fail "$scripts/type-command.sh" w-a /new
 [[ ! -e $tmp/labels ]] || { echo 'FAIL: type-command stamped an undelivered command' >&2; exit 1; }
+
+# model-family.sh: fixed kinds by kind, Pi and Copilot by model label, Pi by its session file.
+mf="$tmp/mf-bin"
+mkdir -p "$mf" "$HOME/.pi/agent/sessions/--wt--"
+cat > "$mf/hc" <<'MOCK'
+#!/usr/bin/env bash
+[[ $1 == get ]] || exit 1
+case "$2" in
+	w-claude) echo '{"status":{"app":"claude-code"},"argv":["claude"],"labels":{}}' ;;
+	w-codex) echo '{"argv":["env","A=1","codex","--no-daemon"],"labels":{}}' ;;
+	w-agy) echo '{"status":{"app":"agy"},"labels":{}}' ;;
+	w-pi-label) echo '{"status":{"app":"pi"},"labels":{"model":"openai/gpt-6.2-sol","resume":"pi --session s-1"}}' ;;
+	w-pi-google) echo '{"status":{"app":"pi"},"labels":{"model":"google-vertex/flash-x"}}' ;;
+	w-pi-session) echo '{"status":{"app":"pi"},"labels":{"resume":"pi --session s-2"}}' ;;
+	w-pi-none) echo '{"status":{"app":"pi"},"labels":{}}' ;;
+	w-copilot) echo '{"status":{"app":"copilot"},"labels":{}}' ;;
+	*) exit 1 ;;
+esac
+MOCK
+chmod +x "$mf/hc"
+printf '%s\n' '{"type":"model_change","provider":"anthropic","modelId":"claude-opus-5-5"}' '{"type":"message"}' \
+	'{"type":"model_change","provider":"google","modelId":"gemini-4-pro"}' > "$HOME/.pi/agent/sessions/--wt--/2026_s-2.jsonl"
+mfam() { PATH="$mf:$PATH" "$scripts/model-family.sh" "$@"; }
+check 0 claude mfam w-claude
+check 0 gpt mfam w-codex
+check 0 gemini mfam w-agy
+check 0 gpt mfam w-pi-label
+check 0 gemini mfam w-pi-google
+check 0 gemini mfam w-pi-session
+check 2 'read the status line' mfam w-pi-none
+check 2 'read the status line' mfam w-copilot
+check 2 'no such terminal' mfam w-missing
+check 1 usage mfam
 printf '%s CLI checks plus safety assertions passed\n' "$checks"

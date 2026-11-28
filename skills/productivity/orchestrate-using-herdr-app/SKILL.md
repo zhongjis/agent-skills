@@ -12,7 +12,7 @@ You are the orchestrator: you turn the tasks agreed with the user into bead task
 
 `/orchestrate-using-herdr-app [--handoff] [--watch | --auto] [--max <N>] [--track] [tasks…]` · `/orchestrate-using-herdr-app --off`
 
-- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: its steps, phases, and checkpoints stay inside one ticket, one worktree, one worker, run in order; split an outcome only when the user agreed separate tasks or separate PRs. Every PR pays the repository's fixed CI cost: before dispatch, when two or more agreed tasks are each small (about 10 files or fewer) and touch the same area, propose one task and one PR for them. A **batch** is one agreed task repeated over several targets, one worker per target. Repairs on a multi-PR change (CI, review comments) go where `land-change` says; an atomic landing sends every repair to the top worker only.
+- **Tasks:** the tasks passed with the invocation, else the tasks agreed in the conversation before it; with none, ask one question and stop. Planning happened in that conversation: keep each task, its scope, and its blocking order as agreed. A task is one user outcome: its steps, phases, and checkpoints stay inside one ticket, one worktree, one worker, run in order; split an outcome only when the user agreed separate tasks or separate PRs. Every PR pays the repository's fixed CI cost: before dispatch, when two or more agreed tasks are each small (about 10 files or fewer) and touch the same area, propose one task and one PR for them. Before the first dispatch, record the agreed PR count, or your estimate when none was agreed, with `scripts/event.sh "$ORCH_EPIC" note prs_agreed=<N>`. A **batch** is one agreed task repeated over several targets, one worker per target. Repairs on a multi-PR change (CI, review comments) go where `land-change` says; an atomic landing sends every repair to the top worker only.
 - **Modes**, by what you do after dispatch:
 
   | Flag      | After dispatch                                                                                          |
@@ -60,7 +60,7 @@ A task is **settled** when its worker is idle and its result is **accounted for*
 
 ## House rules
 
-- **Pi by default** for workers unless the user names another kind; a reviewer runs on a different model family from its worker, picked per `swarm-mind` through [supervise.md](references/supervise.md) step 2.
+- **Pi by default** for workers unless the user names another kind; on a provider quota or outage, a worker moves to the next kind in `swarm-mind`'s `scripts/reviewers.sh` chain. Reviewers and consultants never take the Pi default: they follow that chain on a different model family from the author, per `swarm-mind` through [supervise.md](references/supervise.md) step 2.
 - **Hands off the user's window:** workers are hidden `hc` terminals that the herdr-app UI nests under you; never start a worker in your own terminal (`$HC_TERMINAL_ID`); create, rename, focus, or arrange spaces, tabs, and panes with `herdr-app` only when the user asks; the one exception is `orchestrate-init.sh` marking your own pane `[o] <title>` and clearing it on `--off`.
 - **Verify, don't trust:** use returned IDs, never predicted ones. An unconfirmed prompt submission or write is _uncertain_: inspect it before any retry.
 - **Scripts:** run `scripts/*.sh` directly, never through a command string stored in a zsh variable. zsh does not word-split unquoted variables, so iterate over lists as arrays: `for a in "${list[@]}"`. Stop a watcher by its process ID; `pkill -f <pattern>` can match its own shell.
@@ -81,7 +81,7 @@ Write every message to the user as a **brief**, except a wait where nothing chan
 
 1. **Needs you:** each blocking question and each action only the user can take, or "Nothing needs you" with what the next brief waits for (omitted in the final brief).
 2. **Outcome:** one line per task: what changed for the user, its PR link, and whether it is live.
-3. **Risks:** one line per trade-off, known limit, orchestrator decision, follow-up bead, or kept worktree: what can go wrong and what you did about it. Follow-up beads are listed so the user knows they exist; their publication waits for the user to ask.
+3. **Risks:** one line per trade-off, known limit, orchestrator decision, follow-up bead, or kept worktree: what can go wrong and what you did about it. A change to the PR count (a split, a repair PR, any added PR) is an orchestrator decision: its line gives the reason and the new total against the agreed count (`PRs: agreed ~10, now 14`). Follow-up beads are listed so the user knows they exist; their publication waits for the user to ask.
 4. **Checked:** one line naming the checks behind the outcome.
 
 Name a task by its slug with its ticket key as a link (`lint-exports ([A2A-779](<url>))`) and a PR by its link. Bead, epic and terminal IDs, agent names, SHAs, and log paths are reference data for agents: they appear only in the `status.sh` table.
@@ -99,7 +99,7 @@ Brief at each yield, when you are about to wait on workers or hand control back:
 | A handoff is done | The peer's tab, the tasks it took, and that it reports there. Final for those tasks. |
 | A shared blocker | Needs you: the one action, as a `! <command>` when one exists, and the affected tasks. |
 | A supervised task settles | Its Outcome and Risks lines, and the dependents it launched. |
-| Every task is settled | The exact line `ALL WORK FINISHED`, then one line: task count, total time from the session epic's **first** `event=mode` comment to the latest event timestamp (computed with `date`, not from the latest invocation), counts of succeeded, failed and blocked tasks, PRs merged (distinct `pr=` URLs on the `event=merged` comments of the epic's task beads and batch targets, written at or after the epic's first `event=mode` comment), and `max <N> working` under `--max`. Then the brief. Then stop. |
+| Every task is settled | The exact line `ALL WORK FINISHED`, then one line: task count, total time from the session epic's **first** `event=mode` comment to the latest event timestamp (computed with `date`, not from the latest invocation), counts of succeeded, failed and blocked tasks, PRs merged against the agreed count (distinct `pr=` URLs on the `event=merged` comments of the epic's task beads and batch targets, written at or after the epic's first `event=mode` comment), and `max <N> working` under `--max`. Then the brief. Then stop. |
 | The user asks for status | The brief, re-checked live in the same turn (`hc get` for each named worker, `gh pr view`/`gh run view` for each named PR or release), then the `status.sh --live` table. State no worker or deploy state without that check. |
 
 Worker progress, questions you answer from the task definition, retries, and context transitions go to bead event comments only.
