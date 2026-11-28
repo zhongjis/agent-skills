@@ -859,12 +859,12 @@ git -C "$tmp/full-wt" -c user.email=f@example.invalid -c user.name=F commit -qm 
 # with one (even without head=), the plain message stays.
 check 1 'no orchestrator ready event before merged_sha=' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready pr=https://example.invalid/pr/1
-check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha"
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha" pr=https://example.invalid/pr/1
 check 1 'refusing: topic-full has commits not on main' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 # The merged head is the newest ready event before the merged event; a later ready event
 # moves head_sha but not what merged.
 check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready "head=$full_sha"
-check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha"
+check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" merged "merged_sha=$full_sha" pr=https://example.invalid/pr/1
 check 0 '' env HC_TERMINAL_ID=orch "$scripts/event.sh" "$full_bead" ready "head=$(git -C "$tmp/full-wt" rev-parse HEAD)"
 check 1 'refusing: topic-full has commits after the merged head' env MODE=full HC_TERMINAL_ID=orch "$scripts/reap-worker.sh" --bead "$full_bead" "$tmp/full-wt" w-a1-topic --full topic-full
 git -C "$tmp/full-src" push -q --no-verify origin topic-full
@@ -984,12 +984,12 @@ status_epic=$(bd create 'Status session' --type epic --metadata '{"session":"sta
 alpha=$(bd create Alpha --parent "$status_epic" --metadata '{"key":"alpha"}' --silent)
 for event in mode ticketed dispatched handed-off queued re-instructed ready merged settled reaped blocked decided note adopted; do
 	case "$event" in
-		merged) required=merged_sha=0123456789abcdef0123456789abcdef01234567 ;;
-		settled) required=result=succeeded ;;
-		reaped) required=stopped=browser,worker,remote-branch ;;
-		*) required=note=x ;;
+		merged) required=(merged_sha=0123456789abcdef0123456789abcdef01234567 pr=https://example.invalid/pr/1) ;;
+		settled) required=(result=succeeded) ;;
+		reaped) required=(stopped=browser,worker,remote-branch) ;;
+		*) required=(note=x) ;;
 	esac
-	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" "$required" 'detail=spaces stay together'
+	check 0 '' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$event" "${required[@]}" 'detail=spaces stay together'
 done
 comments=$(bd comments "$alpha" --json)
 jq -e 'length == 14 and all(.[]; .author == "o-events" and (.text | endswith(" detail=spaces stay together")))' <<<"$comments" >/dev/null
@@ -1001,10 +1001,11 @@ for field in missing-equals '=empty-key' 'event=note'; do
 done
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
 # Shared fields are enforced, so stale prose cannot write them free-form.
-for bad in 'merged sha=0123456789abcdef0123456789abcdef01234567' 'merged merged_sha=abc' 'settled result=done' 'settled detail=x' 'reaped stopped=browser namespace' 'reaped stopped=worker,terminals' 'reaped detail=x'; do
+for bad in 'merged sha=0123456789abcdef0123456789abcdef01234567' 'merged merged_sha=abc' 'merged merged_sha=0123456789abcdef0123456789abcdef01234567' 'settled result=done' 'settled detail=x' 'reaped stopped=browser namespace' 'reaped stopped=worker,terminals' 'reaped detail=x'; do
 	read -r ev field <<<"$bad"
 	check 1 "$ev needs" env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" "$ev" "$field"
 done
+check 1 'merged needs pr=<PR URL>' env HC_TERMINAL_ID=events "$scripts/event.sh" "$alpha" merged merged_sha=0123456789abcdef0123456789abcdef01234567 pr=42
 [[ $(bd comments "$alpha" --json | jq 'length') == 14 ]]
 bd show "$alpha" --json | jq -e '.[0].metadata.merged_sha == "0123456789abcdef0123456789abcdef01234567"' >/dev/null
 # ready validates pr= and head= and mirrors them to metadata after the comment.

@@ -49,7 +49,9 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
    Follow the `show-me` principles. Give a section a visual only when the visual makes the point faster than prose: a diff for the fix, a call or file tree for the cause, the exact log line for what happened. Use the smallest view, and place it right after the text it supports. In chat, write visuals as code blocks, not Mermaid. With `--interactive`, present the findings on the decision page instead, following [`references/interactive-mode.md`](references/interactive-mode.md).
 
-7. Apply the approved findings. A finding on a shared project file stays a proposal for the repo's owners. Edit the personal environment repos (`agent-skills`, `nix-config`, `pi-config`) in place on `main`, with no branch, and run each repo's checks; fix any failure. Show each repo's diff and the check results, then recommend landing and wait for the user's answer.
+7. Apply the approved findings. A finding on a shared project file stays a proposal for the repo's owners. Edit the personal environment repos (`agent-skills`, `nix-config`, `pi-config`) in place on `main`, with no branch, and run each repo's checks; fix any failure.
+   - When the diff changes a skill, get a second opinion with the `swarm-mind` skill's code-review method before landing. Nothing is committed yet, so pin the target as fixed old and new snapshots of only this retro's edits, plus their diff; leave other uncommitted work out. Brief reviewers on another model family with the approved findings, the snapshots and the changed skills' `evals/evals.json`. Ask each reviewer to run the affected scenarios against the old and new text, or to replay the finding's incident where a skill has no evals, and to report regressions with transcripts. Judge the findings per `swarm-mind`, fix blockers, and rerun the checks.
+   - Show each repo's diff, the check results and the review verdict, then recommend landing and wait for the user's answer.
 
 8. Land the changes only when the user accepts, in this order:
    1. Commit each changed repo with a conventional message that names the findings, then push `main`.

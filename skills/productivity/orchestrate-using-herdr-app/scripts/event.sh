@@ -63,7 +63,9 @@ require() {
 }
 item='(browser|compose|processes|worker|reviewer|worktree|branch|remote-branch|none)'
 case "$event" in
-	merged) require 'merged_sha=[0-9a-f]{40}' 'merged_sha=<40-hex sha>' ;;
+	merged)
+		require 'merged_sha=[0-9a-f]{40}' 'merged_sha=<40-hex sha>'
+		require 'pr=https?://[^[:space:]]+' 'pr=<PR URL>' ;;
 	settled) require 'result=(succeeded|abandoned|failed|blocked|uncertain)' 'result=succeeded|abandoned|failed|blocked|uncertain' ;;
 	ready)
 		for field in "${fields[@]}"; do
